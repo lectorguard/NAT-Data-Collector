@@ -1,0 +1,3 @@
+[submodule "ThirdParty/JSerializer"]
+	path = ThirdParty/JSerializer
+	url = https://github.com/lectorguard/JSerializer

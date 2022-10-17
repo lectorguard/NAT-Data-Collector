@@ -4,12 +4,13 @@ project(AndroidNativeActivity)
 
 cmake_path(SET ANDROID_NDK_PATH ${CMAKE_ANDROID_NDK})
 
+set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
 # build native_app_glue as a static lib
 set(${CMAKE_C_FLAGS}, "${CMAKE_C_FLAGS}")
 add_library(native_app_glue STATIC ${ANDROID_NDK_PATH}/sources/android/native_app_glue/android_native_app_glue.c)
 
-set(CMAKE_CXX_FLAGS -std=gnu++20)
+set(CMAKE_CXX_FLAGS "-std=gnu++20 -frtti")
 
 # Export ANativeActivity_onCreate(),
 # Refer to: https://github.com/android-ndk/ndk/issues/381.
@@ -19,10 +20,15 @@ add_library(native-activity SHARED Source/main.cpp)
 
 target_include_directories(native-activity PRIVATE ${ANDROID_NDK_PATH}/sources/android/native_app_glue)
 
+set(JSERIALIZER_ONLY_LIBRARY true)
+add_subdirectory(ThirdParty/JSerializer)
+
 # add lib dependencies
 target_link_libraries(native-activity
     android
     native_app_glue
     EGL
     GLESv1_CM
-    log)
+    log
+    nlohmann_json
+    JSerializerLib)
