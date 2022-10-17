@@ -4,8 +4,6 @@ project(AndroidNativeActivity)
 
 cmake_path(SET ANDROID_NDK_PATH ${CMAKE_ANDROID_NDK})
 
-set_property(GLOBAL PROPERTY USE_FOLDERS ON)
-
 # build native_app_glue as a static lib
 set(${CMAKE_C_FLAGS}, "${CMAKE_C_FLAGS}")
 add_library(native_app_glue STATIC ${ANDROID_NDK_PATH}/sources/android/native_app_glue/android_native_app_glue.c)
