@@ -61,5 +61,7 @@ create_header_library(${lib_asio_name} ${lib_asio_source_path})
 target_include_directories(${lib_asio_name} INTERFACE ${lib_asio_include_path})
 #target_compile_definitions(${lib_asio_name} INTERFACE ASIO_NO_EXCEPTIONS=1)
 
-
-add_subdirectory(AndroidSource)
+if(${CMAKE_SYSTEM_NAME} STREQUAL "Android")
+	add_subdirectory(AndroidSource)
+endif()
+add_subdirectory(ServerSource)
