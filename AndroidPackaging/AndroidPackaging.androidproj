@@ -87,7 +87,7 @@
     <GradleTemplate Include="gradle\wrapper\gradle-wrapper.properties.template" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\bin\native-activity.vcxproj" />
+    <ProjectReference Include="..\bin\AndroidSource\native-activity.vcxproj" />
   </ItemGroup>
   <Import Project="$(AndroidTargetsPath)\Android.targets" />
   <ImportGroup Label="ExtensionTargets" />
