@@ -4,7 +4,7 @@ cmake_path(SET ANDROID_NDK_PATH ${CMAKE_ANDROID_NDK})
 
 # build native_app_glue as a static lib
 set(${CMAKE_C_FLAGS}, "${CMAKE_C_FLAGS}")
-set(CMAKE_CXX_FLAGS "-std=gnu++20 -frtti")
+set(CMAKE_CXX_FLAGS "-std=gnu++20 -frtti -fexceptions")
 # Debug Information format, gdwarf2 supports local variables in debugger 
 set(CMAKE_CXX_FLAGS_DEBUG "-g2 -gdwarf-2")
 
@@ -26,4 +26,5 @@ target_link_libraries(native-activity
     GLESv1_CM
     log
     nlohmann_json
-    JSerializerLib)
+    JSerializerLib
+	asio)
