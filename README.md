@@ -12,6 +12,9 @@
 	* this takes a moment
 
 
+* Prepare wsl to work with visual studio https://www.youtube.com/watch?v=IKI2w75aAow
+
+
 
 
 
