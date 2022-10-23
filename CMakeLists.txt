@@ -63,5 +63,6 @@ target_include_directories(${lib_asio_name} INTERFACE ${lib_asio_include_path})
 
 if(${CMAKE_SYSTEM_NAME} STREQUAL "Android")
 	add_subdirectory(AndroidSource)
+else()
+	add_subdirectory(ServerSource)
 endif()
-add_subdirectory(ServerSource)

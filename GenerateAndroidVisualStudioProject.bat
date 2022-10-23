@@ -1,5 +1,3 @@
-git clean -fdX
-
 cmake -G "Visual Studio 17 2022" -A ARM -B bin/Android ^
 	-DCMAKE_SYSTEM_NAME=Android ^
 	-DCMAKE_SYSTEM_VERSION=24	^
