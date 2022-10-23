@@ -8,7 +8,9 @@
 
 int main()
 {
+#if defined(__GNUC__) || defined(__GNUG__)
 	std::cout << "Hello World!\n";
+#endif
 }
 
 // Run program: Ctrl + F5 or Debug > Start Without Debugging menu
