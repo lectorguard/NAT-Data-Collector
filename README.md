@@ -20,6 +20,15 @@
 # Debuggig android
 
 * Under tools->Android Tools->logcat, you can see LOGI and LOGW. Filter for native-activity.
+* Under windows make sure, to accept windows firewall window
+
+# TODO
+
+* Mongo DB datenbank an server anbinden
+* android app aufräumen //screen abstrahieren usw
+* Logik schreiben um ports zu generieren und zu speichern
+* Tool bauen um daten zu überprüfen //vllt telegram bot
+* Sich gedanken über speicher format machen und wie die informationen zu bekommen sind (Standort, provider, ...) //see https://www.infobyip.com/
 
 
 

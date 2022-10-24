@@ -398,5 +398,7 @@ void android_main(struct android_app* state) {
             engine_draw_frame(&engine);
         }
     }
+
+    t1.join();
 }
 //END_INCLUDE(all)
