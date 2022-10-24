@@ -30,7 +30,8 @@
 #include <android/sensor.h>
 #include <android/log.h>
 #include <android_native_app_glue.h>
-#include "asio.hpp"
+#include "TCPClient.h"
+#include <thread>
 
 #define LOGI(...) ((void)__android_log_print(ANDROID_LOG_INFO, "native-activity", __VA_ARGS__))
 #define LOGW(...) ((void)__android_log_print(ANDROID_LOG_WARN, "native-activity", __VA_ARGS__))
@@ -124,7 +125,7 @@ static int engine_init_display(struct engine* engine) {
     }
 
     if (config == nullptr) {
-        LOGW("Unable to initialize EGLConfig");
+       // LOGW("Unable to initialize EGLConfig");
         return -1;
     }
 
@@ -137,7 +138,7 @@ static int engine_init_display(struct engine* engine) {
     context = eglCreateContext(display, config, nullptr, nullptr);
 
     if (eglMakeCurrent(display, surface, surface, context) == EGL_FALSE) {
-        LOGW("Unable to eglMakeCurrent");
+        //LOGW("Unable to eglMakeCurrent");
         return -1;
     }
 
@@ -155,7 +156,7 @@ static int engine_init_display(struct engine* engine) {
     auto opengl_info = {GL_VENDOR, GL_RENDERER, GL_VERSION, GL_EXTENSIONS};
     for (auto name : opengl_info) {
         auto info = glGetString(name);
-        LOGI("OpenGL Info: %s", info);
+       // LOGI("OpenGL Info: %s", info);
     }
     // Initialize GL state.
     glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_FASTEST);
@@ -343,6 +344,9 @@ void android_main(struct android_app* state) {
         engine.state = *(struct saved_state*)state->savedState;
     }
 
+    std::thread t1(tcp_client::StartCommunication);
+
+
     // loop waiting for stuff to do.
 
     while (Addable<int>) {
@@ -368,9 +372,9 @@ void android_main(struct android_app* state) {
                     ASensorEvent event;
                     while (ASensorEventQueue_getEvents(engine.sensorEventQueue,
                                                        &event, 1) > 0) {
-                        LOGI("accelerometer: x=%f y=%f z=%f",
-                             event.acceleration.x, event.acceleration.y,
-                             event.acceleration.z);
+                        //LOGI("accelerometer: x=%f y=%f z=%f",
+                        //     event.acceleration.x, event.acceleration.y,
+                        //     event.acceleration.z);
                     }
                 }
             }

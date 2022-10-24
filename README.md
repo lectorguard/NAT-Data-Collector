@@ -17,6 +17,10 @@
 * Set Target System from **local machine** to **WSL 22.04**
 * Set StartUp Item to **server-app** (It can take a while until it shows up)
 
+# Debuggig android
+
+* Under tools->Android Tools->logcat, you can see LOGI and LOGW. Filter for native-activity.
+
 
 
 
