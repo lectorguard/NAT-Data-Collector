@@ -108,6 +108,8 @@ public:
 		}
     }
 
+	void AndroidShutdown(struct android_app* app) {};
+
 
 private:
 	const char* GetPackageName(struct android_app* app)
@@ -134,6 +136,8 @@ public:
 	Renderer() {};
 	~Renderer() {};
 
+	void OnAppStart(struct android_app* state) {};
+
     void OnAndroidEvent(struct android_app* app, int32_t cmd)
     {
 		switch (cmd)
@@ -151,7 +155,7 @@ public:
 		case APP_CMD_TERM_WINDOW:
 		{
 			// The window is being hidden or closed, clean it up.
-			ShutdownDisplay(app);
+			AndroidShutdown(app);
 			break;
 		}
 		case APP_CMD_LOST_FOCUS:
@@ -255,7 +259,7 @@ public:
         glShadeModel(GL_SMOOTH);
         glDisable(GL_DEPTH_TEST);
     }
-    void ShutdownDisplay(struct android_app* app)
+    void AndroidShutdown(struct android_app* app)
 	{
 		if (_display != EGL_NO_DISPLAY) {
 			eglMakeCurrent(_display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
@@ -302,6 +306,8 @@ public:
 	InputManager() {};
 	virtual ~InputManager() {};
 
+	void OnAndroidEvent(struct android_app* app, int32_t cmd) {};
+	void AndroidShutdown(struct android_app* app) {};
     static int32_t HandleInput(struct android_app* state, AInputEvent* event);
 	void OnAppStart(struct android_app* state)
 	{
@@ -323,24 +329,23 @@ public:
 
 
 
-
-template<typename Owner, typename ... Args>
+template<typename ... Args>
 struct Components
 {
 	using VariantType = typename std::variant<Args ...>;
 
-	Components(Owner* owner)
+	Components()
 	{
 		using TupleType = typename std::tuple<Args...>;
-		std::apply([&](auto&& ... args) { _components = { {decltype(args)(owner) ...} }; }, TupleType());
+		std::apply([&](auto&& ... args) { _components = { {args ...} }; }, TupleType());
 	}
 
 	template<typename T>
-	constexpr T& Get() 
+	constexpr T& Get()
 	{
 		for (auto& variant : _components)
 		{
-			if(std::holds_alternative<T>(variant))
+			if (std::holds_alternative<T>(variant))
 			{
 				return std::get<T>(variant);
 			};
@@ -348,16 +353,54 @@ struct Components
 		throw std::runtime_error("Type must exist");
 	}
 
+	template<typename T>
+	void ForEach(T cb)
+	{
+		for (auto& variant : _components)
+		{
+			std::visit([&variant, cb](auto x)
+				{
+					cb(x);
+				}, variant);
+		};
+	}
+
 private:
 	std::array<VariantType, std::variant_size_v<VariantType>> _components;
+};
+
+template<typename ... EventParams>
+struct event_t
+{
+	void Subscribe(const std::function<void(EventParams ...)>& cb)
+	{
+		_event.push_back(cb);
+	}
+
+	void Publish(EventParams&& ... params)
+	{
+		for (const std::function<void(EventParams ...)>& cb : _event)
+		{
+			cb(params ...);
+		}
+	}
+
+	void Publish(const EventParams& ... params)
+	{
+		for (const std::function<void(EventParams ...)>& cb : _event)
+		{
+			cb(params ...);
+		}
+	}
+
+private:
+	std::vector<std::function<void(EventParams ...)>> _event = {};
 };
 
 
 class Application
 {
-	template<typename ... args>
-	using event_t = std::vector<std::function<void(args ...)>>;
-	using ComponentsType = Components<Application, SensorManager, Renderer, InputManager>;
+	using ComponentsType = Components<SensorManager, Renderer, InputManager>;
 
 public:
 	Application(){};
@@ -365,17 +408,21 @@ public:
 
 	static void AndroidHandleCommands(struct android_app* state, int32_t cmd)
 	{
-		auto* app = (Application*)state->userData;
-		app->_components.Get<SensorManager>().OnAndroidEvent(state, cmd);
-		app->_components.Get<Renderer>().OnAndroidEvent(state, cmd);
+		if (auto* app = (Application*)state->userData)
+		{
+			// I dont know why I can not refactor this code here
+			//app->_components.ForEach([state, cmd](auto comp) {comp.OnAndroidEvent(state, cmd); });
+			app->_components.Get<SensorManager>().OnAndroidEvent(state, cmd);
+			app->_components.Get<Renderer>().OnAndroidEvent(state, cmd);
+		}
+
 	}
 
 	void run(struct android_app* state)
 	{
 		state->userData = this;
-		_components.Get<SensorManager>().OnAppStart(state);
 		state->onAppCmd = AndroidHandleCommands;
-		state->onInputEvent = _components.Get<InputManager>().HandleInput;
+		_components.ForEach([state](auto elem) { elem.OnAppStart(state); });
 
 		while (true) {
 			// Read all pending events.
@@ -398,7 +445,7 @@ public:
 
 				// Check if we are exiting.
 				if (state->destroyRequested != 0) {
-					_components.Get<Renderer>().ShutdownDisplay(state);
+					_components.ForEach([state](auto elem) {elem.AndroidShutdown(state); });
 					return;
 				}
 			}
@@ -413,7 +460,7 @@ public:
 		}
 	}
 
-	ComponentsType _components{ this };
+	ComponentsType _components;
 };
 
 
