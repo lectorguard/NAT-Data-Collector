@@ -310,7 +310,7 @@ public:
 /**
  * Shared state for our app.
  */
-struct engine {
+struct Application {
     SensorManager _sensorManager;
     Renderer _renderer;
     InputManager _inputManager;
@@ -319,15 +319,15 @@ struct engine {
 
 int32_t InputManager::HandleInput(struct android_app* state, AInputEvent* event)
 {
-	if (auto* engine = (struct engine*)state->userData)
+	if (auto* app = (struct Application*)state->userData)
 	{
 		if (AInputEvent_getType(event) == AINPUT_EVENT_TYPE_MOTION)
 		{
 			float x = AMotionEvent_getX(event, 0);
 			float y = AMotionEvent_getY(event, 0);
-			engine->_renderer._animating = 1;
-            engine->_inputManager.x = x;
-            engine->_inputManager.y = y;
+			app->_renderer._animating = 1;
+			app->_inputManager.x = x;
+			app->_inputManager.y = y;
 			return 1;
 		}
 	}
@@ -337,10 +337,10 @@ int32_t InputManager::HandleInput(struct android_app* state, AInputEvent* event)
 /**
  * Process the next main command.
  */
-static void engine_handle_cmd(struct android_app* app, int32_t cmd) {
-    auto* engine = (struct engine*)app->userData;
-    engine->_sensorManager.OnAndroidEvent(app, cmd);
-    engine->_renderer.OnAndroidEvent(app, cmd);
+static void engine_handle_cmd(struct android_app* state, int32_t cmd) {
+    auto* app = (struct Application*)state->userData;
+    app->_sensorManager.OnAndroidEvent(state, cmd);
+    app->_renderer.OnAndroidEvent(state, cmd);
 }
 
 
@@ -350,12 +350,12 @@ static void engine_handle_cmd(struct android_app* app, int32_t cmd) {
  * event loop for receiving input events and doing other things.
  */
 void android_main(struct android_app* state) {
-    struct engine engine{};
+    struct Application app{};
 
-    engine._sensorManager.OnAppStart(state);
-    state->userData = &engine;
+	app._sensorManager.OnAppStart(state);
+    state->userData = &app;
     state->onAppCmd = engine_handle_cmd;
-    state->onInputEvent = engine._inputManager.HandleInput;
+    state->onInputEvent = app._inputManager.HandleInput;
 
     //std::thread t1(tcp_client::StartCommunication);
 
@@ -371,7 +371,7 @@ void android_main(struct android_app* state) {
         // If not animating, we will block forever waiting for events.
         // If animating, we loop until all events are read, then continue
         // to draw the next frame of animation.
-        while ((ident=ALooper_pollAll(engine._renderer._animating ? 0 : -1, nullptr, &events,
+        while ((ident=ALooper_pollAll(app._renderer._animating ? 0 : -1, nullptr, &events,
                                       (void**)&source)) >= 0) {
 
             // Process this event.
@@ -379,20 +379,20 @@ void android_main(struct android_app* state) {
                 source->process(state, source);
             }
 
-            engine._sensorManager.ProcessSensorData(ident);
+			app._sensorManager.ProcessSensorData(ident);
 
             // Check if we are exiting.
             if (state->destroyRequested != 0) {
-                engine._renderer.ShutdownDisplay(state);
+				app._renderer.ShutdownDisplay(state);
                 return;
             }
         }
 
-        if (engine._renderer._animating) {
-            engine._inputManager.Update();
+        if (app._renderer._animating) {
+			app._inputManager.Update();
             // Drawing is throttled to the screen update rate, so there
             // is no need to do timing here.
-            engine._renderer.DrawFrame(engine._inputManager.x, engine._inputManager.y, engine._inputManager.angle);
+			app._renderer.DrawFrame(app._inputManager.x, app._inputManager.y, app._inputManager.angle);
         }
     }
 
