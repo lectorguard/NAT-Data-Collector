@@ -32,6 +32,7 @@
 #include <android_native_app_glue.h>
 #include "TCPClient.h"
 #include <thread>
+#include <variant>
 
 #define LOGI(...) ((void)__android_log_print(ANDROID_LOG_INFO, "native-activity", __VA_ARGS__))
 #define LOGW(...) ((void)__android_log_print(ANDROID_LOG_WARN, "native-activity", __VA_ARGS__))
@@ -109,7 +110,20 @@ public:
 
 
 private:
-	const char* GetPackageName(struct android_app* app);
+	const char* GetPackageName(struct android_app* app)
+	{
+		JNIEnv* env = nullptr;
+		app->activity->vm->AttachCurrentThread(&env, nullptr);
+
+		jclass android_content_Context = env->GetObjectClass(app->activity->clazz);
+		jmethodID midGetPackageName = env->GetMethodID(android_content_Context,
+			"getPackageName",
+			"()Ljava/lang/String;");
+		auto packageName = (jstring)env->CallObjectMethod(app->activity->clazz,
+			midGetPackageName);
+
+		return env->GetStringUTFChars(packageName, nullptr);
+	}
 	ASensorManager* _sensorManager = nullptr;
 	const ASensor* _accelerometerSensor = nullptr;
 	ASensorEventQueue* _sensorEventQueue = nullptr;
@@ -307,29 +321,61 @@ public:
 	int32_t y = 0;
 };
 
+
+
+
+template<typename Owner, typename ... Args>
+struct Components
+{
+	using VariantType = typename std::variant<Args ...>;
+
+	Components(Owner* owner)
+	{
+		using TupleType = typename std::tuple<Args...>;
+		std::apply([&](auto&& ... args) { _components = { {decltype(args)(owner) ...} }; }, TupleType());
+	}
+
+	template<typename T>
+	T& Get()
+	{
+		for (auto& variant : _components)
+		{
+			if (std::holds_alternative<T>(variant))
+			{
+				return std::get<T>(variant);
+			};
+		};
+		throw std::runtime_error("Type must exist");
+	}
+
+private:
+	std::array<VariantType, std::variant_size_v<VariantType>> _components;
+};
+
+
 class Application
 {
+	template<typename ... args>
+	using event_t = std::vector<std::function<void(args ...)>>;
+	using ComponentsType = Components<Application, SensorManager, Renderer, InputManager>;
+
 public:
 	Application(){};
 	~Application() {};
 
-	SensorManager _sensorManager;
-	Renderer _renderer;
-	InputManager _inputManager;
-
 	static void AndroidHandleCommands(struct android_app* state, int32_t cmd)
 	{
 		auto* app = (Application*)state->userData;
-		app->_sensorManager.OnAndroidEvent(state, cmd);
-		app->_renderer.OnAndroidEvent(state, cmd);
+		app->_components.Get<SensorManager>().OnAndroidEvent(state, cmd);
+		app->_components.Get<Renderer>().OnAndroidEvent(state, cmd);
 	}
 
 	void run(struct android_app* state)
 	{
 		state->userData = this;
-		_sensorManager.OnAppStart(state);
+		_components.Get<SensorManager>().OnAppStart(state);
 		state->onAppCmd = AndroidHandleCommands;
-		state->onInputEvent = _inputManager.HandleInput;
+		state->onInputEvent = _components.Get<InputManager>().HandleInput;
 
 		while (true) {
 			// Read all pending events.
@@ -340,7 +386,7 @@ public:
 			// If not animating, we will block forever waiting for events.
 			// If animating, we loop until all events are read, then continue
 			// to draw the next frame of animation.
-			while ((ident = ALooper_pollAll(_renderer._animating ? 0 : -1, nullptr, &events,
+			while ((ident = ALooper_pollAll(_components.Get<Renderer>()._animating ? 0 : -1, nullptr, &events,
 				(void**)&source)) >= 0) {
 
 				// Process this event.
@@ -348,23 +394,26 @@ public:
 					source->process(state, source);
 				}
 
-				_sensorManager.ProcessSensorData(ident);
+				_components.Get<SensorManager>().ProcessSensorData(ident);
 
 				// Check if we are exiting.
 				if (state->destroyRequested != 0) {
-					_renderer.ShutdownDisplay(state);
+					_components.Get<Renderer>().ShutdownDisplay(state);
 					return;
 				}
 			}
 
-			if (_renderer._animating) {
-				_inputManager.Update();
+			if (_components.Get<Renderer>()._animating) {
+				InputManager& inputManager = _components.Get<InputManager>();
+				inputManager.Update();
 				// Drawing is throttled to the screen update rate, so there
 				// is no need to do timing here.
-				_renderer.DrawFrame(_inputManager.x, _inputManager.y, _inputManager.angle);
+				_components.Get<Renderer>().DrawFrame(inputManager.x, inputManager.y, inputManager.angle);
 			}
 		}
 	}
+
+	ComponentsType _components{ this };
 };
 
 
@@ -376,9 +425,9 @@ int32_t InputManager::HandleInput(struct android_app* state, AInputEvent* event)
 		{
 			float x = AMotionEvent_getX(event, 0);
 			float y = AMotionEvent_getY(event, 0);
-			app->_renderer._animating = 1;
-			app->_inputManager.x = x;
-			app->_inputManager.y = y;
+			app->_components.Get<Renderer>()._animating = 1;
+			app->_components.Get<InputManager>().x = x;
+			app->_components.Get<InputManager>().y = y;
 			return 1;
 		}
 	}
