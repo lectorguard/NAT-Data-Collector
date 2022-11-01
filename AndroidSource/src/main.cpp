@@ -282,40 +282,56 @@ public:
 	int32_t _width = 0;
 	int32_t _height = 0;
 };
+class InputManager
+{
+public:
+	InputManager() {};
+	virtual ~InputManager() {};
 
+    static int32_t HandleInput(struct android_app* state, AInputEvent* event);
+	void OnAppStart(struct android_app* state)
+	{
+		state->onInputEvent = &InputManager::HandleInput;
+	}
 
-/**
- * Our saved state data.
- */
-struct saved_state {
-    float angle;
-    int32_t x;
-    int32_t y;
+    void Update()
+    {
+		angle += .01f;
+		if (angle > 1) 
+        {
+			angle = 0;
+		}
+    }
+	float angle = 0;
+	int32_t x = 0;
+	int32_t y = 0;
 };
 
 /**
  * Shared state for our app.
  */
 struct engine {
-    struct android_app* app;
-
     SensorManager _sensorManager;
     Renderer _renderer;
-    struct saved_state state;
+    InputManager _inputManager;
 };
 
-/**
- * Process the next input event.
- */
-static int32_t engine_handle_input(struct android_app* app, AInputEvent* event) {
-    auto* engine = (struct engine*)app->userData;
-    if (AInputEvent_getType(event) == AINPUT_EVENT_TYPE_MOTION) {
-        engine->_renderer._animating = 1;
-        engine->state.x = AMotionEvent_getX(event, 0);
-        engine->state.y = AMotionEvent_getY(event, 0);
-        return 1;
-    }
-    return 0;
+
+int32_t InputManager::HandleInput(struct android_app* state, AInputEvent* event)
+{
+	if (auto* engine = (struct engine*)state->userData)
+	{
+		if (AInputEvent_getType(event) == AINPUT_EVENT_TYPE_MOTION)
+		{
+			float x = AMotionEvent_getX(event, 0);
+			float y = AMotionEvent_getY(event, 0);
+			engine->_renderer._animating = 1;
+            engine->_inputManager.x = x;
+            engine->_inputManager.y = y;
+			return 1;
+		}
+	}
+	return 0;
 }
 
 /**
@@ -323,16 +339,6 @@ static int32_t engine_handle_input(struct android_app* app, AInputEvent* event) 
  */
 static void engine_handle_cmd(struct android_app* app, int32_t cmd) {
     auto* engine = (struct engine*)app->userData;
-    switch (cmd) {
-        case APP_CMD_SAVE_STATE:
-            // The system has asked us to save our current state.  Do so.
-            engine->app->savedState = malloc(sizeof(struct saved_state));
-            *((struct saved_state*)engine->app->savedState) = engine->state;
-            engine->app->savedStateSize = sizeof(struct saved_state);
-            break;
-        default:
-            break;
-    }
     engine->_sensorManager.OnAndroidEvent(app, cmd);
     engine->_renderer.OnAndroidEvent(app, cmd);
 }
@@ -345,22 +351,11 @@ static void engine_handle_cmd(struct android_app* app, int32_t cmd) {
  */
 void android_main(struct android_app* state) {
     struct engine engine{};
-    memset(&engine, 0, sizeof(engine));
 
-    engine._sensorManager = SensorManager();
     engine._sensorManager.OnAppStart(state);
-    engine._renderer = Renderer();
-
-
     state->userData = &engine;
     state->onAppCmd = engine_handle_cmd;
-    state->onInputEvent = engine_handle_input;
-    engine.app = state;
-
-    if (state->savedState != nullptr) {
-        // We are starting with a previous saved state; restore from it.
-        engine.state = *(struct saved_state*)state->savedState;
-    }
+    state->onInputEvent = engine._inputManager.HandleInput;
 
     //std::thread t1(tcp_client::StartCommunication);
 
@@ -394,15 +389,10 @@ void android_main(struct android_app* state) {
         }
 
         if (engine._renderer._animating) {
-            // Done with events; draw next animation frame.
-            engine.state.angle += .01f;
-            if (engine.state.angle > 1) {
-                engine.state.angle = 0;
-            }
-
+            engine._inputManager.Update();
             // Drawing is throttled to the screen update rate, so there
             // is no need to do timing here.
-            engine._renderer.DrawFrame(engine.state.x, engine.state.y, engine.state.angle);
+            engine._renderer.DrawFrame(engine._inputManager.x, engine._inputManager.y, engine._inputManager.angle);
         }
     }
 
