@@ -336,11 +336,11 @@ struct Components
 	}
 
 	template<typename T>
-	T& Get()
+	constexpr T& Get() 
 	{
 		for (auto& variant : _components)
 		{
-			if (std::holds_alternative<T>(variant))
+			if(std::holds_alternative<T>(variant))
 			{
 				return std::get<T>(variant);
 			};
