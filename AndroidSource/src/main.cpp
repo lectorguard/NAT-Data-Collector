@@ -307,19 +307,70 @@ public:
 	int32_t y = 0;
 };
 
-/**
- * Shared state for our app.
- */
-struct Application {
-    SensorManager _sensorManager;
-    Renderer _renderer;
-    InputManager _inputManager;
+class Application
+{
+public:
+	Application(){};
+	~Application() {};
+
+	SensorManager _sensorManager;
+	Renderer _renderer;
+	InputManager _inputManager;
+
+	static void AndroidHandleCommands(struct android_app* state, int32_t cmd)
+	{
+		auto* app = (Application*)state->userData;
+		app->_sensorManager.OnAndroidEvent(state, cmd);
+		app->_renderer.OnAndroidEvent(state, cmd);
+	}
+
+	void run(struct android_app* state)
+	{
+		state->userData = this;
+		_sensorManager.OnAppStart(state);
+		state->onAppCmd = AndroidHandleCommands;
+		state->onInputEvent = _inputManager.HandleInput;
+
+		while (true) {
+			// Read all pending events.
+			int ident;
+			int events;
+			struct android_poll_source* source;
+
+			// If not animating, we will block forever waiting for events.
+			// If animating, we loop until all events are read, then continue
+			// to draw the next frame of animation.
+			while ((ident = ALooper_pollAll(_renderer._animating ? 0 : -1, nullptr, &events,
+				(void**)&source)) >= 0) {
+
+				// Process this event.
+				if (source != nullptr) {
+					source->process(state, source);
+				}
+
+				_sensorManager.ProcessSensorData(ident);
+
+				// Check if we are exiting.
+				if (state->destroyRequested != 0) {
+					_renderer.ShutdownDisplay(state);
+					return;
+				}
+			}
+
+			if (_renderer._animating) {
+				_inputManager.Update();
+				// Drawing is throttled to the screen update rate, so there
+				// is no need to do timing here.
+				_renderer.DrawFrame(_inputManager.x, _inputManager.y, _inputManager.angle);
+			}
+		}
+	}
 };
 
 
 int32_t InputManager::HandleInput(struct android_app* state, AInputEvent* event)
 {
-	if (auto* app = (struct Application*)state->userData)
+	if (auto* app = (Application*)state->userData)
 	{
 		if (AInputEvent_getType(event) == AINPUT_EVENT_TYPE_MOTION)
 		{
@@ -335,67 +386,12 @@ int32_t InputManager::HandleInput(struct android_app* state, AInputEvent* event)
 }
 
 /**
- * Process the next main command.
- */
-static void engine_handle_cmd(struct android_app* state, int32_t cmd) {
-    auto* app = (struct Application*)state->userData;
-    app->_sensorManager.OnAndroidEvent(state, cmd);
-    app->_renderer.OnAndroidEvent(state, cmd);
-}
-
-
-/**
  * This is the main entry point of a native application that is using
  * android_native_app_glue.  It runs in its own thread, with its own
  * event loop for receiving input events and doing other things.
  */
 void android_main(struct android_app* state) {
-    struct Application app{};
-
-	app._sensorManager.OnAppStart(state);
-    state->userData = &app;
-    state->onAppCmd = engine_handle_cmd;
-    state->onInputEvent = app._inputManager.HandleInput;
-
-    //std::thread t1(tcp_client::StartCommunication);
-
-
-    // loop waiting for stuff to do.
-
-    while (true) {
-        // Read all pending events.
-        int ident;
-        int events;
-        struct android_poll_source* source;
-
-        // If not animating, we will block forever waiting for events.
-        // If animating, we loop until all events are read, then continue
-        // to draw the next frame of animation.
-        while ((ident=ALooper_pollAll(app._renderer._animating ? 0 : -1, nullptr, &events,
-                                      (void**)&source)) >= 0) {
-
-            // Process this event.
-            if (source != nullptr) {
-                source->process(state, source);
-            }
-
-			app._sensorManager.ProcessSensorData(ident);
-
-            // Check if we are exiting.
-            if (state->destroyRequested != 0) {
-				app._renderer.ShutdownDisplay(state);
-                return;
-            }
-        }
-
-        if (app._renderer._animating) {
-			app._inputManager.Update();
-            // Drawing is throttled to the screen update rate, so there
-            // is no need to do timing here.
-			app._renderer.DrawFrame(app._inputManager.x, app._inputManager.y, app._inputManager.angle);
-        }
-    }
-
-    //t1.join();
+    Application app;
+	app.run(state);
 }
 //END_INCLUDE(all)
