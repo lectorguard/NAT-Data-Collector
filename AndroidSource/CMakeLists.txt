@@ -14,11 +14,16 @@ set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -u ANativeActivity_o
 
 # Add glue
 add_library(native_app_glue STATIC ${ANDROID_NDK_PATH}/sources/android/native_app_glue/android_native_app_glue.c)
-target_include_directories(native_app_glue PRIVATE ${ANDROID_NDK_PATH}/sources/android/native_app_glue)
+target_include_directories(native_app_glue PUBLIC ${ANDROID_NDK_PATH}/sources/android/native_app_glue)
 
 # Add native-activity
-add_library(native-activity SHARED ${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp)
-target_include_directories(native-activity PRIVATE ${ANDROID_NDK_PATH}/sources/android/native_app_glue)
+file(GLOB_RECURSE ALL_FILES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/**)
+source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/src" PREFIX "Source" FILES ${ALL_FILES})
+
+add_library(native-activity SHARED ${ALL_FILES})
+
+
+target_include_directories(native-activity PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src/)
 target_link_libraries(native-activity
     android
 	native_app_glue
