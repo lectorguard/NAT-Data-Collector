@@ -354,11 +354,11 @@ struct Components
 	}
 
 	template<typename T>
-	void ForEach(T cb)
+	void ForEach(const T& cb)
 	{
 		for (auto& variant : _components)
 		{
-			std::visit([&variant, cb](auto x)
+			std::visit([&variant, cb](auto&& x)
 				{
 					cb(x);
 				}, variant);
@@ -411,18 +411,15 @@ public:
 		if (auto* app = (Application*)state->userData)
 		{
 			// I dont know why I can not refactor this code here
-			//app->_components.ForEach([state, cmd](auto comp) {comp.OnAndroidEvent(state, cmd); });
-			app->_components.Get<SensorManager>().OnAndroidEvent(state, cmd);
-			app->_components.Get<Renderer>().OnAndroidEvent(state, cmd);
+			app->_components.ForEach([&state, &cmd](auto&& comp) {comp.OnAndroidEvent(state, cmd); });
 		}
-
 	}
 
 	void run(struct android_app* state)
 	{
 		state->userData = this;
 		state->onAppCmd = AndroidHandleCommands;
-		_components.ForEach([state](auto elem) { elem.OnAppStart(state); });
+		_components.ForEach([state](auto& elem) { elem.OnAppStart(state); });
 
 		while (true) {
 			// Read all pending events.
@@ -433,24 +430,28 @@ public:
 			// If not animating, we will block forever waiting for events.
 			// If animating, we loop until all events are read, then continue
 			// to draw the next frame of animation.
-			while ((ident = ALooper_pollAll(_components.Get<Renderer>()._animating ? 0 : -1, nullptr, &events,
+			//
+			while((ident = ALooper_pollAll(_components.Get<Renderer>()._animating ? 0 : -1, nullptr, &events,
 				(void**)&source)) >= 0) {
 
 				// Process this event.
-				if (source != nullptr) {
+				if (source != nullptr) 
+				{
 					source->process(state, source);
 				}
 
 				_components.Get<SensorManager>().ProcessSensorData(ident);
 
 				// Check if we are exiting.
-				if (state->destroyRequested != 0) {
+				if (state->destroyRequested != 0) 
+				{
 					_components.ForEach([state](auto elem) {elem.AndroidShutdown(state); });
 					return;
 				}
 			}
 
-			if (_components.Get<Renderer>()._animating) {
+			if (_components.Get<Renderer>()._animating) 
+			{
 				InputManager& inputManager = _components.Get<InputManager>();
 				inputManager.Update();
 				// Drawing is throttled to the screen update rate, so there
