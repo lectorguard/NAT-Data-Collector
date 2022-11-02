@@ -10,7 +10,7 @@ struct ComponentManager
 	ComponentManager()
 	{
 		using TupleType = typename std::tuple<Args...>;
-		std::apply([&](auto&& ... args) { _components = { {args ...} }; }, TupleType());
+		std::apply([&](auto&& ... args) { _components = { {std::move(args) ...} }; }, TupleType());
 	}
 
 	template<typename T>

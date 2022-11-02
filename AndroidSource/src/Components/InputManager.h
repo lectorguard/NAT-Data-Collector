@@ -6,7 +6,7 @@ class InputManager
 {
 public:
 	InputManager() {};
-	virtual ~InputManager() {};
+	~InputManager() {};
 
 	void Activate(class Application* app);
 	void Deactivate(class Application* app) {};
