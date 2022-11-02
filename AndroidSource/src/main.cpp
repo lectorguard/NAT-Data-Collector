@@ -43,6 +43,9 @@ public:
 	SensorManager() {};
 	~SensorManager() {};
 
+	void Activate(class Application* app);
+	void Deactivate(class Application* app) {};
+
 	void OnAppStart(struct android_app* state)
     {
 		#if __ANDROID_API__ >= 26
@@ -107,10 +110,6 @@ public:
 			}
 		}
     }
-
-	void AndroidShutdown(struct android_app* app) {};
-
-
 private:
 	const char* GetPackageName(struct android_app* app)
 	{
@@ -136,7 +135,8 @@ public:
 	Renderer() {};
 	~Renderer() {};
 
-	void OnAppStart(struct android_app* state) {};
+	void Activate(class Application* app);
+	void Deactivate(class Application* app) {};
 
     void OnAndroidEvent(struct android_app* app, int32_t cmd)
     {
@@ -148,7 +148,7 @@ public:
 			if (app->window != nullptr)
 			{
 				InitDisplay(app);
-				DrawFrame(1,1,1);
+				DrawFrame((class Application*)app->userData);
 			}
 			break;
 		}
@@ -161,7 +161,7 @@ public:
 		case APP_CMD_LOST_FOCUS:
 		{
 			_animating = 0;
-			DrawFrame(1,1,1);
+			DrawFrame((class Application*)app->userData);
 			break;
 		}
 		default:
@@ -276,22 +276,8 @@ public:
 		_context = EGL_NO_CONTEXT;
 		_surface = EGL_NO_SURFACE;
 	}
-    void DrawFrame(float x, float y, float angle)
-    {
-		if (_animating)
-		{
-			if (_display == nullptr) {
-				// No display.
-				return;
-			}
+	void DrawFrame(class Application* app);
 
-			// Just fill the screen with a color.
-			glClearColor(x/_width, angle , y/_height, 1);
-			glClear(GL_COLOR_BUFFER_BIT);
-
-			eglSwapBuffers(_display, _surface);
-		}
-    }
 
 	int _animating = 0;
 	EGLDisplay _display = NULL;
@@ -306,8 +292,8 @@ public:
 	InputManager() {};
 	virtual ~InputManager() {};
 
-	void OnAndroidEvent(struct android_app* app, int32_t cmd) {};
-	void AndroidShutdown(struct android_app* app) {};
+	void Activate(class Application* app);
+	void Deactivate(class Application* app) {};
     static int32_t HandleInput(struct android_app* state, AInputEvent* event);
 	void OnAppStart(struct android_app* state)
 	{
@@ -403,15 +389,14 @@ class Application
 	using ComponentsType = Components<SensorManager, Renderer, InputManager>;
 
 public:
-	Application(){};
+	Application() {};
 	~Application() {};
 
 	static void AndroidHandleCommands(struct android_app* state, int32_t cmd)
 	{
 		if (auto* app = (Application*)state->userData)
 		{
-			// I dont know why I can not refactor this code here
-			app->_components.ForEach([&state, &cmd](auto&& comp) {comp.OnAndroidEvent(state, cmd); });
+			app->AndroidCommandEvent.Publish(state, cmd);
 		}
 	}
 
@@ -419,7 +404,8 @@ public:
 	{
 		state->userData = this;
 		state->onAppCmd = AndroidHandleCommands;
-		_components.ForEach([state](auto& elem) { elem.OnAppStart(state); });
+		_components.ForEach([&](auto&& elem) { elem.Activate(this); });
+		AndroidStartEvent.Publish(state);
 
 		while (true) {
 			// Read all pending events.
@@ -431,11 +417,11 @@ public:
 			// If animating, we loop until all events are read, then continue
 			// to draw the next frame of animation.
 			//
-			while((ident = ALooper_pollAll(_components.Get<Renderer>()._animating ? 0 : -1, nullptr, &events,
+			while ((ident = ALooper_pollAll(_components.Get<Renderer>()._animating ? 0 : -1, nullptr, &events,
 				(void**)&source)) >= 0) {
 
 				// Process this event.
-				if (source != nullptr) 
+				if (source != nullptr)
 				{
 					source->process(state, source);
 				}
@@ -443,24 +429,31 @@ public:
 				_components.Get<SensorManager>().ProcessSensorData(ident);
 
 				// Check if we are exiting.
-				if (state->destroyRequested != 0) 
+				if (state->destroyRequested != 0)
 				{
-					_components.ForEach([state](auto elem) {elem.AndroidShutdown(state); });
+					_components.ForEach([this](auto&& comp) {comp.Deactivate(this); });
+					AndroidShutdownEvent.Publish(state);
 					return;
 				}
 			}
 
-			if (_components.Get<Renderer>()._animating) 
+			if (_components.Get<Renderer>()._animating)
 			{
-				InputManager& inputManager = _components.Get<InputManager>();
-				inputManager.Update();
-				// Drawing is throttled to the screen update rate, so there
-				// is no need to do timing here.
-				_components.Get<Renderer>().DrawFrame(inputManager.x, inputManager.y, inputManager.angle);
+				UpdateEvent.Publish(this);
 			}
 		}
 	}
 
+	// Triggered after Activation, when app is starting
+	event_t<struct android_app*> AndroidStartEvent{};
+	// Triggered, when android triggers command event
+	event_t<struct android_app*,int32_t> AndroidCommandEvent{};
+	// Triggered on shutdown
+	event_t<struct android_app*> AndroidShutdownEvent{};
+	// Called every frame when animating
+	event_t<Application*> UpdateEvent{};
+	// Every component needs Activate(Application*) and Deactivate(Application*) function
+	// By default every component is instantiated once
 	ComponentsType _components;
 };
 
@@ -476,11 +469,50 @@ int32_t InputManager::HandleInput(struct android_app* state, AInputEvent* event)
 			app->_components.Get<Renderer>()._animating = 1;
 			app->_components.Get<InputManager>().x = x;
 			app->_components.Get<InputManager>().y = y;
+			LOGW("Handled Input");
 			return 1;
 		}
 	}
 	return 0;
 }
+
+void InputManager::Activate(class Application* app)
+{
+	app->AndroidStartEvent.Subscribe([this](struct android_app* state) {OnAppStart(state); });
+	app->UpdateEvent.Subscribe([this](Application* app) {Update(); });
+}
+
+void SensorManager::Activate(class Application* app)
+{
+	app->AndroidStartEvent.Subscribe([this](struct android_app* state) {OnAppStart(state); });
+	app->AndroidCommandEvent.Subscribe([this](struct android_app* state, int32_t cmd) { OnAndroidEvent(state, cmd); });
+}
+
+void Renderer::Activate(class Application* app)
+{
+	app->AndroidCommandEvent.Subscribe([this](struct android_app* state, int32_t cmd) { OnAndroidEvent(state, cmd); });
+	app->AndroidShutdownEvent.Subscribe([this](struct android_app* state) { AndroidShutdown(state); });
+	app->UpdateEvent.Subscribe([this](Application* app) {DrawFrame(app); });
+}
+
+void Renderer::DrawFrame(class Application* app)
+{
+	if (_animating)
+	{
+		if (_display == nullptr) {
+			// No display.
+			return;
+		}
+
+		InputManager& inputManager = app->_components.Get<InputManager>();
+		// Just fill the screen with a color.
+		glClearColor(inputManager.x / (float)_width, inputManager.angle, inputManager.y / (float)_height, 1);
+		glClear(GL_COLOR_BUFFER_BIT);
+
+		eglSwapBuffers(_display, _surface);
+	}
+}
+
 
 /**
  * This is the main entry point of a native application that is using
