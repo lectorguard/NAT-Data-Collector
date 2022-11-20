@@ -1,5 +1,6 @@
 #include "TCPClient.h"
 #include "Application/Application.h"
+#include "JSerializer.h"
 #include "thread"
 
 void TCPClient::Activate(Application* app)
@@ -12,8 +13,33 @@ void TCPClient::Deactivate(Application* app)
 	t1.join();
 }
 
+CREATE_DEFAULT_JSER_MANAGER_TYPE(SerializeManagerType);
+
+struct ExampleInfo : public jser::JSerializable
+{
+	std::string _string = "Hello from JserializerLib";
+	std::vector<uint32_t> _vector = { 23,264,59,59,2,95 };
+
+	jser::JserChunkAppender AddItem() override
+	{
+		return JSerializable::AddItem().Append(JSER_ADD(SerializeManagerType, _string, _vector));
+	}
+};
+
+
+
 void TCPClient::StartCommunication()
 {
+	ExampleInfo toSerialize;
+	std::vector<jser::JSerError> errors;
+	std::string serializationString = toSerialize.SerializeObjectString(std::back_inserter(errors));
+	if (errors.size() > 0)
+	{
+		const char* firstError = errors[0].Message.c_str();
+		LOGWARN("Error Happened : %s", firstError);
+		return;
+	}
+
 	using asio_tcp = asio::ip::tcp;
 	try
 	{
@@ -24,10 +50,9 @@ void TCPClient::StartCommunication()
 		asio::connect(_socket, iterator);
 		for (;;)
 		{
-			std::array<char, 128> buf;
+			
 			asio::error_code error;
-
-			size_t len = _socket.read_some(asio::buffer(buf), error);
+			asio::write(_socket, asio::buffer(serializationString), error);
 			if (error == asio::error::eof)
 			{
 				std::cout << "Connection closed" << std::endl;
@@ -41,13 +66,14 @@ void TCPClient::StartCommunication()
 
 				throw asio::system_error(error); // Some other error.
 			}
-			LOGWARN("Received data %s", buf.data());
+			break;
 		}
 	}
 	catch (std::exception e)
 	{
 		std::cout << e.what() << std::endl;
-		LOGWARN(e.what());
+		const char* errorMessage = e.what();
+		LOGWARN("Error : %s",errorMessage);
 	}
 	LOGWARN("Shutdown");
 }

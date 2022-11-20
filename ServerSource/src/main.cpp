@@ -150,9 +150,15 @@ namespace ADTemplates
 	};
 }
 
+struct MongoConnectionInfo
+{
+	const std::string serverURL = "mongodb://simon:Lt2bQb8jpRaLSn@185.242.113.159/?authSource=networkdata";
+	const std::string mongoAppName = "DataCollectorServer";
+	const std::string mongoDatabaseName = "networkdata";
+	const std::string mongoCollectionName = "test";
+};
 
-
-int main()
+bool InsertElementToCollection(const MongoConnectionInfo mongoInfo, std::array<char, 512> buf)
 {
     AutoDestruct mongocInit{ &mongoc_init, &mongoc_cleanup };
 
@@ -160,28 +166,28 @@ int main()
      * Create a new client instance
      */
     auto mongocClient = ADTemplates::TMongocClient;
-    mongocClient.Init(mongoc_client_new("mongodb://simon:Lt2bQb8jpRaLSn@185.242.113.159/?authSource=networkdata"));
+    mongocClient.Init(mongoc_client_new(mongoInfo.serverURL.c_str()));
 
     mongoc_client_t* client = mongocClient.As<mongoc_client_t*>();
     if (!client)
     {
-        return EXIT_FAILURE;
+        return false;
     }
 
     /*
      * Register the application name so we can track it in the profile logs
      * on the server. This can also be done from the URI (see other examples).
      */
-    mongoc_client_set_appname(client, "DataCollectorServer");
+    mongoc_client_set_appname(client, mongoInfo.mongoAppName.c_str());
 
     /*
      * Get a handle on the database "db_name" and collection "coll_name"
      */
     auto mongocDatabase = ADTemplates::TMongocDatabase;
-    mongocDatabase.Init(mongoc_client_get_database(client, "networkdata"));
+    mongocDatabase.Init(mongoc_client_get_database(client, mongoInfo.mongoDatabaseName.c_str()));
 
     auto mongocCollection = ADTemplates::TMongocCollection;
-    mongocCollection.Init(mongoc_client_get_collection(client, "networkdata", "test"));
+    mongocCollection.Init(mongoc_client_get_collection(client, mongoInfo.mongoDatabaseName.c_str(), mongoInfo.mongoCollectionName.c_str()));
 
 
     /*
@@ -200,24 +206,42 @@ int main()
 
     if (!retval) {
         fprintf(stderr, "%s\n", error.message);
-        return EXIT_FAILURE;
+        return false;
     }
-    
+
     auto mongocMessage = ADTemplates::TMongocCharPtr;
     mongocMessage.Init(bson_as_json(&mongocReply.As<bson_t>(), NULL));
 
     //str = bson_as_json(&mongocReply.As<bson_t>(), NULL);
     printf("%s\n", mongocMessage.As<char*>());
 
-    auto mongocInsert = ADTemplates::TMongocBsonPtr;
-    mongocInsert.Init(BCON_NEW("hello", BCON_UTF8("world")));
+
+
+    //auto mongocInsert = ADTemplates::TMongocBsonPtr;
+    //mongocInsert.Init(BCON_NEW(key.data(), BCON_UTF8(value.data())));
+
+	auto mongocInsert = ADTemplates::TMongocBsonPtr;
+	mongocInsert.Init(bson_new_from_json((const uint8_t*)buf.data(), -1, &error));
+
+	if (!mongocInsert.As<bson_t*>()) {
+		fprintf(stderr, "%s\n", error.message);
+		return false;
+	}
 
     if (!mongoc_collection_insert_one(mongocCollection.As<mongoc_collection_t*>(), mongocInsert.As<bson_t*>(), NULL, NULL, &error)) {
         fprintf(stderr, "%s\n", error.message);
+        return false;
     }
-    return EXIT_SUCCESS;
+    return true;
+}
 
-
+int main()
+{
+//     if (!InsertElementToCollection(MongoConnectionInfo(), "simple", "test"))
+//     {
+//         return 1;
+//     }
+//     return 0;
 
 	using asio_tcp = asio::ip::tcp;
 	std::cout << "start server" << std::endl;
@@ -233,8 +257,25 @@ int main()
 			std::string message = make_daytime_string();
 
 			std::cout << "connection accepted" << std::endl;
-			asio::error_code ignored_error;
-			asio::write(_socket, asio::buffer(message), ignored_error);
+			std::array<char, 512> buf;
+			asio::error_code error;
+			size_t len = _socket.read_some(asio::buffer(buf), error);
+			if (error == asio::error::eof)
+			{
+				std::cout << "Connection closed" << std::endl;
+				break; // Conn closed cleanly by peer
+			}
+			else if (error)
+			{
+				std::cout << "connection error" << error << std::endl;
+
+				throw asio::system_error(error); // Some other error.
+			}
+			std::cout << "Received data : " << buf.data() << std::endl;
+			if (!InsertElementToCollection(MongoConnectionInfo(), buf))
+			{
+				std::cout << "Writing Database Error" << std::endl;
+			}
 		}
 	}
 	catch (std::exception e)

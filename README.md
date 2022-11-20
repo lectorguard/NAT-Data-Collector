@@ -22,10 +22,21 @@
 * Under tools->Android Tools->logcat, you can see LOGI and LOGW. Filter for native-activity.
 * Under windows make sure, to accept windows firewall window
 
+# Mongosh Usage
+
+Inside shell type the following
+```
+mongosh
+db networkdata //Switching database
+db.auth("name", "password") // Authenticate for server
+show collections // shows all collections -> test
+db.test.find() // shows content of test collection
+```
+
 # TODO
 
-* Mongo DB datenbank an server anbinden
-* android app aufräumen //screen abstrahieren usw
+* Mongo DB datenbank an server anbinden // Done
+* android app aufräumen // Done
 * Logik schreiben um ports zu generieren und zu speichern
 * Tool bauen um daten zu überprüfen //vllt telegram bot
 * Sich gedanken über speicher format machen und wie die informationen zu bekommen sind (Standort, provider, ...) //see https://www.infobyip.com/
