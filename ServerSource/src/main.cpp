@@ -12,6 +12,9 @@
 #include <string.h>
 #include <sys/socket.h>
 #include <unistd.h>
+#include <functional>
+#include <tuple>
+#include <utility>
 
 #include <mongoc/mongoc.h>
 
@@ -23,27 +26,145 @@ std::string make_daytime_string()
 	return ctime(&now);
 }
 
+struct AutoDestruct
+{
+    AutoDestruct(const std::function<void()>& init, const std::function<void()>& shutdown) : _init(init), _shutdown(shutdown)
+    {
+        init();
+    }
+
+    ~AutoDestruct()
+    {
+        _shutdown();
+    }
+private:
+    std::function<void()> _init = nullptr;
+    std::function<void()> _shutdown = nullptr;
+};
+
+template<typename ... Args>
+struct AutoDestructParams
+{
+    AutoDestructParams(const std::function<void(Args& ...)>& shutdown) : _shutdown(shutdown){}
+
+	~AutoDestructParams()
+	{
+        if (_shutdown && IsInitalized)
+        {
+			std::apply(
+				[&](auto& ... param)
+				{
+					_shutdown(param ...);
+				}
+			, _params);
+        }
+	}
+
+    void Init(Args&& ... args)
+    {
+        _params = std::make_tuple(std::move(args)...);
+        IsInitalized = true;
+    }
+
+    template<typename T>
+    T& As()
+    {
+        if (IsInitalized)
+        {
+            return std::get<T>(_params);
+        }
+        else
+        {
+            throw std::runtime_error("You must call initialization (Init(...) before using member functions");
+        }
+    }
+
+	template<size_t index, typename T>
+	T& AsIndex()
+	{
+		if (IsInitalized)
+		{
+			return std::get<index>(_params);
+		}
+		else
+		{
+            throw std::runtime_error("You must call initialization (Init(...)) before using member functions");
+		}
+	}
+private:
+    bool IsInitalized = false;
+    std::tuple<Args ...> _params;
+	std::function<void(Args& ...)> _shutdown = nullptr;
+};
+
+namespace ADTemplates
+{
+	// Mongoc client template
+	AutoDestructParams<mongoc_client_t*> TMongocClient
+	{
+	    [](_mongoc_client_t*& client)
+		{
+			mongoc_client_destroy(client);
+		}
+	};
+	
+	// Mongoc database template
+	AutoDestructParams<mongoc_database_t*> TMongocDatabase
+	{
+		[](mongoc_database_t*& db)
+		{
+			mongoc_database_destroy(db);
+		}
+	};
+	// Mongoc collection template
+	AutoDestructParams<mongoc_collection_t*> TMongocCollection
+	{
+		[](mongoc_collection_t*& coll)
+		{
+			mongoc_collection_destroy(coll);
+		}
+	};
+	// Mongoc bson* template
+	AutoDestructParams<bson_t*> TMongocBsonPtr
+	{
+		[](bson_t*& command)
+		{
+			bson_destroy(command);
+		}
+	};
+	// Mongoc bson template
+	AutoDestructParams<bson_t> TMongocBson
+	{
+		[](bson_t& reply)
+		{
+			bson_destroy(&reply);
+		}
+	};
+	// Mongoc char* template
+	AutoDestructParams<char*> TMongocCharPtr
+	{
+		[](char*& msg)
+		{
+			bson_free(msg);
+		}
+	};
+}
+
+
+
 int main()
 {
-    const char* uri_string = "mongodb://localhost:27017";
-    mongoc_client_t* client = nullptr;
-    mongoc_database_t* database = nullptr;
-    mongoc_collection_t* collection = nullptr;
-    bson_t* command, reply, * insert;
-    bson_error_t error;
-    char* str;
-    bool retval;
-
-    /*
-     * Required to initialize libmongoc's internals
-     */
-    mongoc_init();
+    AutoDestruct mongocInit{ &mongoc_init, &mongoc_cleanup };
 
     /*
      * Create a new client instance
      */
-    client = mongoc_client_new("mongodb://simon:Lt2bQb8jpRaLSn@185.242.113.159/?authSource=networkdata");
-    if (!client) {
+    auto mongocClient = ADTemplates::TMongocClient;
+    mongocClient.Init(mongoc_client_new("mongodb://simon:Lt2bQb8jpRaLSn@185.242.113.159/?authSource=networkdata"));
+
+    mongoc_client_t* client = mongocClient.As<mongoc_client_t*>();
+    if (!client)
+    {
         return EXIT_FAILURE;
     }
 
@@ -56,45 +177,44 @@ int main()
     /*
      * Get a handle on the database "db_name" and collection "coll_name"
      */
-    database = mongoc_client_get_database(client, "networkdata");
-    collection = mongoc_client_get_collection(client, "networkdata", "test");
+    auto mongocDatabase = ADTemplates::TMongocDatabase;
+    mongocDatabase.Init(mongoc_client_get_database(client, "networkdata"));
+
+    auto mongocCollection = ADTemplates::TMongocCollection;
+    mongocCollection.Init(mongoc_client_get_collection(client, "networkdata", "test"));
+
 
     /*
      * Do work. This example pings the database, prints the result as JSON and
      * performs an insert
      */
-    command = BCON_NEW("ping", BCON_INT32(1));
+    auto mongocCommand = ADTemplates::TMongocBsonPtr;
+    mongocCommand.Init(BCON_NEW("ping", BCON_INT32(1)));
 
-    retval = mongoc_client_command_simple(
-        client, "admin", command, NULL, &reply, &error);
+    auto mongocReply = ADTemplates::TMongocBson;
+    mongocReply.Init(bson_t());
+
+    bson_error_t error;
+    bool retval = mongoc_client_command_simple(
+        client, "admin", mongocCommand.As<bson_t*>(), NULL, &mongocReply.As<bson_t>(), &error);
 
     if (!retval) {
         fprintf(stderr, "%s\n", error.message);
         return EXIT_FAILURE;
     }
+    
+    auto mongocMessage = ADTemplates::TMongocCharPtr;
+    mongocMessage.Init(bson_as_json(&mongocReply.As<bson_t>(), NULL));
 
-    str = bson_as_json(&reply, NULL);
-    printf("%s\n", str);
+    //str = bson_as_json(&mongocReply.As<bson_t>(), NULL);
+    printf("%s\n", mongocMessage.As<char*>());
 
-    insert = BCON_NEW("hello", BCON_UTF8("world"));
+    auto mongocInsert = ADTemplates::TMongocBsonPtr;
+    mongocInsert.Init(BCON_NEW("hello", BCON_UTF8("world")));
 
-    if (!mongoc_collection_insert_one(collection, insert, NULL, NULL, &error)) {
+    if (!mongoc_collection_insert_one(mongocCollection.As<mongoc_collection_t*>(), mongocInsert.As<bson_t*>(), NULL, NULL, &error)) {
         fprintf(stderr, "%s\n", error.message);
     }
-
-    bson_destroy(insert);
-    bson_destroy(&reply);
-    bson_destroy(command);
-    bson_free(str);
-
-    /*
-     * Release our handles and clean up libmongoc
-     */
-    mongoc_collection_destroy(collection);
-    mongoc_database_destroy(database);
-    mongoc_client_destroy(client);
-    mongoc_cleanup();
-
     return EXIT_SUCCESS;
 
 
