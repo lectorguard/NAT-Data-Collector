@@ -17,5 +17,6 @@ find_package (mongoc-1.0 1.7 REQUIRED PATHS "${CMAKE_SOURCE_DIR}/ThirdParty/mong
 file(GLOB_RECURSE ALL_FILES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/**)
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/src" PREFIX "Source" FILES ${ALL_FILES})
 add_executable(server-app ${ALL_FILES})
+target_include_directories(server-app PRIVATE "/")
 target_link_libraries(server-app LINK_PUBLIC  nlohmann_json JSerializerLib asio mongo::mongoc_shared)
 
