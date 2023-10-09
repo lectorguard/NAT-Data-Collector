@@ -2,6 +2,16 @@
 
 ## How to set up Android Project
 
+### Prerequisites
+
+* Cmake 3.4.1 or higher
+* Visual Studio 22 17.4 Preview 2 or higher
+* Visual Studio Module : Mobile Development with C++
+* Visual Studio Module : Desktop Development with C++
+* devenv.exe must be set as environment variable (should be similar to C:\Program Files\Microsoft Visual Studio\2022\Preview\Common7\IDE)
+
+### Set up
+
 * Follow installation guide from [sample project](https://github.com/lectorguard/Android-CMake-VisualStudio-Sample)
 * Execute GenerateAndroidVisualStudioProject.bat
 * Set AndroidPackaging as Startup project
