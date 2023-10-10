@@ -13,8 +13,8 @@
 ### Set up
 
 * Follow installation guide from [sample project](https://github.com/lectorguard/Android-CMake-VisualStudio-Sample)
-* Execute GenerateAndroidVisualStudioProject.bat
-* Set AndroidPackaging as Startup project
+* Execute `GenerateAndroidVisualStudioProject.bat`
+* Set `AndroidPackaging `as Startup project
 * Run the application on the android device
 
 ## How to set up Server Project
@@ -53,9 +53,12 @@ db.test.find() // shows content of test collection
 
 ### Start Server on Windows for Testing
 
-* Install gdb for WSL2 (Windows subsystem for linux)
-* Visual studio max supported version is currently 10.2, see [issue](https://github.com/microsoft/vscode-cpptools/issues/9704) 
-* For Ubuntu 22.04, you need to install gdb-10.2 from source, see [tutorial](http://www.gdbtutorial.com/tutorial/how-install-gdb)  
+* Prepare WSL for the usage with [Visual Studio and CMake](https://learn.microsoft.com/en-us/cpp/build/walkthrough-build-debug-wsl2?view=msvc-170)
+* **Donwgrade** GDB for WSL (Windows Subsystem for Linux) 
+  * Visual studio max supported version is currently 10.2, see [issue](https://github.com/microsoft/vscode-cpptools/issues/9704)
+  * Delete the current gdb package with `sudo apt-get purge --auto-remove gdb`
+  * GDB installation by hand requires texinfo, install it with `sudo apt-get install texinfo`
+  * For Ubuntu 22.04, you need to install gdb-10.2 from source, see [tutorial](http://www.gdbtutorial.com/tutorial/how-install-gdb)  
 * Follow installation guide for [gcc visual studio cmake project](https://www.youtube.com/watch?v=IKI2w75aAow)
 * Execute GenerateServerVisualStudioProject.bat
 * Set Target System from **local machine** to **WSL 22.04**
