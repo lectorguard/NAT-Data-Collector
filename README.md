@@ -13,8 +13,8 @@
 ### Set up
 
 * Follow installation guide from [sample project](https://github.com/lectorguard/Android-CMake-VisualStudio-Sample)
-* Execute GenerateAndroidVisualStudioProject.bat
-* Set AndroidPackaging as Startup project
+* Execute `GenerateAndroidVisualStudioProject.bat`
+* Set `AndroidPackaging `as Startup project
 * Run the application on the android device
 
 ## How to set up Server Project
