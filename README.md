@@ -31,6 +31,17 @@ sudo systemctl stop mongod
 sudo systemctl restart mongod
 ```
 
+### Mongosh Usage
+
+* Using ubuntu, the mongo DB can be accessed via mongosh : 
+```
+mongosh
+db networkdata //Switching database
+db.auth("name", "password") // Authenticate for server
+show collections // shows all collections -> test
+db.test.find() // shows content of test collection
+```
+
 ### Start Server on Ubuntu
 
 ### Start Server on Windows for Testing
@@ -48,16 +59,7 @@ sudo systemctl restart mongod
 * Under tools->Android Tools->logcat, you can see LOGI and LOGW. Filter for native-activity.
 * Under windows make sure, to accept windows firewall window
 
-# Mongosh Usage
 
-Inside shell type the following
-```
-mongosh
-db networkdata //Switching database
-db.auth("name", "password") // Authenticate for server
-show collections // shows all collections -> test
-db.test.find() // shows content of test collection
-```
 
 # TODO
 
