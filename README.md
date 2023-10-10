@@ -57,6 +57,7 @@ db.test.find() // shows content of test collection
 * **Donwgrade** GDB for WSL (Windows Subsystem for Linux) 
   * Visual studio max supported version is currently 10.2, see [issue](https://github.com/microsoft/vscode-cpptools/issues/9704)
   * Delete the current gdb package with `sudo apt-get purge --auto-remove gdb`
+  * GDB installation requires texinfo, install it with `sudo apt-get install texinfo`
   * For Ubuntu 22.04, you need to install gdb-10.2 from source, see [tutorial](http://www.gdbtutorial.com/tutorial/how-install-gdb)  
 * Follow installation guide for [gcc visual studio cmake project](https://www.youtube.com/watch?v=IKI2w75aAow)
 * Execute GenerateServerVisualStudioProject.bat
