@@ -32,8 +32,10 @@ const mongoUtils::MongoConnectionInfo connectInfo
 
 int main()
 {
-	std::array<char, 512> test = { 1 };
-	mongoUtils.InsertElementToCollection(connectInfo, test);
+	std::cout << "hello" << std::endl;
+
+	//std::string json = R"({"test":1})";
+	//mongoUtils::InsertElementToCollection(connectInfo, json);
 
 	using asio_tcp = asio::ip::tcp;
 	std::cout << "start server" << std::endl;

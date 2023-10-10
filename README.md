@@ -46,6 +46,11 @@ db.test.find() // shows content of test collection
 
 ### Start Server on Ubuntu
 
+#### Prerequisites
+
+* Cmake 4.20 or higher
+* C++ and C compiler
+
 ### Start Server on Windows for Testing
 
 * Install gdb for WSL2 (Windows subsystem for linux)
