@@ -54,8 +54,9 @@ db.test.find() // shows content of test collection
 ### Start Server on Windows for Testing
 
 * Prepare WSL for the usage with [Visual Studio and CMake](https://learn.microsoft.com/en-us/cpp/build/walkthrough-build-debug-wsl2?view=msvc-170)
-* **Donwgrade** GDB for WSL (Windows Subsystem for Linux)
-  * Visual studio max supported version is currently 10.2, see [issue](https://github.com/microsoft/vscode-cpptools/issues/9704) 
+* **Donwgrade** GDB for WSL (Windows Subsystem for Linux) 
+  * Visual studio max supported version is currently 10.2, see [issue](https://github.com/microsoft/vscode-cpptools/issues/9704)
+  * Delete the current gdb package with `sudo apt-get purge --auto-remove gdb`
   * For Ubuntu 22.04, you need to install gdb-10.2 from source, see [tutorial](http://www.gdbtutorial.com/tutorial/how-install-gdb)  
 * Follow installation guide for [gcc visual studio cmake project](https://www.youtube.com/watch?v=IKI2w75aAow)
 * Execute GenerateServerVisualStudioProject.bat
