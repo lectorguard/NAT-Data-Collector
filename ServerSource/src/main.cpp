@@ -32,6 +32,13 @@ const mongoUtils::MongoConnectionInfo connectInfo
 
 int main()
 {
+// 	{
+// 		auto mongocInit = ADTemplates::Create<ADTemplates::mongoc_initial>();
+// 
+// 		ADTemplates::SmartDestruct<mongoc_client_t> mongoClient = ADTemplates::Create<mongoc_client_t>(connectInfo.serverURL);
+// 		mongoc_client_t* other = mongoClient.Value;
+// 	}
+
 	using asio_tcp = asio::ip::tcp;
 	std::cout << "start server" << std::endl;
 	try
