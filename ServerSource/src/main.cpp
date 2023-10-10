@@ -23,15 +23,18 @@
 
 const mongoUtils::MongoConnectionInfo connectInfo
 {
-	/*serverURL =*/			"mongodb://simon:Lt2bQb8jpRaLSn@185.242.113.159/?authSource=networkdata",
+	/*serverURL =*/			"mongodb://simon:Lt2bQb8jpRaLSn@185.242.113.159/?authSource=NatInfo",
 	/*mongoAppName=*/		"DataCollectorServer",
-	/*mongoDatabaseName=*/	"networkdata",
+	/*mongoDatabaseName=*/	"NatInfo",
 	/*mongoCollectionName=*/"test"
 };
 
 
 int main()
 {
+	std::array<char, 512> test = { 1 };
+	mongoUtils.InsertElementToCollection(connectInfo, test);
+
 	using asio_tcp = asio::ip::tcp;
 	std::cout << "start server" << std::endl;
 	try
