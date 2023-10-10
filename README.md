@@ -42,6 +42,7 @@ db.auth("name", "password") // Authenticate for server
 show collections // shows all collections -> test
 db.test.find() // shows content of test collection
 ```
+* See [Mongosh cheat sheet](https://www.mongodb.com/developer/products/mongodb/cheat-sheet/) for more info
 
 ### Start Server on Ubuntu
 
