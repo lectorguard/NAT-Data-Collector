@@ -22,6 +22,14 @@
 ### Setup Mongo DB on Ubuntu
 
 * Follow MongoDB [installation guide](https://www.mongodb.com/docs/manual/tutorial/install-mongodb-on-ubuntu/)
+* Most important commands :
+```
+sudo systemctl start mongod
+sudo systemctl daemon-reload
+sudo systemctl status mongod
+sudo systemctl stop mongod
+sudo systemctl restart mongod
+```
 
 ### Start Server on Ubuntu
 
