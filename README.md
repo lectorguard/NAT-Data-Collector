@@ -30,6 +30,7 @@ sudo systemctl status mongod
 sudo systemctl stop mongod
 sudo systemctl restart mongod
 ```
+* Configure Mongo DB for [remote access](https://indianceo.medium.com/how-to-connect-to-your-remote-mongodb-server-68725a8e53f)
 
 ### Mongosh Usage
 
