@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.20)
 project(AndroidNativeActivity)
 
 # JSerializer library
-set(JSERIALIZER_ONLY_LIBRARY true)
+set(JSERIALIZER_ONLY_LIBRARY ON CACHE BOOL "no tests" FORCE)
 add_subdirectory(ThirdParty/JSerializer)
 
 #asio library
