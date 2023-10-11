@@ -19,3 +19,4 @@ display-p3/third_party
 bin
 jniLibs
 JSON
+unix_build
