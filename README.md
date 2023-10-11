@@ -22,7 +22,7 @@
 * Set `AndroidPackaging `as Startup project
 * Run the application on the android device
 
-## How to set up Server Project
+## How to set up Mongo Server on Ubuntu
 
 ### Setup Mongo DB on Ubuntu
 
@@ -49,14 +49,19 @@ db.test.find() // shows content of test collection
 ```
 * See [Mongosh cheat sheet](https://www.mongodb.com/developer/products/mongodb/cheat-sheet/) for more info
 
-### Start Server on Ubuntu
+## How to set up Server App on Ubuntu
 
-#### Prerequisites
+### Prerequisites
 
-* Cmake 4.20 or higher
-* C++ and C compiler
+* The project requires multiple packages
+* The following commands checks the packages and installs them if necessary
+ `sudo apt-get install git cmake g++ pkg-config libssl-dev libsasl2-dev`
+### Run Server Application
 
-### Start Server on Windows for Testing
+* Simply run `./StartServer.sh`
+* Make sure you have correct permissions to do so
+
+## Debug, Test and Develop Server App on Windows with Visual Studio
 
 * Prepare WSL for the usage with [Visual Studio and CMake](https://learn.microsoft.com/en-us/cpp/build/walkthrough-build-debug-wsl2?view=msvc-170)
 * **Donwgrade** GDB for WSL (Windows Subsystem for Linux) 
@@ -73,8 +78,6 @@ db.test.find() // shows content of test collection
 
 * Under tools->Android Tools->logcat, you can see LOGI and LOGW. Filter for native-activity.
 * Under windows make sure, to accept windows firewall window
-
-
 
 # TODO
 
