@@ -1,4 +1,10 @@
 #!/bin/bash
+
+if [ -d "unix_build" ]; then 
+	echo "Delete last build."
+	rm -Rf "unix_build";
+fi
+
 mkdir -p "unix_build"
 cd "unix_build"
 
