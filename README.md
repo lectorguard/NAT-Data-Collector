@@ -1,5 +1,10 @@
 # NAT Data Collector
 
+## Clone Repository
+
+* Clone repository recursively with `git clone --recursive git@github.com:lectorguard/NAT-Data-Collector.git`
+* If you forgot to clone recursively use `git submodule update --init --remote --recursive`
+
 ## How to set up Android Project
 
 ### Prerequisites
