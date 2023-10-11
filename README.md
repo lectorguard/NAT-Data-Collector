@@ -55,7 +55,9 @@ db.test.find() // shows content of test collection
 
 * The project requires multiple packages
 * The following commands checks the packages and installs them if necessary
- `sudo apt-get install git cmake g++ pkg-config libssl-dev libsasl2-dev`
+
+`sudo apt-get install git cmake g++ pkg-config libssl-dev libsasl2-dev`
+
 ### Run Server Application
 
 * Simply run `./StartServer.sh`
