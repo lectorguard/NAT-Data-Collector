@@ -39,10 +39,11 @@ sudo systemctl restart mongod
 
 ### Mongosh Usage
 
+* The project expects there is a database called `NatInfo`
 * Using ubuntu, the mongo DB can be accessed via mongosh : 
 ```
 mongosh
-db networkdata //Switching database
+db NatInfo //Switching database
 db.auth("name", "password") // Authenticate for server
 show collections // shows all collections -> test
 db.test.find() // shows content of test collection
