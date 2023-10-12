@@ -32,7 +32,6 @@ const mongoUtils::MongoConnectionInfo connectInfo
 
 int main()
 {
-
 	using asio_tcp = asio::ip::tcp;
 	std::cout << "start server" << std::endl;
 	try
@@ -52,7 +51,7 @@ int main()
 			if (error == asio::error::eof)
 			{
 				std::cout << "Connection closed" << std::endl;
-				break; // Conn closed cleanly by peer
+				break; // Conn closed cleanly by peer 
 			}
 			else if (error)
 			{
@@ -61,7 +60,7 @@ int main()
 				throw asio::system_error(error); // Some other error.
 			}
 			std::cout << "Received data : " << buf.data() << std::endl;
-			if (!mongoUtils::InsertElementToCollection(connectInfo, buf))
+			if (!mongoUtils::InsertElementToCollection(connectInfo, std::string(buf.data())))
 			{
 				std::cout << "Writing Database Error" << std::endl;
 			}
