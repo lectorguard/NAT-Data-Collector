@@ -17,7 +17,6 @@
 #include <utility>
 
 #include <mongoc/mongoc.h>
-#include "Utils/AutoDestruct.h"
 #include "Utils/DBUtils.h"
 
 

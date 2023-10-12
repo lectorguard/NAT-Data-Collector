@@ -1,6 +1,6 @@
 #pragma once
 #include "mongoc/mongoc.h"
-#include "AutoDestructTemplates.h"
+#include "SmartDestructTemplates.h"
 
 namespace mongoUtils
 {
@@ -15,7 +15,7 @@ namespace mongoUtils
 
     static bool InsertElementToCollection(const MongoConnectionInfo mongoInfo, std::string buffer)
     {
-        using namespace ADTemplates;
+        using namespace SD;
 
         SmartDestruct<mongoc_initial> mongocContext = Create<mongoc_initial>();
 

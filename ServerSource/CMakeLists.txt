@@ -1,10 +1,6 @@
 cmake_minimum_required(VERSION 3.20)
-
-set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_CXX_STANDARD_REQUIRED True)
 set(${CMAKE_C_FLAGS}, "${CMAKE_C_FLAGS}")
 set(CMAKE_CXX_FLAGS "-std=c++20 -frtti -fexceptions")
-
 
 
 file(GLOB_RECURSE ALL_FILES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/**)
