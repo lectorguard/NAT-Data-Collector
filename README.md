@@ -18,6 +18,16 @@
 ### Set up
 
 * Follow installation guide from [sample project](https://github.com/lectorguard/Android-CMake-VisualStudio-Sample)
+* Open Visual Studio, continue without code
+* Navigate to `Tools->Options->CrossPlatform->C++`
+* Check if the following paths are correctly set
+```
+Android SDK : C:\Program Files (x86)\Android\android-sdk // Check content, should be part of VS Module : Mobile Dev Kit
+Android NDK : C:\Microsoft\AndroidNDK\android-ndk-r23c // Check content, should be part of VS Module : Mobile Dev Kit
+Java SE Development Kit : C:\Program Files\Microsoft\jdk-11.0.16.101-hotspot // Should be installed by default
+Apache Ant : 
+```
+* In case `Java SE Development Kit` is missing, you can install it from [here](https://aka.ms/download-jdk/microsoft-jdk-11.0.12.7.1-windows-x64.msi) 
 * Execute `GenerateAndroidVisualStudioProject.bat`
 * Set `AndroidPackaging `as Startup project
 * Run the application on the android device
