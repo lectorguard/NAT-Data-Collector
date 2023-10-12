@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.20)
 project(AndroidNativeActivity)
 
 # JSerializer library
-set(JSERIALIZER_ONLY_LIBRARY true)
+set(JSERIALIZER_ONLY_LIBRARY ON CACHE BOOL "no tests" FORCE)
 add_subdirectory(ThirdParty/JSerializer)
 
 #asio library
@@ -64,5 +64,9 @@ target_include_directories(${lib_asio_name} INTERFACE ${lib_asio_include_path})
 if(${CMAKE_SYSTEM_NAME} STREQUAL "Android")
 	add_subdirectory(AndroidSource)
 else()
+	set(ENABLE_AUTOMATIC_INIT_AND_CLEANUP OFF CACHE BOOL "Disable Clean Up" FORCE)
+	set(ENABLE_EXAMPLES OFF CACHE BOOL "no examples" FORCE)
+	set(ENABLE_TESTS OFF CACHE BOOL "no tests" FORCE)
+	add_subdirectory(ThirdParty/mongo-c-driver)
 	add_subdirectory(ServerSource)
 endif()

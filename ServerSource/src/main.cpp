@@ -23,21 +23,15 @@
 
 const mongoUtils::MongoConnectionInfo connectInfo
 {
-	/*serverURL =*/			"mongodb://simon:Lt2bQb8jpRaLSn@185.242.113.159/?authSource=networkdata",
+	/*serverURL =*/			"mongodb://simon:Lt2bQb8jpRaLSn@185.242.113.159/?authSource=NatInfo",
 	/*mongoAppName=*/		"DataCollectorServer",
-	/*mongoDatabaseName=*/	"networkdata",
+	/*mongoDatabaseName=*/	"NatInfo",
 	/*mongoCollectionName=*/"test"
 };
 
 
 int main()
 {
-// 	{
-// 		auto mongocInit = ADTemplates::Create<ADTemplates::mongoc_initial>();
-// 
-// 		ADTemplates::SmartDestruct<mongoc_client_t> mongoClient = ADTemplates::Create<mongoc_client_t>(connectInfo.serverURL);
-// 		mongoc_client_t* other = mongoClient.Value;
-// 	}
 
 	using asio_tcp = asio::ip::tcp;
 	std::cout << "start server" << std::endl;
