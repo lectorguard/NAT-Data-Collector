@@ -16,6 +16,8 @@ set(lib_asio_name asio)
 set(lib_asio_include_path ${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty/asio-1.24.0/include/)
 set(lib_asio_source_path ${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty/asio-1.24.0/include/)
 
+#shared data path
+set(shared_data_path ${CMAKE_CURRENT_SOURCE_DIR}/Shared/)
 
 include(FetchContent)
 

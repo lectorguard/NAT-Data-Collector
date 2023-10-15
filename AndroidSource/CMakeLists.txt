@@ -18,9 +18,11 @@ target_include_directories(native_app_glue PUBLIC ${ANDROID_NDK_PATH}/sources/an
 
 # Add native-activity
 file(GLOB_RECURSE ALL_FILES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/**)
+file(GLOB_RECURSE SHARED_FILES CONFIGURE_DEPENDS ${shared_data_path}**)
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/src" PREFIX "Source" FILES ${ALL_FILES})
+source_group(TREE "${shared_data_path}" PREFIX "Shared" FILES ${SHARED_FILES})
 
-add_library(native-activity SHARED ${ALL_FILES})
+add_library(native-activity SHARED ${ALL_FILES} ${SHARED_FILES})
 
 
 target_include_directories(native-activity PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src/)
