@@ -53,6 +53,7 @@ sudo systemctl restart mongod
 * Using ubuntu, the mongo DB can be accessed via mongosh : 
 ```
 mongosh
+use NatInfo
 db NatInfo //Switching database
 db.auth("name", "password") // Authenticate for server
 show collections // shows all collections -> test
