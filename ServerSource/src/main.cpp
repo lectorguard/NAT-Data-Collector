@@ -15,6 +15,7 @@
 #include <functional>
 #include <tuple>
 #include <utility>
+#include "optional"
 
 #include <mongoc/mongoc.h>
 #include "Utils/DBUtils.h"
@@ -29,97 +30,108 @@ const mongoUtils::MongoConnectionInfo connectInfo
 	/*mongoCollectionName=*/"test"
 };
 
+std::optional<std::string> CreateJsonFromEndpoint(const asio::ip::udp::endpoint& endpoint)
+{
+	using namespace std;
+
+	vector<jser::JSerError> errors;
+	shared_data::Address toSerialize{ endpoint.address().to_string(), endpoint.port() };
+	const string serializationString = toSerialize.SerializeObjectString(std::back_inserter(errors));
+	if (errors.size() > 0)
+	{
+		cout << "------ Start JSER error List -------" << endl;
+		for (auto error : errors)
+		{
+			cout << "Jser Error Message : " << error.Message << endl;
+		}
+		cout << "------ End JSER error List -------" << endl;
+		return std::nullopt;
+	}
+	else
+	{
+		return serializationString;
+	}
+}
+
 
 int main()
 {
-// 	std::error_code ec; // Create an error code to capture potential errors
-// 	asio::io_context io_context;
-// 
-// 	// Prepare socket
-// 	asio::ip::udp::socket socket(io_context, asio::ip::udp::v4());
-// 	asio::ip::udp::socket::reuse_address reuse_address_option{ true };
-// 	socket.set_option(reuse_address_option);
-// 
-// 	// set option
-// 	asio::ip::udp::endpoint local_service_endpoint{ asio::ip::make_address("192.168.2.110"), 7777 };
-// 	socket.bind(local_service_endpoint);
-// 
-// 
-// 	std::cout << "bound ip " << socket.local_endpoint().address() << std::endl;
-// 
-// 	for (;;)
-// 	{
-// 		// receive message
-// 		char receiveBuffer[64];
-// 		asio::ip::udp::endpoint sender_endpoint;
-// 		socket.receive_from(asio::buffer(receiveBuffer), sender_endpoint,0, ec);
-// 		if (ec) {
-// 			std::cout << "Error receiving data: " << ec.message() << std::endl;
-// 			break; // Handle the error appropriately
-// 		}
-// 		std::cout << "received message " << receiveBuffer << std::endl;
-// 
-// 		// read remote port and address 
-// 		shared_data::Address replyAddress{ sender_endpoint.address().to_string(), sender_endpoint.port() };
-// 		std::vector<jser::JSerError> errors;
-// 		std::string address_json = replyAddress.SerializeObjectString(std::back_inserter(errors));
-// 
-// 		// send back information
-// 		socket.send_to(asio::buffer(address_json), sender_endpoint, 0, ec);
-// 		if (ec) {
-// 			std::cout << "Error sending data: " << ec.message() << std::endl;
-// 			break; // Handle the error appropriately
-// 		}
-// 	}
-// 
-// 	std::cout << "Done" << std::endl;
+	std::error_code ec; // Create an error code to capture potential errors
+	asio::io_context io_context;
 
+	// Prepare socket
+	asio::ip::udp::socket socket(io_context, asio::ip::udp::v4()); //Instead of an IPv4 a local socket can be bound
+	asio::ip::udp::socket::reuse_address reuse_address_option{ true };
+	socket.set_option(reuse_address_option);
+
+	// set option
+	asio::ip::udp::endpoint local_service_endpoint{ asio::ip::make_address("0.0.0.0"), 7777 };
+	socket.bind(local_service_endpoint);
+
+	for (;;)
 	{
-		asio::io_service ioService;
-		asio::ip::tcp::resolver resolver(ioService);
+		// receive message
+		char receiveBuffer[64];
+		asio::ip::udp::endpoint remote_endpoint;
+		std::size_t len = socket.receive_from(asio::buffer(receiveBuffer), remote_endpoint,0, ec);
+		if (ec) {
+			std::cout << "Error receiving data: " << ec.message() << std::endl;
+			break; // Handle the error appropriately
+		}
 
-		std::cout << resolver.resolve(asio::ip::host_name(), "")->endpoint().address().to_string() << std::endl;
-	}
-
-
-	using asio_tcp = asio::ip::tcp;
-	std::cout << "start server" << std::endl;
-	try
-	{
-		asio::io_context io_context;
-		asio_tcp::acceptor _acceptor{ io_context, asio_tcp::endpoint(asio::ip::make_address("0.0.0.0"), 9999) };
-		for (;;)
+		// send back information
+		if (const auto answer = CreateJsonFromEndpoint(remote_endpoint))
 		{
-			asio_tcp::socket _socket{ io_context };
-			_acceptor.set_option(asio::ip::tcp::acceptor::reuse_address(true));
-			_acceptor.accept(_socket);
-
-			std::cout << "connection accepted" << std::endl;
-			std::array<char, 512> buf;
-			asio::error_code error;
-			size_t len = _socket.read_some(asio::buffer(buf), error);
-			if (error == asio::error::eof)
-			{
-				std::cout << "Connection closed" << std::endl;
-				break; // Conn closed cleanly by peer 
-			}
-			else if (error)
-			{
-				std::cout << "connection error" << error << std::endl;
-
-				throw asio::system_error(error); // Some other error.
-			}
-			std::cout << "Received data : " << buf.data() << std::endl;
-			if (!mongoUtils::InsertElementToCollection(connectInfo, std::string(buf.data())))
-			{
-				std::cout << "Writing Database Error" << std::endl;
-			}
+			socket.send_to(asio::buffer(*answer), remote_endpoint, 0, ec);
+		}
+		// error handling
+		if (ec) {
+			std::cout << "Error sending data: " << ec.message() << std::endl;
+			break; // Handle the error appropriately
 		}
 	}
-	catch (std::exception e)
-	{
-		std::cerr << e.what() << std::endl;
-	}
+	std::cout << "Done" << std::endl;
+
+
+// 	using asio_tcp = asio::ip::tcp;
+// 	std::cout << "start server" << std::endl;
+// 	try
+// 	{
+// 		asio::io_context io_context;
+// 		asio_tcp::acceptor _acceptor{ io_context, asio_tcp::endpoint(asio::ip::make_address("0.0.0.0"), 9999) };
+// 		for (;;)
+// 		{
+// 			asio_tcp::socket _socket{ io_context };
+// 			_acceptor.set_option(asio::ip::tcp::acceptor::reuse_address(true));
+// 			_acceptor.accept(_socket);
+// 
+// 			std::cout << "connection accepted" << std::endl;
+// 			std::array<char, 512> buf;
+// 			asio::error_code error;
+// 			size_t len = _socket.read_some(asio::buffer(buf), error);
+// 			if (error == asio::error::eof)
+// 			{
+// 				std::cout << "Connection closed" << std::endl;
+// 				break; // Conn closed cleanly by peer 
+// 			}
+// 			else if (error)
+// 			{
+// 				std::cout << "connection error" << error << std::endl;
+// 
+// 				throw asio::system_error(error); // Some other error.
+// 			}
+// 			std::string receivedMessage{ buf.data(), len};
+// 			std::cout << "Received data : " << receivedMessage << std::endl;
+// 			if (!mongoUtils::InsertElementToCollection(connectInfo, receivedMessage))
+// 			{
+// 				std::cout << "Writing Database Error" << std::endl;
+// 			}
+// 		}
+// 	}
+// 	catch (std::exception e)
+// 	{
+// 		std::cerr << e.what() << std::endl;
+// 	}
 }
 
 
