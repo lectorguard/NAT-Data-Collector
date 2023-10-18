@@ -18,6 +18,7 @@
 
 #include <mongoc/mongoc.h>
 #include "Utils/DBUtils.h"
+#include "SharedData.h"
 
 
 const mongoUtils::MongoConnectionInfo connectInfo
@@ -31,12 +32,62 @@ const mongoUtils::MongoConnectionInfo connectInfo
 
 int main()
 {
+// 	std::error_code ec; // Create an error code to capture potential errors
+// 	asio::io_context io_context;
+// 
+// 	// Prepare socket
+// 	asio::ip::udp::socket socket(io_context, asio::ip::udp::v4());
+// 	asio::ip::udp::socket::reuse_address reuse_address_option{ true };
+// 	socket.set_option(reuse_address_option);
+// 
+// 	// set option
+// 	asio::ip::udp::endpoint local_service_endpoint{ asio::ip::make_address("192.168.2.110"), 7777 };
+// 	socket.bind(local_service_endpoint);
+// 
+// 
+// 	std::cout << "bound ip " << socket.local_endpoint().address() << std::endl;
+// 
+// 	for (;;)
+// 	{
+// 		// receive message
+// 		char receiveBuffer[64];
+// 		asio::ip::udp::endpoint sender_endpoint;
+// 		socket.receive_from(asio::buffer(receiveBuffer), sender_endpoint,0, ec);
+// 		if (ec) {
+// 			std::cout << "Error receiving data: " << ec.message() << std::endl;
+// 			break; // Handle the error appropriately
+// 		}
+// 		std::cout << "received message " << receiveBuffer << std::endl;
+// 
+// 		// read remote port and address 
+// 		shared_data::Address replyAddress{ sender_endpoint.address().to_string(), sender_endpoint.port() };
+// 		std::vector<jser::JSerError> errors;
+// 		std::string address_json = replyAddress.SerializeObjectString(std::back_inserter(errors));
+// 
+// 		// send back information
+// 		socket.send_to(asio::buffer(address_json), sender_endpoint, 0, ec);
+// 		if (ec) {
+// 			std::cout << "Error sending data: " << ec.message() << std::endl;
+// 			break; // Handle the error appropriately
+// 		}
+// 	}
+// 
+// 	std::cout << "Done" << std::endl;
+
+	{
+		asio::io_service ioService;
+		asio::ip::tcp::resolver resolver(ioService);
+
+		std::cout << resolver.resolve(asio::ip::host_name(), "")->endpoint().address().to_string() << std::endl;
+	}
+
+
 	using asio_tcp = asio::ip::tcp;
 	std::cout << "start server" << std::endl;
 	try
 	{
 		asio::io_context io_context;
-		asio_tcp::acceptor _acceptor{ io_context, asio_tcp::endpoint(asio_tcp::v4(), 9999) };
+		asio_tcp::acceptor _acceptor{ io_context, asio_tcp::endpoint(asio::ip::make_address("0.0.0.0"), 9999) };
 		for (;;)
 		{
 			asio_tcp::socket _socket{ io_context };

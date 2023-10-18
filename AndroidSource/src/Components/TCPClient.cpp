@@ -1,6 +1,6 @@
 #include "TCPClient.h"
 #include "Application/Application.h"
-#include "JSerializer.h"
+#include "SharedData.h"
 #include "thread"
 
 void TCPClient::Activate(Application* app)
@@ -13,25 +13,47 @@ void TCPClient::Deactivate(Application* app)
 	t1.join();
 }
 
-CREATE_DEFAULT_JSER_MANAGER_TYPE(SerializeManagerType);
-
-struct ExampleInfo : public jser::JSerializable
-{
-	std::string _string = "Hello from JserializerLib";
-	std::vector<uint32_t> _vector = { 23,264,59,59,2,95 };
-
-	jser::JserChunkAppender AddItem() override
-	{
-		return JSerializable::AddItem().Append(JSER_ADD(SerializeManagerType, _string, _vector));
-	}
-};
 
 
 
 void TCPClient::StartCommunication()
 {
-	ExampleInfo toSerialize;
+// 	// char must have 8 bits
+// 	static_assert(std::is_same_v<std::uint8_t, char> || std::is_same_v<std::uint8_t, unsigned char>,
+// 		"This library requires std::uint8_t to be implemented as char or unsigned char.");
+// 
+// 	std::error_code error_code;
+// 	asio::io_context io_context;
+// 	asio::ip::udp::endpoint remote_endpoint{ asio::ip::make_address("192.168.2.110"), 7777 };
+// 	asio::ip::udp::socket socket{ io_context}; //, asio::ip::udp::endpoint{asio::ip::udp::v4(), 1234} bound local port
+// 	socket.open(asio::ip::udp::v4());
+// 
+// 	std::array<char, 1> buffer = { {0} };
+// 	socket.send_to(asio::buffer(buffer), remote_endpoint, 0, error_code);
+// 	if (error_code)
+// 	{
+// 		LOGWARN("Send Error : %s", error_code.message().c_str());
+// 		return;
+// 	}
+// 
+// 
+// 	char receiveBuffer[64];
+// 	asio::ip::udp::endpoint sender_endpoint;
+// 	size_t bytesRead = socket.receive_from(asio::buffer(receiveBuffer), sender_endpoint, 0, error_code);
+// 	if (error_code)
+// 	{
+// 		LOGWARN("Receive Error : %s", error_code.message().c_str());
+// 		return;
+// 	}
+// 
+// 	std::vector<jser::JSerError> errors;
+// 	shared_data::Address deserialize;
+// 	deserialize.DeserializeObject(std::string(receiveBuffer, bytesRead), std::back_inserter(errors));
+// 	assert(errors.size() == 0);
+	
+
 	std::vector<jser::JSerError> errors;
+	shared_data::Address toSerialize{ "my iop", 220 };
 	std::string serializationString = toSerialize.SerializeObjectString(std::back_inserter(errors));
 	if (errors.size() > 0)
 	{
@@ -40,12 +62,13 @@ void TCPClient::StartCommunication()
 		return;
 	}
 
+
 	using asio_tcp = asio::ip::tcp;
 	try
 	{
 		asio::io_context io_context;
 		asio_tcp::resolver _resolver{ io_context };
-		asio_tcp::resolver::iterator iterator = _resolver.resolve(asio_tcp::resolver::query("192.168.2.101", "9999"));
+		asio_tcp::resolver::iterator iterator = _resolver.resolve(asio_tcp::resolver::query("192.168.2.110", "9999"));
 		asio_tcp::socket _socket{ io_context };
 		asio::connect(_socket, iterator);
 		for (;;)

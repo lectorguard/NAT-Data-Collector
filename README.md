@@ -32,7 +32,7 @@ Apache Ant :
 * Set `AndroidPackaging `as Startup project
 * Run the application on the android device
 
-## How to set up Mongo Server on Ubuntu
+## How to set up Mongo DB on Ubuntu
 
 ### Setup Mongo DB on Ubuntu
 
@@ -75,7 +75,7 @@ db.test.find() // shows content of test collection
 * Simply run `./StartServer.sh`
 * Make sure you have correct permissions to do so
 
-## Debug, Test and Develop Server App on Windows with Visual Studio
+## How to set up Server App on Windows using WSL (Visual Studio, Debugging)
 
 * Prepare WSL for the usage with [Visual Studio and CMake](https://learn.microsoft.com/en-us/cpp/build/walkthrough-build-debug-wsl2?view=msvc-170)
 * **Donwgrade** GDB for WSL (Windows Subsystem for Linux) 
@@ -84,14 +84,36 @@ db.test.find() // shows content of test collection
   * GDB installation by hand requires texinfo, install it with `sudo apt-get install texinfo`
   * For Ubuntu 22.04, you need to install gdb-10.2 from source, see [tutorial](http://www.gdbtutorial.com/tutorial/how-install-gdb)  
 * Follow installation guide for [gcc visual studio cmake project](https://www.youtube.com/watch?v=IKI2w75aAow)
-* Execute GenerateServerVisualStudioProject.bat
+* Execute `GenerateServerVisualStudioProject.bat`
 * Set Target System from **local machine** to **WSL 22.04**
 * Set StartUp Item to **server-app** (It can take a while until it shows up)
+
 
 # Debuggig android
 
 * Under tools->Android Tools->logcat, you can see LOGI and LOGW. Filter for native-activity.
 * Under windows make sure, to accept windows firewall window
+
+# Issues 
+
+## Windows Defender blocks socket communication between WSL server app and android app (silent failure)
+
+### Solution 1: 
+
+* Rerun `GenerateServerVisualStudioProject.bat` to delete old Windows Defender Rules
+
+### Solution 2:
+
+* Delete old `Windows Defender Rules` by hand
+* Delete `bin` folder and select `Project/Delete Cache and Reconfigure` in the cmake server VS project
+* Rebuild and Run the server project
+* If `Windows Security Alert` **shows** and access is allowed, everything is correctly configured
+* If `Windows Security Alert` does not show
+	* Type `Advanced Security Windows Defender` in the windows search
+	* Select `Windows Defender Firewall with Advanced Security`
+	* Select `Inbound Rules`
+	* Search for `server-app`, if not found try click `refresh` button on the right
+	* Delete all `server-app` entries and repeat from above
 
 # TODO
 

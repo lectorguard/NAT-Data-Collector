@@ -25,10 +25,10 @@ source_group(TREE "${shared_data_path}" PREFIX "Shared" FILES ${SHARED_FILES})
 add_library(native-activity SHARED ${ALL_FILES} ${SHARED_FILES})
 
 
-target_include_directories(native-activity PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src/)
+target_include_directories(native-activity PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src/ ${shared_data_path})
 target_link_libraries(native-activity
     android
-	native_app_glue
+    native_app_glue
     EGL
     GLESv1_CM
     log
