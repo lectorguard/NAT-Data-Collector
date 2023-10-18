@@ -104,7 +104,6 @@ db.test.find() // shows content of test collection
 
 ### Solution 2:
 
-* Delete old `Windows Defender Rules` by hand
 * Delete `bin` folder and select `Project/Delete Cache and Reconfigure` in the cmake server VS project
 * Rebuild and Run the server project
 * If `Windows Security Alert` **shows** and access is allowed, everything is correctly configured
