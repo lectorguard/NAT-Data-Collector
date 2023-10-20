@@ -2,24 +2,17 @@
 //
 
 #include <iostream>
-#include "nlohmann/json.hpp"
 #include "JSerializer.h"
-#include "asio.hpp"
 #include <ctime>
 #include <netinet/in.h>
-#include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include <sys/socket.h>
 #include <unistd.h>
-#include <functional>
-#include <tuple>
-#include <utility>
-#include "optional"
 
 #include <mongoc/mongoc.h>
 #include "Utils/DBUtils.h"
-#include "SharedData.h"
+#include "Server/AddressRequest.h"
+#include <thread>
 
 
 const mongoUtils::MongoConnectionInfo connectInfo
@@ -30,67 +23,54 @@ const mongoUtils::MongoConnectionInfo connectInfo
 	/*mongoCollectionName=*/"test"
 };
 
-std::optional<std::string> CreateJsonFromEndpoint(const asio::ip::udp::endpoint& endpoint)
-{
-	using namespace std;
-
-	vector<jser::JSerError> errors;
-	shared_data::Address toSerialize{ endpoint.address().to_string(), endpoint.port() };
-	const string serializationString = toSerialize.SerializeObjectString(std::back_inserter(errors));
-	if (errors.size() > 0)
-	{
-		cout << "------ Start JSER error List -------" << endl;
-		for (auto error : errors)
-		{
-			cout << "Jser Error Message : " << error.Message << endl;
-		}
-		cout << "------ End JSER error List -------" << endl;
-		return std::nullopt;
-	}
-	else
-	{
-		return serializationString;
-	}
-}
 
 
 int main()
 {
-	std::error_code ec; // Create an error code to capture potential errors
-	asio::io_context io_context;
+	std::jthread UDPAddressEchoServer1{ [] {UDP_Adresss_Echo_Server::StartService(7777); } };
+	std::jthread UDPAddressEchoServer2{ [] {UDP_Adresss_Echo_Server::StartService(7778); } };
 
-	// Prepare socket
-	asio::ip::udp::socket socket(io_context, asio::ip::udp::v4()); //Instead of an IPv4 a local socket can be bound
-	asio::ip::udp::socket::reuse_address reuse_address_option{ true };
-	socket.set_option(reuse_address_option);
 
-	// set option
-	asio::ip::udp::endpoint local_service_endpoint{ asio::ip::make_address("0.0.0.0"), 7777 };
-	socket.bind(local_service_endpoint);
+// 	asio::io_context io_context;
+// 	uint16_t port = 7777; // Change to your desired port
+// 	asio::co_spawn(io_context, AddressRequest::StartService(port), asio::detached);
+// 	io_context.run();
 
-	for (;;)
-	{
-		// receive message
-		char receiveBuffer[64];
-		asio::ip::udp::endpoint remote_endpoint;
-		std::size_t len = socket.receive_from(asio::buffer(receiveBuffer), remote_endpoint,0, ec);
-		if (ec) {
-			std::cout << "Error receiving data: " << ec.message() << std::endl;
-			break; // Handle the error appropriately
-		}
-
-		// send back information
-		if (const auto answer = CreateJsonFromEndpoint(remote_endpoint))
-		{
-			socket.send_to(asio::buffer(*answer), remote_endpoint, 0, ec);
-		}
-		// error handling
-		if (ec) {
-			std::cout << "Error sending data: " << ec.message() << std::endl;
-			break; // Handle the error appropriately
-		}
-	}
-	std::cout << "Done" << std::endl;
+// 	std::error_code ec; // Create an error code to capture potential errors
+// 	asio::io_context io_context;
+// 
+// 	// Prepare socket
+// 	asio::ip::udp::socket socket(io_context, asio::ip::udp::v4()); //Instead of an IPv4 a local socket can be bound
+// 	asio::ip::udp::socket::reuse_address reuse_address_option{ true };
+// 	socket.set_option(reuse_address_option);
+// 
+// 	// set option
+// 	asio::ip::udp::endpoint local_service_endpoint{ asio::ip::make_address("0.0.0.0"), 7777 };
+// 	socket.bind(local_service_endpoint);
+// 
+// 	for (;;)
+// 	{
+// 		// receive message
+// 		char receiveBuffer[64];
+// 		asio::ip::udp::endpoint remote_endpoint;
+// 		std::size_t len = socket.receive_from(asio::buffer(receiveBuffer), remote_endpoint,0, ec);
+// 		if (ec) {
+// 			std::cout << "Error receiving data: " << ec.message() << std::endl;
+// 			break; // Handle the error appropriately
+// 		}
+// 
+// 		// send back information
+// 		if (const auto answer = CreateJsonFromEndpoint(remote_endpoint))
+// 		{
+// 			socket.send_to(asio::buffer(*answer), remote_endpoint, 0, ec);
+// 		}
+// 		// error handling
+// 		if (ec) {
+// 			std::cout << "Error sending data: " << ec.message() << std::endl;
+// 			break; // Handle the error appropriately
+// 		}
+// 	}
+// 	std::cout << "Done" << std::endl;
 
 
 // 	using asio_tcp = asio::ip::tcp;
