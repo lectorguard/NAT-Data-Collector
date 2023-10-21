@@ -6,6 +6,8 @@ namespace SD
 	template<typename T>
 	struct SmartDestruct
 	{
+		SmartDestruct() {};
+
 		SmartDestruct(T* value, const std::function<void(T*)>& shutdown) : Value(value), _shutdown(shutdown)
 		{
 		}

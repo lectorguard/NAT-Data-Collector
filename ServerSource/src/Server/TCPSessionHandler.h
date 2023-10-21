@@ -5,7 +5,7 @@
 #include "asio/awaitable.hpp"
 #include "asio/use_awaitable.hpp"
 #include <functional>
-#include "TransactionHandler.h"
+#include "RequestHandler/TransactionFactory.h"
 
 namespace TCPSessionHandler
 {
@@ -44,8 +44,7 @@ namespace TCPSessionHandler
 			if (HasTCPError(error, "Serve Client Async Read")) break;
 
 			// Handle transaction
-			TransactionHandler handler{};
-			const std::string response = handler.HandleTransaction(std::string(read_buffer, len));
+			const std::string response = TransactionFactory::Handle(std::string(read_buffer, len));
 
 			// Send response
 			len = co_await asio::async_write(s, asio::buffer(response), asio::redirect_error(asio::use_awaitable, error));

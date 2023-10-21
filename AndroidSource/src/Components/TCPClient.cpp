@@ -87,10 +87,13 @@ void TCPClient::StartCommunication()
 				LOGWARN("Established Connection : %s", serializationString.c_str());
 			}
 
+			shared_data::ServerRequest req{ shared_data::RequestType::INSERT_MONGO, serializationString };
+			std::string toSend = req.SerializeObjectString(std::back_inserter(errors));
+			assert(errors.size() == 0);
 
 			asio::error_code error;
 			LOGWARN("Send Info : %s", serializationString.c_str());
-			asio::write(_socket, asio::buffer(serializationString), error);
+			asio::write(_socket, asio::buffer(toSend), error);
 			if (error == asio::error::eof)
 			{
 				std::cout << "Connection closed" << std::endl;
