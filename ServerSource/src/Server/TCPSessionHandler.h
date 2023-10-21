@@ -10,7 +10,7 @@
 namespace TCPSessionHandler
 {
 
-	bool HasTCPError(asio::error_code error, std::string action)
+	bool HasTCPError(asio::error_code error, std::string_view action)
 	{
 		if (error == asio::error::eof)
 		{
