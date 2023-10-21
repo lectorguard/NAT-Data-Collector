@@ -5,7 +5,8 @@
  * android_native_app_glue.  It runs in its own thread, with its own
  * event loop for receiving input events and doing other things.
  */
-void android_main(struct android_app* state) {
+void android_main(struct android_app* state) 
+{
     Application app;
 	app.run(state);
 }
