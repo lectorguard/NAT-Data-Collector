@@ -70,6 +70,9 @@ db.test.find() // shows content of test collection
 
 `sudo apt-get install git cmake g++ pkg-config libssl-dev libsasl2-dev`
 
+* Open file `ServerSource/mongo_config_template.json`
+* Fill out mongo server URL and application based on the setup mongo server (**Mongo Server is required for this application**)
+
 ### Run Server Application
 
 * Simply run `./StartServer.sh`
@@ -77,6 +80,8 @@ db.test.find() // shows content of test collection
 
 ## How to set up Server App on Windows using WSL (Visual Studio, Debugging)
 
+* Open file `ServerSource/mongo_config_template.json`
+* Fill out mongo server URL and application based on the setup mongo server (**Mongo Server is required for this application**)
 * Prepare WSL for the usage with [Visual Studio and CMake](https://learn.microsoft.com/en-us/cpp/build/walkthrough-build-debug-wsl2?view=msvc-170)
 * **Donwgrade** GDB for WSL (Windows Subsystem for Linux) 
   * Visual studio max supported version is currently 10.2, see [issue](https://github.com/microsoft/vscode-cpptools/issues/9704)
@@ -87,7 +92,6 @@ db.test.find() // shows content of test collection
 * Execute `GenerateServerVisualStudioProject.bat`
 * Set Target System from **local machine** to **WSL 22.04**
 * Set StartUp Item to **server-app** (It can take a while until it shows up)
-
 
 # Debuggig android
 
