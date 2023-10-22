@@ -13,7 +13,7 @@ struct RequestHandler<shared_data::RequestType::INSERT_MONGO>
 		static std::mutex mongoWriteMutex{};
 		// Data races are possible when same user writes to same document/collection
 		std::scoped_lock lock{ mongoWriteMutex };
-		if (mongoUtils::InsertElementToCollection(mongoUtils::connectInfo, content))
+		if (mongoUtils::InsertElementToCollection(content))
 		{
 			return ServerResponse::CreateOKResponse();
 		}

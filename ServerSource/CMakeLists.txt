@@ -3,6 +3,7 @@ set(${CMAKE_C_FLAGS}, "${CMAKE_C_FLAGS}")
 set(CMAKE_CXX_FLAGS "-std=c++20 -frtti -fexceptions")
 
 
+
 file(GLOB_RECURSE ALL_FILES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/**)
 file(GLOB_RECURSE SHARED_FILES CONFIGURE_DEPENDS ${shared_data_path}**)
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/src" PREFIX "Source" FILES ${ALL_FILES})
@@ -14,4 +15,7 @@ target_link_libraries(server-app LINK_PUBLIC  nlohmann_json JSerializerLib asio 
 set_property(DIRECTORY PROPERTY VS_STARTUP_PROJECT server-app)
 
 target_compile_features(server-app PUBLIC cxx_std_20)
+# create config
+configure_file(mongo_config_template.json mongo_config.json)
+target_compile_definitions(server-app PRIVATE CONFIG_PATH="mongo_config.json")
 
