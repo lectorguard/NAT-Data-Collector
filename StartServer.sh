@@ -15,7 +15,8 @@ make
 # Check if the build was successful
 if [ $? -eq 0 ]; then
     # If the build was successful, execute the binary
-    ./ServerSource/server-app
+    cd ServerSource
+    ./server-app
 else
     # If the build failed, display an error message
     echo "Build failed. Please check the CMake configuration and fix any errors."
