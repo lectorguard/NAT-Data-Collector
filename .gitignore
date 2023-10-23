@@ -20,3 +20,4 @@ bin
 jniLibs
 JSON
 unix_build
+ServerSource/server_config_template.json
