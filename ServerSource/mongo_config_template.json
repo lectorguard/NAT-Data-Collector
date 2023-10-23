@@ -1,4 +1,0 @@
-{
-	"mongo_server_url": "mongodb://<user>:<password>@<server_ip_address>/?authSource=<db_name>",
-	"mongo_app_name": "<mongo app name>"
-}

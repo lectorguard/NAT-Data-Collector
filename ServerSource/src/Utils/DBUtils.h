@@ -2,7 +2,7 @@
 #include "mongoc/mongoc.h"
 #include "SmartDestructTemplates.h"
 #include <memory>
-#include "MongoContext.h"
+#include "Singletons/MongoContext.h"
 
 
 namespace mongoUtils

@@ -11,29 +11,25 @@
 #include "Server/AddressRequest.h"
 #include "Server/TCPSessionHandler.h"
 #include "asio.hpp"
-
-#define LOCAL_UDP_ADDR_SERVER_PORT1 7777
-#define LOCAL_UDP_ADDR_SERVER_PORT2 7778
-#define LOCAL_TCP_SESSION_SERVER_PORT 7779
-
-
+#include "Singletons/ServerConfig.h"
 
 int main()
 {
-	std::cout 
-		<< "Start UDP Address Echo Server on Ports "
-		<< LOCAL_UDP_ADDR_SERVER_PORT1
-		<< " and "
-		<< LOCAL_UDP_ADDR_SERVER_PORT2
-		<< std::endl;
-	std::jthread UDPAddressEchoServer1{ [] {UDP_Adresss_Echo_Server::StartService(LOCAL_UDP_ADDR_SERVER_PORT1); } };
-	std::jthread UDPAddressEchoServer2{ [] {UDP_Adresss_Echo_Server::StartService(LOCAL_UDP_ADDR_SERVER_PORT2); } };
+	if (auto server_config = ServerConfig::Get())
+	{
+		std::cout << "Successfully read server_config.json file" << std::endl;
 
-	std::cout
-		<< "Start TCP Transaction Server on port "
-		<< LOCAL_TCP_SESSION_SERVER_PORT
-		<< std::endl;
-	asio::io_context context;
-	asio::co_spawn(context, [] { return TCPSessionHandler::StartService(LOCAL_TCP_SESSION_SERVER_PORT); }, asio::detached);
-	context.run();
+		std::jthread UDPAddressEchoServer1{ [server_config] {UDP_Adresss_Echo_Server::StartService(server_config->udp_address_server1_port); } };
+		std::jthread UDPAddressEchoServer2{ [server_config] {UDP_Adresss_Echo_Server::StartService(server_config->udp_address_server2_port); } };
+
+		asio::io_context context;
+		asio::co_spawn(context, [server_config] { return TCPSessionHandler::StartService(server_config->tcp_session_server_port); }, asio::detached);
+		context.run();
+	}
+	else
+	{
+		std::cout << "Failed to read server config. Abort" << std::endl;
+		return 1;
+	}
+	
 }

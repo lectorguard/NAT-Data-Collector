@@ -4,6 +4,8 @@
 
 void UDP_Adresss_Echo_Server::StartService(uint16_t port)
 {
+	std::cout << "Start UDP Address Echo Server on local port : " << port << std::endl;
+
 	std::error_code ec;
 	asio::io_service io_service;
 	UDP_Adresss_Echo_Server addressEchoServer{ io_service, port };

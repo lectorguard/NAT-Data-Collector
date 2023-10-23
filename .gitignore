@@ -20,4 +20,3 @@ bin
 jniLibs
 JSON
 unix_build
-ServerSource/mongo_config_template.json

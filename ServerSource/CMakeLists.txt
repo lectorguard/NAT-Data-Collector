@@ -16,6 +16,6 @@ set_property(DIRECTORY PROPERTY VS_STARTUP_PROJECT server-app)
 
 target_compile_features(server-app PUBLIC cxx_std_20)
 # create config
-configure_file(mongo_config_template.json mongo_config.json)
-target_compile_definitions(server-app PRIVATE CONFIG_PATH="mongo_config.json")
+configure_file(server_config_template.json server_config.json)
+target_compile_definitions(server-app PRIVATE CONFIG_PATH="server_config.json")
 

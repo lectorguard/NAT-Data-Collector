@@ -57,6 +57,8 @@ namespace TCPSessionHandler
 
 	asio::awaitable<void> StartService(uint16_t port)
 	{
+		std::cout << "Start TCP Transaction Server on port : " << port << std::endl;
+
 		asio::ip::tcp::endpoint local_endpoint{ asio::ip::make_address("0.0.0.0"), port };
 		auto ex = co_await asio::this_coro::executor;
 		asio::ip::tcp::acceptor ac{ ex, local_endpoint };
