@@ -76,6 +76,10 @@ namespace SD
 		}
 	};
 
+// see issue https://jira.mongodb.org/browse/CDRIVER-3378
+//#pragma GCC diagnostic push
+//#pragma GCC diagnostic ignored "-Wignored-attributes" 
+
 	template<>
 	struct SmartDestructFactory<bson_t>
 	{
@@ -95,5 +99,5 @@ namespace SD
 		}
 	};
 
-
+//#pragma GCC diagnostic pop
 }
