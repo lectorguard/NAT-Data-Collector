@@ -1,11 +1,11 @@
 #pragma once
 #include "Components/Renderer.h"
-#include "Utils/Event.h"
-#include "Utils/ComponentManager.h"
+#include "CustomCollections/Event.h"
+#include "CustomCollections/ComponentManager.h"
 #include "Components/SensorManager.h"
 #include "Components/InputManager.h"
+#include "Components/NetworkManager.h"
 #include "android/log.h"
-#include "Components/TCPClient.h"
 
 
 #define LOGI(...) ((void)__android_log_print(ANDROID_LOG_INFO, "native-activity", __VA_ARGS__))
@@ -13,7 +13,7 @@
 
 class Application
 {
-	using ComponentsType = ComponentManager<SensorManager, Renderer, InputManager, TCPClient>;
+	using ComponentsType = ComponentManager<SensorManager, Renderer, InputManager, NetworkManager>;
 
 public:
 	Application() {};

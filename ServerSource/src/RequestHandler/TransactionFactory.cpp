@@ -14,7 +14,7 @@ const std::string TransactionFactory::Handle(const std::string& request)
 				return e.Message;
 			});
 		error_messages.push_back("Failed to deserialize Server Request");
-		return shared_data::ServerResponse::CreateErrorResponse(error_messages);
+		return shared_data::ServerResponse::Error(error_messages);
 	}
 
 	std::cout << "Received request number : " << static_cast<uint16_t>(request_handler.req_type) << std::endl;
@@ -27,6 +27,6 @@ const std::string TransactionFactory::Handle(const std::string& request)
 	}
 	else
 	{
-		return shared_data::ServerResponse::CreateErrorResponse({ "No handler implemented for type " + static_cast<uint16_t>(request_handler.req_type) });
+		return shared_data::ServerResponse::Error({ "No handler implemented for type " + static_cast<uint16_t>(request_handler.req_type) });
 	}
 }

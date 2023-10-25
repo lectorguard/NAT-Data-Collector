@@ -1,5 +1,5 @@
 #pragma once
-#include "SharedData.h"
+#include "SharedTypes.h"
 #include "BaseRequestHandler.h"
 #include "MongoRequestHandler.h"
 

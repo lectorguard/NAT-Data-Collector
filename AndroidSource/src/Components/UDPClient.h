@@ -7,6 +7,8 @@
 #include "array"
 #include <arpa/inet.h>
 #include <stdio.h>
+#pragma once
+
 #include <string.h>
 #include <sys/socket.h>
 #include <unistd.h>

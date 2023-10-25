@@ -2,7 +2,10 @@
 
 #include "JSerializer.h"
 #include "asio.hpp"
-#include "SharedData.h"
+#include "SharedTypes.h"
+#include "Data/Address.h"
+
+
 namespace ServerUtils
 {
 	std::shared_ptr<std::string> CreateJsonFromEndpoint(const asio::ip::udp::endpoint& endpoint)

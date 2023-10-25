@@ -2,6 +2,7 @@
 #include "Utils/DBUtils.h"
 #include "BaseRequestHandler.h"
 #include "mutex"
+#include "SharedProtocol.h"
 
 template<>
 struct RequestHandler<shared_data::RequestType::INSERT_MONGO>
@@ -15,11 +16,11 @@ struct RequestHandler<shared_data::RequestType::INSERT_MONGO>
 		std::scoped_lock lock{ mongoWriteMutex };
 		if (mongoUtils::InsertElementToCollection(content))
 		{
-			return ServerResponse::CreateOKResponse();
+			return ServerResponse::OK();
 		}
 		else
 		{
-			return ServerResponse::CreateErrorResponse({ "Failed to add insert json to collection" });
+			return ServerResponse::Error({ "Failed to add insert json to collection" });
 		}
 	}
 };

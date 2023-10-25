@@ -1,6 +1,8 @@
 #pragma once
 
-#include "SharedData.h"
+#include "SharedTypes.h"
+#include "SharedProtocol.h"
+#include <fstream>
 
 struct ServerConfig : public jser::JSerializable
 {
