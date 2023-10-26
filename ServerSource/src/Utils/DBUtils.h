@@ -8,7 +8,7 @@
 namespace mongoUtils
 {
     
-    static bool InsertElementToCollection(std::string buffer)
+    static bool InsertElementToCollection(const std::string& buffer, const std::string& db_name, const std::string& coll_name)
     {
         using namespace SD;
 
@@ -21,13 +21,13 @@ namespace mongoUtils
         /*
          * Get a handle on the database "db_name" and collection "coll_name"
          */
-		SmartDestruct<mongoc_database_t> mongocDB = Create<mongoc_database_t>(context->client.Value, "NatInfo");
+		SmartDestruct<mongoc_database_t> mongocDB = Create<mongoc_database_t>(context->client.Value, db_name);
         if (!mongocDB.Value)
         {
             return false;
         }
 
-		SmartDestruct<mongoc_collection_t> mongocCollection = Create<mongoc_collection_t>(context->client.Value, "NatInfo", "test");
+		SmartDestruct<mongoc_collection_t> mongocCollection = Create<mongoc_collection_t>(context->client.Value, db_name, coll_name);
 		if (!mongocCollection.Value)
 		{
 			return false;

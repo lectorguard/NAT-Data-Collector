@@ -1,4 +1,5 @@
 #include "TransactionFactory.h"
+#include "Utils/ServerUtils.h"
 
 const std::string TransactionFactory::Handle(const std::string& request)
 {
@@ -7,12 +8,7 @@ const std::string TransactionFactory::Handle(const std::string& request)
 	request_handler.DeserializeObject(request, std::back_inserter(errors));
 	if (errors.size() > 0)
 	{
-		std::vector<std::string> error_messages;
-		std::transform(errors.begin(), errors.end(), error_messages.begin(),
-			[](jser::JSerError e)
-			{
-				return e.Message;
-			});
+		std::vector<std::string> error_messages = ServerUtils::mapVector<jser::JSerError, std::string>(errors, [](auto e) {return e.Message; });
 		error_messages.push_back("Failed to deserialize Server Request");
 		return shared_data::ServerResponse::Error(error_messages);
 	}
@@ -23,7 +19,7 @@ const std::string TransactionFactory::Handle(const std::string& request)
 	// Find request handler and execute
 	if (request_map.contains(request_handler.req_type))
 	{
-		return request_map[request_handler.req_type](request_handler.req_data);
+		return request_map[request_handler.req_type](request_handler.req_data, request_handler.req_meta_data);
 	}
 	else
 	{

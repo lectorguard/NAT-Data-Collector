@@ -4,11 +4,14 @@
 #include "asio.hpp"
 #include "SharedTypes.h"
 #include "Data/Address.h"
+#include <functional>
+#include <vector>
+#include <algorithm>
 
 
 namespace ServerUtils
 {
-	std::shared_ptr<std::string> CreateJsonFromEndpoint(const asio::ip::udp::endpoint& endpoint)
+	inline std::shared_ptr<std::string> CreateJsonFromEndpoint(const asio::ip::udp::endpoint& endpoint)
 	{
 		using namespace std;
 
@@ -30,4 +33,14 @@ namespace ServerUtils
 			return std::make_shared<std::string>(serializationString);
 		}
 	}
+
+
+	template<typename P, typename R>
+	inline std::vector<R> mapVector(const std::vector<P>& vec, std::function<R(const P&)> lambda)
+	{
+		std::vector<R> buffer{vec.size()};
+		std::transform(vec.begin(), vec.end(), buffer.begin(), lambda);
+		return buffer;
+	}
 }
+
