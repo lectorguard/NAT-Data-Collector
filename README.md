@@ -120,8 +120,8 @@ db.test.find() // shows content of test collection
 
 # TODO
 
-* Mongo DB datenbank an server anbinden // Done
-* android app aufräumen // Done
+* android app aufräumen // Doing
+* Consistantly handle errors  (Use Variant<Error or Actual Type>) // TODO
 * Logik schreiben um ports zu generieren und zu speichern
 * Tool bauen um daten zu überprüfen //vllt telegram bot
 * Sich gedanken über speicher format machen und wie die informationen zu bekommen sind (Standort, provider, ...) //see https://www.infobyip.com/
