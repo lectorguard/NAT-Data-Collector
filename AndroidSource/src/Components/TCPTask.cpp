@@ -33,7 +33,7 @@ shared_data::ServerResponse TCPTask::ServerTransaction(shared_data::ServerReques
 		if (!response) break;
 
 		// Receive Answer from Server
-		char buf[128];
+		char buf[4096];
 		std::size_t len = socket.read_some(asio::buffer(buf), asio_error);
 		response = HandleAsioError(asio_error, "Read Answer from Server Request");
 		if (!response) break;
@@ -63,13 +63,13 @@ shared_data::ServerResponse TCPTask::HandleAsioError(asio::error_code ec, const 
 	using namespace shared_data;
 	if (ec == asio::error::eof)
 	{
-		return { ResponseType::ERROR, { "Connection Rejected during Transaction Attempt : Context : " + context} };
+		return ServerResponse::Error({ "Connection Rejected during Transaction Attempt : Context : " + context});
 	}
 	else if (ec)
 	{
-		return { ResponseType::ERROR, { "Server Connection Error " + ec.message() } };
+		return ServerResponse::Error({ "Server Connection Error " + ec.message() });
 	}
-	return ServerResponse(ResponseType::OK, { "" });
+	return ServerResponse::OK();
 }
 
 shared_data::ServerResponse TCPTask::HandleJserError(const std::vector<jser::JSerError>& jserErrors, const std::string& context)
@@ -80,9 +80,9 @@ shared_data::ServerResponse TCPTask::HandleJserError(const std::vector<jser::JSe
 		std::vector<std::string> stringErrors;
 		std::transform(jserErrors.begin(), jserErrors.end(), stringErrors.begin(), [](auto e) {return e.Message; });
 		stringErrors.push_back(context);
-		return ServerResponse(ResponseType::ERROR, { "(De)Serialization error - context : "});
+		return ServerResponse::Error({ "(De)Serialization error - context : "});
 	}
-	return ServerResponse(ResponseType::OK, { "" });
+	return ServerResponse::OK();
 }
 
 

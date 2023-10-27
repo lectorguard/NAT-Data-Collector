@@ -1,14 +1,14 @@
 #include "TransactionFactory.h"
-#include "Utils/ServerUtils.h"
+#include "SharedHelpers.h"
 
-const std::string TransactionFactory::Handle(const std::string& request)
+const shared_data::ServerResponse TransactionFactory::Handle(const std::string& request)
 {
 	std::vector<jser::JSerError> errors;
 	shared_data::ServerRequest request_handler{};
 	request_handler.DeserializeObject(request, std::back_inserter(errors));
 	if (errors.size() > 0)
 	{
-		std::vector<std::string> error_messages = ServerUtils::mapVector<jser::JSerError, std::string>(errors, [](auto e) {return e.Message; });
+		std::vector<std::string> error_messages = shared_data::helper::mapVector<jser::JSerError, std::string>(errors, [](auto e) {return e.Message; });
 		error_messages.push_back("Failed to deserialize Server Request");
 		return shared_data::ServerResponse::Error(error_messages);
 	}

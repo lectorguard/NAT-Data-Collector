@@ -44,10 +44,11 @@ namespace TCPSessionHandler
 			if (HasTCPError(error, "Serve Client Async Read")) break;
 
 			// Handle transaction
-			const std::string response = TransactionFactory::Handle(std::string(read_buffer, len));
+			shared_data::ServerResponse response = TransactionFactory::Handle(std::string(read_buffer, len));
+			std::shared_ptr<std::string> response_string = std::make_unique<std::string>(response.toString());
 
 			// Send response
-			len = co_await asio::async_write(s, asio::buffer(response), asio::redirect_error(asio::use_awaitable, error));
+			len = co_await asio::async_write(s, asio::buffer(*response_string), asio::redirect_error(asio::use_awaitable, error));
 			if (HasTCPError(error, "Serve Client Async Write")) break;
 		}
 		s.shutdown(asio::ip::tcp::socket::shutdown_both);

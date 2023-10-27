@@ -3,6 +3,8 @@
 #include "JSerializer.h"
 #include "type_traits"
 #include "SharedTypes.h"
+#include <variant>
+#include "sstream"
 
 CREATE_DEFAULT_JSER_MANAGER_TYPE(SerializeManagerType);
 
@@ -27,51 +29,64 @@ namespace shared_data
 		}
 	};
 
+
 	struct ServerResponse : public jser::JSerializable
 	{
 		ResponseType resp_type{ ResponseType::OK };
-		std::vector<std::string> error_message{};
+		std::vector<std::string> messages{};
 
 		ServerResponse() {};
-		ServerResponse(ResponseType resp_type, std::vector<std::string> error_message) : resp_type(resp_type), error_message(error_message)
+		ServerResponse(ResponseType resp_type, std::vector<std::string> messages) : resp_type(resp_type), messages(messages)
 		{}
 
 		jser::JserChunkAppender AddItem() override
 		{
-			return JSerializable::AddItem().Append(JSER_ADD(SerializeManagerType, resp_type, error_message));
+			return JSerializable::AddItem().Append(JSER_ADD(SerializeManagerType, resp_type, messages));
 		}
 
-		static const std::string OK()
+		static ServerResponse OK(const std::string& msg = "")
 		{
-			ServerResponse response{ ResponseType::OK, {} };
-			return response.toString();
+			return ServerResponse(ResponseType::OK, msg.empty() ? std::vector<std::string>() : std::vector<std::string>{msg});
 		}
 
-		static const std::string Warning(const std::vector<std::string>& warning_messages)
+		static ServerResponse Warning(const std::vector<std::string>& warning_messages)
 		{
-			ServerResponse response{ ResponseType::WARNING, warning_messages };
-			return response.toString();
+			return ServerResponse(ResponseType::WARNING, warning_messages );
 		}
 
-		static const std::string Error(const std::vector<std::string>& error_messages)
+		static ServerResponse Error(const std::vector<std::string>& error_messages)
 		{
-			ServerResponse response{ ResponseType::ERROR, error_messages };
-			return response.toString();
+			return ServerResponse(ResponseType::ERROR, error_messages);
 		}
 
 		operator bool() const {
 			return resp_type == ResponseType::OK;
 		}
 
-	private:
-
 		const std::string toString()
 		{
 			std::vector<jser::JSerError> errors;
 			const std::string json_string = SerializeObjectString(std::back_inserter(errors));
-			assert(errors.size() == 0);
-			return json_string;
+			if (errors.size() == 0)
+			{
+				return json_string;
+			}
+			else
+			{
+				// Need to serialize by hand, such that client deserialization is not producing errors
+				std::stringstream ss;
+				ss << R"({"messages":[)";
+				for (const std::string& msg : messages)
+				{
+					ss << R"(")" << msg << R"(")" << ",";
+				}
+				ss << R"("Failed serializing server response"],"resp_type":2})";
+				return ss.str();
+			}
 		}
 	};
+
+	template<typename T>
+	using Result = std::variant<ServerResponse, T>;
 }
 

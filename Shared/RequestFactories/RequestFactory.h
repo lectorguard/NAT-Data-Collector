@@ -5,6 +5,6 @@
 namespace shared_data
 {
 	template<RequestType RT>
-	struct RequestFactory 
+	struct RequestFactory
 	{};
 }
