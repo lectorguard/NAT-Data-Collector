@@ -2,7 +2,7 @@
 #include "SharedTypes.h"
 #include "SharedProtocol.h"
 
-namespace shared_data
+namespace shared
 {
 	template<RequestType RT>
 	struct RequestFactory

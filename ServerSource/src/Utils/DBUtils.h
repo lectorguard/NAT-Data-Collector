@@ -8,10 +8,10 @@
 namespace mongoUtils
 {
     
-    static shared_data::ServerResponse InsertElementToCollection(const std::string& buffer, const std::string& db_name, const std::string& coll_name)
+    static shared::ServerResponse InsertElementToCollection(const std::string& buffer, const std::string& db_name, const std::string& coll_name)
     {
         using namespace SD;
-        using namespace shared_data;
+        using namespace shared;
 
         MongoContext* context = MongoContext::Get();
         if (!context)

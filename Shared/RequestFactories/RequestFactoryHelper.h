@@ -3,7 +3,7 @@
 #include "MongoRequestFactories.h"
 #include "JSerializer.h"
 
-namespace shared_data::helper
+namespace shared::helper
 {
 
 	template<RequestType R, typename T, typename ...Args>

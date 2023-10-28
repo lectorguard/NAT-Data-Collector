@@ -21,10 +21,10 @@
 class TCPTask
 {
 public:
-	static shared_data::ServerResponse ServerTransaction(shared_data::ServerRequest request, std::string_view server_addr, uint16_t server_port);
+	static shared::ServerResponse ServerTransaction(shared::ServerRequest request, std::string_view server_addr, uint16_t server_port);
 private:
 	static void ShutdownSocket(asio::ip::tcp::socket& socket);
-	static shared_data::ServerResponse HandleAsioError(asio::error_code ec, const std::string& context);
-	static shared_data::ServerResponse HandleJserError(const std::vector<jser::JSerError>& jserErrors, const std::string& context);
+	static shared::ServerResponse HandleAsioError(asio::error_code ec, const std::string& context);
+	static shared::ServerResponse HandleJserError(const std::vector<jser::JSerError>& jserErrors, const std::string& context);
 };
 

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "SharedProtocol.h"
+#include "Data/Address.h"
 #include <future>
 
 
@@ -14,5 +15,6 @@ public:
 	void Deactivate(class Application* app);
 
 private:
-	std::future<shared_data::ServerResponse> response_future;
+	std::future<shared::ServerResponse> response_future;
+	std::future<shared::Result<shared::NATSample>> response_udp_future;
 };

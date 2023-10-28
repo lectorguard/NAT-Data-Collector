@@ -1,7 +1,7 @@
 #pragma once
 #include "stdint.h"
 
-namespace shared_data 
+namespace shared 
 {
 	enum class RequestType : uint16_t
 	{

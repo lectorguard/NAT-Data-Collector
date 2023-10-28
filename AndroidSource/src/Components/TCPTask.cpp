@@ -2,10 +2,10 @@
 #include "Application/Application.h"
 #include "thread"
 
-shared_data::ServerResponse TCPTask::ServerTransaction(shared_data::ServerRequest request, std::string_view server_addr, uint16_t server_port)
+shared::ServerResponse TCPTask::ServerTransaction(shared::ServerRequest request, std::string_view server_addr, uint16_t server_port)
 {
 	using asio_tcp = asio::ip::tcp;
-	using namespace shared_data;
+	using namespace shared;
 
 	ServerResponse response{ ResponseType::OK, {""} };
 	asio::io_context io_context;
@@ -58,9 +58,9 @@ void TCPTask::ShutdownSocket(asio::ip::tcp::socket& socket)
 	socket.close();
 }
 
-shared_data::ServerResponse TCPTask::HandleAsioError(asio::error_code ec, const std::string& context)
+shared::ServerResponse TCPTask::HandleAsioError(asio::error_code ec, const std::string& context)
 {
-	using namespace shared_data;
+	using namespace shared;
 	if (ec == asio::error::eof)
 	{
 		return ServerResponse::Error({ "Connection Rejected during Transaction Attempt : Context : " + context});
@@ -72,9 +72,9 @@ shared_data::ServerResponse TCPTask::HandleAsioError(asio::error_code ec, const 
 	return ServerResponse::OK();
 }
 
-shared_data::ServerResponse TCPTask::HandleJserError(const std::vector<jser::JSerError>& jserErrors, const std::string& context)
+shared::ServerResponse TCPTask::HandleJserError(const std::vector<jser::JSerError>& jserErrors, const std::string& context)
 {
-	using namespace shared_data;
+	using namespace shared;
 	if (jserErrors.size() > 0)
 	{
 		std::vector<std::string> stringErrors;

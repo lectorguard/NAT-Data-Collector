@@ -5,7 +5,7 @@
 #include "SharedProtocol.h"
 #include "SharedHelpers.h"
 
-namespace shared_data
+namespace shared
 {
 	template<>
 	struct RequestFactory<RequestType::INSERT_MONGO>

@@ -44,7 +44,7 @@ namespace TCPSessionHandler
 			if (HasTCPError(error, "Serve Client Async Read")) break;
 
 			// Handle transaction
-			shared_data::ServerResponse response = TransactionFactory::Handle(std::string(read_buffer, len));
+			shared::ServerResponse response = TransactionFactory::Handle(std::string(read_buffer, len));
 			std::shared_ptr<std::string> response_string = std::make_unique<std::string>(response.toString());
 
 			// Send response

@@ -8,7 +8,7 @@
 
 CREATE_DEFAULT_JSER_MANAGER_TYPE(SerializeManagerType);
 
-namespace shared_data
+namespace shared
 {
 	struct ServerRequest : public jser::JSerializable
 	{

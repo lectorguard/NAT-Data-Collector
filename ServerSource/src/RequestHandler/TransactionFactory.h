@@ -9,11 +9,11 @@ struct TransactionFactory
 {
 public:
 
-	static const shared_data::ServerResponse Handle(const std::string& request);
+	static const shared::ServerResponse Handle(const std::string& request);
 
 private:
-	using RequestMap = std::unordered_map<shared_data::RequestType, std::function<const shared_data::ServerResponse(const std::string, const std::string)>>;
+	using RequestMap = std::unordered_map<shared::RequestType, std::function<const shared::ServerResponse(const std::string, const std::string)>>;
 	inline static RequestMap request_map{ 
-		{shared_data::RequestType::INSERT_MONGO, &RequestHandler<shared_data::RequestType::INSERT_MONGO>::Handle}
+		{shared::RequestType::INSERT_MONGO, &RequestHandler<shared::RequestType::INSERT_MONGO>::Handle}
 	};
 };
