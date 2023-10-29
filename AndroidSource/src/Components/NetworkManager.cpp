@@ -36,7 +36,7 @@ void NetworkManager::OnAppStart()
 // 		LOGW("---- End : Failed to Create Server Request ----");
 // 	}
 
-	UDPCollectTask::Info info{ "192.168.2.110",7777, 7778, 0, 10, 10.0f };
+	UDPCollectTask::Info info{ "192.168.2.110",7777,0, 20, 5 };
 	response_udp_future = std::async(UDPCollectTask::StartTask, info);
 }
 
