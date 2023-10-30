@@ -19,7 +19,7 @@ shared::Result<std::string> HTTPTask::SimpleHttpRequest(const std::string& reque
 
 		asio_tcp::resolver::query query(url, port);
 		auto resolved_query = resolver.resolve(query, asio_error);
-		response = utilities::HandleAsioError(asio_error, "Connect to HTTP Server failed");
+		response = utilities::HandleAsioError(asio_error, "Resolve HTTP URL");
 		if (!response) break;
 
 		asio::connect(sock, resolved_query, asio_error);
@@ -32,7 +32,7 @@ shared::Result<std::string> HTTPTask::SimpleHttpRequest(const std::string& reque
 
 		char buf[4096];
 		std::size_t len = sock.read_some(asio::buffer(buf), asio_error);
-		response = utilities::HandleAsioError(asio_error, "Read Answer from Server Request");
+		response = utilities::HandleAsioError(asio_error, "Read Answer from HTTP Server Request");
 		if (!response) break;
 
 		result = std::string(buf, len);
