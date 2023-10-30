@@ -65,6 +65,13 @@ shared::Result<shared::NATSample> UDPCollectTask::StartTask(const Info& collect_
 		return shared::ServerResponse::Error({ "Asio IO service failed during UDP Collect Nat Data attempt" , ec.message() });
 	}
 
+	// Shutdown created sockets
+ 	for (Socket& sock : collectTask.socket_list)
+ 	{
+ 		sock.socket->close();
+ 	}
+
+
 	if (collectTask.stored_response)
 	{
 		// Sort ports found

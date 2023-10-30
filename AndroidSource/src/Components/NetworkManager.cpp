@@ -7,6 +7,7 @@
 #include "RequestFactories/RequestFactoryHelper.h"
 #include <variant>
 #include "UDPCollectTask.h"
+#include "HTTPTask.h"
 
 
 void NetworkManager::Activate(Application* app)
@@ -36,8 +37,28 @@ void NetworkManager::OnAppStart()
 // 		LOGW("---- End : Failed to Create Server Request ----");
 // 	}
 
-	UDPCollectTask::Info info{ "192.168.2.110",7777,0, 20, 5 };
-	response_udp_future = std::async(UDPCollectTask::StartTask, info);
+//	UDPCollectTask::Info info{ "192.168.2.110",7777, 44444, 20, 5 };
+//	response_udp_future = std::async(UDPCollectTask::StartTask, info);
+
+	std::stringstream requestHeader;
+	requestHeader << "GET /json/ HTTP/1.1\r\n";
+	requestHeader << "Host: ip-api.com\r\n";
+	requestHeader << "\r\n";
+
+	Result<std::string> res = HTTPTask::SimpleHttpRequest(requestHeader.str(), "ip-api.com", true);
+	if (auto apiAnswer = std::get_if<std::string>(&res))
+	{
+		LOGW("Successfully received answer : %s", apiAnswer->c_str());
+	}
+	else
+	{
+		auto error = std::get<ServerResponse>(res);
+		for (std::string message : error.messages)
+		{
+			LOGW("Error : %s", message.c_str());
+		}
+		LOGW("---- End : Server Response Error ----");
+	}
 }
 
 void NetworkManager::Update()
@@ -64,29 +85,29 @@ void NetworkManager::Update()
 // 		}
 // 	}
 
-	if (!response_udp_future.valid())return;
-
-	if (response_udp_future.wait_for(std::chrono::milliseconds(1)) == std::future_status::ready)
-	{
-		Result<NATSample> response = response_udp_future.get();
-		if (auto natSample = std::get_if<NATSample>(&response))
-		{
-			LOGW("Successfully received sample info");
-			for (auto address_found : natSample->address_vector)
-			{
-				LOGW("Received : %s %d %d ", address_found.ip_address.c_str(), address_found.port, address_found.index);
-			}
-		}
-		else
-		{
-			auto error = std::get<ServerResponse>(response);
-			for (std::string message : error.messages)
-			{
-				LOGW("Error : %s", message.c_str());
-			}
-			LOGW("---- End : Server Response Error ----");
-		}
-	}
+// 	if (!response_udp_future.valid())return;
+// 
+// 	if (response_udp_future.wait_for(std::chrono::milliseconds(1)) == std::future_status::ready)
+// 	{
+// 		Result<NATSample> response = response_udp_future.get();
+// 		if (auto natSample = std::get_if<NATSample>(&response))
+// 		{
+// 			LOGW("Successfully received sample info");
+// 			for (auto address_found : natSample->address_vector)
+// 			{
+// 				LOGW("Received : %s %d %d ", address_found.ip_address.c_str(), address_found.port, address_found.index);
+// 			}
+// 		}
+// 		else
+// 		{
+// 			auto error = std::get<ServerResponse>(response);
+// 			for (std::string message : error.messages)
+// 			{
+// 				LOGW("Error : %s", message.c_str());
+// 			}
+// 			LOGW("---- End : Server Response Error ----");
+// 		}
+// 	}
 }
 
 
