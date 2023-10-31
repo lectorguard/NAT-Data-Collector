@@ -6,9 +6,22 @@
 #include <type_traits>
 #include <optional>
 #include <variant>
+#include "SharedProtocol.h"
 
-#define MEMFUN(x) std::bind(x, this, std::placeholders::_1)
+#define MEMFUN(x) std::bind(x, this, std::placeholders::_1, std::placeholders::_2)
 
+
+struct TaskStatus
+{
+	shared::ServerResponse value;
+};
+
+enum class TaskExecType
+{
+	RUNNING,
+	HAS_RESULT,
+	ERROR
+};
 
 template<typename R>
 struct TaskExecutor;
@@ -22,21 +35,27 @@ struct Exec
 template<typename R>
 struct TaskExecutor
 {
-	std::variant<Exec<R>, R> tasks;
-	bool IsReady = false;
+	std::variant<Exec<R>, R, TaskStatus> tasks;
+	TaskExecType Status = TaskExecType::RUNNING;
 
 	void Update()
 	{
 		if (Exec<R>* ec = std::get_if<Exec<R>>(&tasks))
 		{
-			tasks = std::move(ec->func().tasks);
+			tasks = ec->func().tasks;
+			Status = TaskExecType::RUNNING;
+		}
+		else if (TaskStatus* status = std::get_if<TaskStatus>(&tasks))
+		{
+			Status = TaskExecType::ERROR;
 		}
 		else
 		{
-			IsReady = true;
+			Status = TaskExecType::HAS_RESULT;
 		}
 	}
 
+	bool IsReady() { return Status != TaskExecType::RUNNING; }
 
 	std::optional<R> GetResult()
 	{
@@ -49,9 +68,26 @@ struct TaskExecutor
 			return std::nullopt;
 		}
 	}
+
+	std::optional<shared::ServerResponse> GetError()
+	{
+		if (auto* res = std::get_if<TaskStatus>(&tasks))
+		{
+			return res->value;
+		}
+		else
+		{
+			return std::nullopt;
+		}
+	}
 };
 
 
+// Each passed function must return a value as optional
+// If nullopt, the function will be called again until an actual value is returned
+// Every next function gets the previous return value as passed parameter
+// Every function gets a second ServerResponse parameter as ref
+// If an error is set as response, the whole chain will instantly fail with this error
 template<typename...FUNCS>
 class TaskPlanner
 {
@@ -67,7 +103,7 @@ public:
 	}
 
 	template<typename R, typename PAR>
-	TaskExecutor<R> Evaluate(PAR&& param)
+	TaskExecutor<R> Evaluate(PAR param)
 	{
 		return Evaluate_exec<0, R, PAR, FUNCS...>(std::move(param), objects);
 	}
@@ -75,13 +111,19 @@ public:
 
 private:
 	template<size_t I = 0, typename R, typename PAR, typename...Cs>
-	static TaskExecutor<R> Evaluate_exec(PAR&& par, std::tuple<Cs...> tup)
+	static TaskExecutor<R> Evaluate_exec(PAR par, std::tuple<Cs...> tup)
 	{
+		TaskStatus stat{};
 		auto& func = std::get<I>(tup);
-
-
 		// res must be optional
-		if (auto res{ func(std::forward<PAR>(par)) })
+		// Object must be copyable, pass pointer if object not movable
+		auto res{ func(par, stat.value) };
+		if (!stat.value)
+		{
+			return TaskExecutor<R>{stat};
+		}
+
+		if (res)
 		{
 			if constexpr (I + 1 != sizeof...(Cs))
 			{
@@ -97,66 +139,10 @@ private:
 		}
 		else
 		{
-			return { Exec<R>{ [val = std::forward<PAR>(par), tup]() { return Evaluate_exec<I, R>(std::move(val), tup); } } };
+			return { Exec<R>{ [pm = std::move(par), tup]() mutable { return Evaluate_exec<I, R>(std::move(pm), tup); } }};
 		}
 	}
 
 	std::tuple<FUNCS...> objects;
 };
-
-
-// int main()
-// {
-// 	std::cout << "Hello World!\n";
-// 
-// 	bool shouldReturn = false;
-// 
-// 	std::function<std::optional<int>(std::string)> func1 = [](auto URL) {
-// 		std::cout << "Send HTTP to " << URL << std::endl;
-// 		return 5;
-// 		};
-// 
-// 	auto func2 = [&shouldReturn](int httpHandle) -> std::optional<float>
-// 		{
-// 			std::cout << "Received Request " << httpHandle << std::endl;
-// 			if (shouldReturn)
-// 			{
-// 				return std::optional(5.5f);
-// 			}
-// 			else
-// 			{
-// 				return std::nullopt;
-// 			}
-// 		};
-// 
-// 	std::function<std::optional<std::string>(float)> func3 = [](float in)
-// 		{
-// 			std::cout << "Yess goes on" << in << std::endl;
-// 			return "yeet";
-// 		};
-// 
-// 	using namespace std;
-// 
-// 	TaskPlanner t1 =
-// 		TaskPlanner(func1)
-// 		.AndThen<optional<float>, int>(func2)
-// 		.AndThen(func3);
-// 
-// 
-// 	TaskExecutor<std::string> runner = t1.Evaluate<std::string>("url");
-// 
-// 	for (int i = 0; i < 10; ++i)
-// 	{
-// 		runner.Update();
-// 		if (i == 6)
-// 		{
-// 			shouldReturn = true;
-// 		}
-// 	}
-// 	if (auto finalres = runner.GetResult())
-// 	{
-// 		std::cout << *finalres << std::endl;
-// 	}
-// }
-
 

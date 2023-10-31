@@ -11,6 +11,9 @@ class NetworkManager
 {
 	template<typename T>
 	using op = std::optional<T>;
+	template<typename T>
+	using sh = std::shared_ptr<T>;
+
 	using ReqIP = std::future<shared::Result<std::string>>;
 
 public:
@@ -22,11 +25,8 @@ public:
 
 private:
 
-	op<ReqIP> RequestIpInfo(std::string dummy);
-	op<shared::IPMetaData> GetIpInfo(ReqIP&& fut);
+	op<sh<ReqIP>> RequestIpInfo(std::string header, shared::ServerResponse& status);
+	op<shared::IPMetaData> GetIpInfo(sh<ReqIP> fut, shared::ServerResponse& status);
 
-	TaskExecutor<ReqIP> exec;
-
-	std::future<shared::ServerResponse> response_future;
-	std::future<shared::Result<shared::NATSample>> response_udp_future;
+	TaskExecutor<shared::IPMetaData> exec;
 };

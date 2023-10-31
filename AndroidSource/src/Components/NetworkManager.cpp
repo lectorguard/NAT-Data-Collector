@@ -23,22 +23,15 @@ void NetworkManager::OnAppStart()
 {
 	using namespace shared;
 
-// 	auto planner = TaskPlanner([](std::string got) -> std::optional<ReqIP>
-// 		{
-// 			return std::async([]() -> shared::Result<std::string> {return std::string("hello"); });
-// 		});
-
-	//auto planner = TaskPlanner(MEMFUN(&NetworkManager::GetIpInfo));
-	auto planner = TaskPlanner(MEMFUN(&NetworkManager::RequestIpInfo));
-								//.AndThen(MEMFUN(&NetworkManager::GetIpInfo));
+	auto planner = TaskPlanner(MEMFUN(&NetworkManager::RequestIpInfo))
+								.AndThen(MEMFUN(&NetworkManager::GetIpInfo));
 
 	std::stringstream requestHeader;
 	requestHeader << "GET /json/ HTTP/1.1\r\n";
 	requestHeader << "Host: ip-api.com\r\n";
 	requestHeader << "\r\n";
 
-	//auto fut = std::async(HTTPTask::SimpleHttpRequest, requestHeader.str(), std::string("ip-api.com"), true, "80");
-	exec = planner.Evaluate<ReqIP>("PleaseHelp");
+	exec = planner.Evaluate<shared::IPMetaData>(requestHeader.str());
 
 
 	//auto handle = planner.Evaluate<shared::IPMetaData>("start")
@@ -93,10 +86,19 @@ void NetworkManager::OnAppStart()
 
 void NetworkManager::Update()
 {
+	
 	exec.Update();
 	if (auto result = exec.GetResult())
 	{
-		LOGW("Did ittttt");
+		LOGW("Did ittttt %s %s %s", result->isp.c_str(), result->isp.c_str(), result->isp.c_str());
+	}
+	if (auto error = exec.GetError())
+	{
+ 		for (std::string message : error->messages)
+ 		{
+ 			LOGW("Error : %s", message.c_str());
+ 		}
+ 		LOGW("---- End : Task Runner ----");
 	}
 
 // 	if (bool ready = handle.Update())
@@ -150,45 +152,47 @@ void NetworkManager::Update()
 }
 
 
-NetworkManager::op<NetworkManager::ReqIP> NetworkManager::RequestIpInfo(std::string dummy)
+NetworkManager::op<NetworkManager::sh<NetworkManager::ReqIP>> NetworkManager::RequestIpInfo(std::string header, shared::ServerResponse& status)
 {
-	std::stringstream requestHeader;
-	requestHeader << "GET /json/ HTTP/1.1\r\n";
-	requestHeader << "Host: ip-api.com\r\n";
-	requestHeader << "\r\n";
-
-	return std::async(HTTPTask::SimpleHttpRequest, requestHeader.str(), std::string("ip-api.com"), true, "80");
+	auto fut = std::async(HTTPTask::SimpleHttpRequest, header, std::string("ip-api.com"), true, "80");
+	return std::make_shared<ReqIP>(std::move(fut));
 }
 
 
-NetworkManager::op<shared::IPMetaData> NetworkManager::GetIpInfo(ReqIP&& fut)
+NetworkManager::op<shared::IPMetaData> NetworkManager::GetIpInfo(sh<ReqIP> fut, shared::ServerResponse& status)
 {
 	for (;;)
 	{
-		if (!fut.valid())
+		if (!fut->valid())
+		{
+			status = shared::ServerResponse::Error({ "Invalid future" });
+			break;
+		}
+
+		if (fut->wait_for(std::chrono::milliseconds(1)) != std::future_status::ready)
 			break;
 
-		if (fut.wait_for(std::chrono::milliseconds(1)) != std::future_status::ready)
-			break;
-
-		shared::Result<std::string> response = fut.get();
-		if (auto apiAnswer = std::get_if<std::string>(&response))
+		shared::Result<std::string> result = fut->get();
+		if (auto apiAnswer = std::get_if<std::string>(&result))
 		{
 			LOGW("Successfully received answer--%s--", apiAnswer->c_str());
 			shared::IPMetaData metaData{};
 			std::vector<jser::JSerError> jser_errors;
 			metaData.DeserializeObject(*apiAnswer, std::back_inserter(jser_errors));
-			assert(jser_errors.size() == 0);
+			if (jser_errors.size() > 0)
+			{
+				std::vector<std::string> errorList = shared::helper::JserErrorToString(jser_errors);
+				errorList.push_back("Failed to Deserialize IP Info from Server");
+				status = shared::ServerResponse::Error(errorList);
+				break;
+			}
 			return metaData;
 		}
 		else
 		{
-			auto error = std::get<shared::ServerResponse>(response);
-			for (std::string message : error.messages)
-			{
-				LOGW("Error : %s", message.c_str());
-			}
-			LOGW("---- End : Server Response Error ----");
+			auto error = std::get<shared::ServerResponse>(result);
+			status = error;
+			break;
 		}
 		break;
 	}
