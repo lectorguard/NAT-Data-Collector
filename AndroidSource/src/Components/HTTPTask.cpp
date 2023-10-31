@@ -3,7 +3,7 @@
 #include "Utilities/NetworkHelpers.h"
 #include "Application/Application.h"
 
-shared::Result<std::string> HTTPTask::SimpleHttpRequest(const std::string& request, const std::string& url, bool ignoreRespondHeader /*= false*/, const std::string& port /*= "80"*/)
+shared::Result<std::string> HTTPTask::SimpleHttpRequest(std::string_view request, std::string url, bool ignoreRespondHeader, std::string port)
 {
 	using asio_tcp = asio::ip::tcp;
 	using namespace shared;

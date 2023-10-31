@@ -16,6 +16,6 @@
 class HTTPTask
 {
 public:
-	static shared::Result<std::string> SimpleHttpRequest(const std::string& request, const std::string& url, bool ignoreRespondHeader = false, const std::string& port = "80");
+	static shared::Result<std::string> SimpleHttpRequest(std::string_view request, std::string url, bool ignoreRespondHeader, std::string port);
 };
 
