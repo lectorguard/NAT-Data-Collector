@@ -4,7 +4,7 @@
 #include "CustomCollections/ComponentManager.h"
 #include "Components/SensorManager.h"
 #include "Components/InputManager.h"
-#include "Components/NetworkManager.h"
+#include "Components/NatCollector.h"
 #include "android/log.h"
 
 
@@ -13,7 +13,7 @@
 
 class Application
 {
-	using ComponentsType = ComponentManager<SensorManager, Renderer, InputManager, NetworkManager>;
+	using ComponentsType = ComponentManager<SensorManager, Renderer, InputManager, NatCollector>;
 
 public:
 	Application() {};

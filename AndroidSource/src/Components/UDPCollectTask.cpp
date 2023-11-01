@@ -15,7 +15,34 @@
 }
 
 
-UDPCollectTask::UDPCollectTask(const Info& info, asio::io_service& io_service) : collect_info(info)
+ shared::Result<shared::NATSample> UDPCollectTask::StartCollectTask(const CollectInfo& collect_info)
+ {
+
+	 // Print request details
+	 LOGW("Collect NAT data - remote address %s - remote port %d - local port %d - amountPorts %d - deltaTime %dms",
+		 collect_info.remote_address.c_str(),
+		 collect_info.remote_port,
+		 collect_info.local_port,
+		 collect_info.amount_ports,
+		 collect_info.time_between_requests_ms);
+
+	 return start_task_internal([collect_info](asio::io_service& io) { return UDPCollectTask(collect_info, io); });
+ }
+
+ shared::Result<shared::NATSample> UDPCollectTask::StartNatTypeTask(const NatTypeInfo& collect_info)
+ {
+	 // Print request details
+	 LOGW("Nat Type Request - remote address %s - first remote port %d - second remote port %d - local port %d - deltaTime %d ms",
+		 collect_info.remote_address.c_str(),
+		 collect_info.first_remote_port,
+		 collect_info.second_remote_port,
+		 collect_info.local_port,
+		 collect_info.time_between_requests_ms);
+
+	 return start_task_internal([collect_info](asio::io_service& io) { return UDPCollectTask(collect_info, io); });
+ }
+
+ UDPCollectTask::UDPCollectTask(const CollectInfo& info, asio::io_service& io_service)
 {
 	std::function<std::shared_ptr<asio::ip::udp::socket>()> createSocket = nullptr;
 	if (info.local_port == 0)
@@ -31,32 +58,54 @@ UDPCollectTask::UDPCollectTask(const Info& info, asio::io_service& io_service) :
 	}
 
 	socket_list.reserve(info.amount_ports);
-	for (uint16_t index = 0; index < collect_info.amount_ports; ++index)
+	for (uint16_t index = 0; index < info.amount_ports; ++index)
 	{
 		socket_list.emplace_back(Socket{ index,
 										createSocket(),
 										asio::system_timer(io_service)
 			});
-		socket_list[index].timer.expires_from_now(std::chrono::milliseconds(index * collect_info.time_between_requests_ms));
-		socket_list[index].timer.async_wait([this, &sock = socket_list[index], &io_service](auto error)
+		socket_list[index].timer.expires_from_now(std::chrono::milliseconds(index * info.time_between_requests_ms));
+		socket_list[index].timer.async_wait([this, info, &sock = socket_list[index], &io_service](auto error)
 			{
-				send_request(sock, io_service, error);
+				auto remote_endpoint = std::make_shared<asio::ip::udp::endpoint>(asio::ip::make_address(info.remote_address), info.remote_port);
+				send_request(sock, io_service, remote_endpoint, error);
 			});
 	}
 }
 
-shared::Result<shared::NATSample> UDPCollectTask::StartTask(const Info& collect_info)
+UDPCollectTask::UDPCollectTask(const NatTypeInfo& info, asio::io_service& io_service)
 {
-	// Print request details
-	LOGW("Collect NAT data - remote address %s - remote port %d - local port %d - amountPorts %d - deltaTime %dms", 
-		collect_info.remote_address.c_str(),
-		collect_info.remote_port,
-		collect_info.local_port,
-		collect_info.amount_ports,
-		collect_info.time_between_requests_ms);
+	if (info.local_port == 0)
+	{
+		LOGW("For UDP Collector Task Port 0 is disallowed !!");
+		return;
+	}
 
+	// All sockets use same port
+	auto shared_local_socket = std::make_shared<asio::ip::udp::socket>(io_service, asio::ip::udp::endpoint{ asio::ip::udp::v4(), info.local_port });
+	auto createSocket = [shared_local_socket]() {return shared_local_socket; };
+
+	socket_list.reserve(2);
+	std::vector<uint16_t> ports = {info.first_remote_port, info.second_remote_port};
+	for (uint16_t index = 0; index < 2; ++index)
+	{
+		socket_list.emplace_back(Socket{ index,
+										createSocket(),
+										asio::system_timer(io_service)
+			});
+		socket_list[index].timer.expires_from_now(std::chrono::milliseconds(index * info.time_between_requests_ms));
+		socket_list[index].timer.async_wait([this, info, port = ports[index], &sock = socket_list[index], &io_service](auto error)
+			{
+				auto remote_endpoint = std::make_shared<asio::ip::udp::endpoint>(asio::ip::make_address(info.remote_address), port);
+				send_request(sock, io_service, remote_endpoint, error);
+			});
+	}
+}
+
+shared::Result<shared::NATSample> UDPCollectTask::start_task_internal(std::function<UDPCollectTask(asio::io_service&)> createCollectTask)
+{
 	asio::io_service io_service;
-	UDPCollectTask collectTask{ collect_info, io_service };
+	UDPCollectTask collectTask{ createCollectTask(io_service) };
 
 	asio::error_code ec;
 	io_service.run(ec);
@@ -86,7 +135,7 @@ shared::Result<shared::NATSample> UDPCollectTask::StartTask(const Info& collect_
 }
 
 
-void UDPCollectTask::send_request(Socket& local_socket, asio::io_service& io_service, const std::error_code& ec)
+void UDPCollectTask::send_request(Socket& local_socket, asio::io_service& io_service, SharedEndpoint remote_endpoint, const std::error_code& ec)
 {
 	if (ec && ec != asio::error::message_size)
 	{
@@ -110,9 +159,8 @@ void UDPCollectTask::send_request(Socket& local_socket, asio::io_service& io_ser
 	}
 	// create heap object
 	auto shared_serialized_address = std::make_shared<std::string>(serialized_address);
-	auto shared_remote_endpoint = std::make_shared<asio::ip::udp::endpoint>(asio::ip::make_address(collect_info.remote_address), collect_info.remote_port);
 
-	local_socket.socket->async_send_to(asio::buffer(*shared_serialized_address), *shared_remote_endpoint,
+	local_socket.socket->async_send_to(asio::buffer(*shared_serialized_address), *remote_endpoint,
 		[this,&local_socket, shared_serialized_address, &io_service](const std::error_code& ec, std::size_t bytesTransferred)
 		{
 			start_receive(local_socket, io_service, ec);

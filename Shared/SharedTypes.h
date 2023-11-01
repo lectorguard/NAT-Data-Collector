@@ -15,4 +15,12 @@ namespace shared
 		WARNING = 1,
 		ERROR = 2
 	};
+
+	enum class NATType : uint8_t
+	{
+		UNDEFINED = 0,
+		CONE,
+		PROGRESSING_SYM,
+		RANDOM_SYM
+	};
 }

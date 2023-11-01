@@ -37,5 +37,15 @@ namespace utilities
 		}
 		return ServerResponse::OK();
 	}
+
+	template<typename T>
+	inline std::optional<T> TryGetFuture(std::future<T>& fut)
+	{
+		if (!fut.valid())
+			return std::nullopt;
+		if (fut.wait_for(std::chrono::milliseconds(0)) != std::future_status::ready)
+			return std::nullopt;
+		return fut.get();
+	}
 }
 

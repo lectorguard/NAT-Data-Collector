@@ -35,7 +35,7 @@ struct Exec
 template<typename R>
 struct TaskExecutor
 {
-	std::variant<Exec<R>, R, TaskStatus> tasks;
+	std::variant<Exec<R>, R, TaskStatus> tasks = TaskStatus{ shared::ServerResponse::OK() };
 	TaskExecType Status = TaskExecType::RUNNING;
 
 	void Update()
@@ -61,7 +61,7 @@ struct TaskExecutor
 	{
 		if (auto* res = std::get_if<R>(&tasks))
 		{
-			return std::move(*res);
+			return *res;
 		}
 		else
 		{
