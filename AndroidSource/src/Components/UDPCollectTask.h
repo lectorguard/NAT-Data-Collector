@@ -27,8 +27,8 @@ public:
 		uint16_t time_between_requests_ms;
 	};
 
-	static shared::Result<shared::NATSample> StartCollectTask(const CollectInfo& collect_info);
-	static shared::Result<shared::NATSample> StartNatTypeTask(const NatTypeInfo& collect_info);
+	static shared::Result<shared::AddressVector> StartCollectTask(const CollectInfo& collect_info);
+	static shared::Result<shared::AddressVector> StartNatTypeTask(const NatTypeInfo& collect_info);
 
 	// Normal Collect Task
 	UDPCollectTask(const CollectInfo& info, asio::io_service& io_service);
@@ -42,12 +42,12 @@ private:
 		asio::system_timer timer;
 	};
 
-	static shared::Result<shared::NATSample> start_task_internal(std::function<UDPCollectTask(asio::io_service&)> createCollectTask);
+	static shared::Result<shared::AddressVector> start_task_internal(std::function<UDPCollectTask(asio::io_service&)> createCollectTask);
 	void send_request(Socket& local_socket, asio::io_service& io_service, SharedEndpoint remote_endpoint, const std::error_code& ec);
 	void start_receive(Socket& local_socket, asio::io_service& io_service, const std::error_code& ec);
 	void handle_receive(std::shared_ptr<AddressBuffer> buffer, std::size_t len, asio::io_service& io_service, const std::error_code& ec);
 
 	std::vector<Socket> socket_list;
 	shared::ServerResponse stored_response = shared::ServerResponse::OK();
-	shared::NATSample stored_natsample{};
+	shared::AddressVector stored_natsample{};
 };

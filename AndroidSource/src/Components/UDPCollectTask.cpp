@@ -15,7 +15,7 @@
 }
 
 
- shared::Result<shared::NATSample> UDPCollectTask::StartCollectTask(const CollectInfo& collect_info)
+ shared::Result<shared::AddressVector> UDPCollectTask::StartCollectTask(const CollectInfo& collect_info)
  {
 
 	 // Print request details
@@ -29,7 +29,7 @@
 	 return start_task_internal([collect_info](asio::io_service& io) { return UDPCollectTask(collect_info, io); });
  }
 
- shared::Result<shared::NATSample> UDPCollectTask::StartNatTypeTask(const NatTypeInfo& collect_info)
+ shared::Result<shared::AddressVector> UDPCollectTask::StartNatTypeTask(const NatTypeInfo& collect_info)
  {
 	 // Print request details
 	 LOGW("Nat Type Request - remote address %s - first remote port %d - second remote port %d - local port %d - deltaTime %d ms",
@@ -102,7 +102,7 @@ UDPCollectTask::UDPCollectTask(const NatTypeInfo& info, asio::io_service& io_ser
 	}
 }
 
-shared::Result<shared::NATSample> UDPCollectTask::start_task_internal(std::function<UDPCollectTask(asio::io_service&)> createCollectTask)
+shared::Result<shared::AddressVector> UDPCollectTask::start_task_internal(std::function<UDPCollectTask(asio::io_service&)> createCollectTask)
 {
 	asio::io_service io_service;
 	UDPCollectTask collectTask{ createCollectTask(io_service) };

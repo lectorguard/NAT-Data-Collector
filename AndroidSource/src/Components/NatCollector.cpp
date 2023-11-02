@@ -47,6 +47,7 @@ void NatCollector::Update()
 				shared::IPMetaData metaData{};
 				std::vector<jser::JSerError> jser_errors;
 				metaData.DeserializeObject(*apiAnswer, std::back_inserter(jser_errors));
+				assert(!metaData.isp.empty());
 				if (jser_errors.size() > 0)
 				{
 					LOGW("Failed to Deserialize IP Info from Server");
@@ -82,9 +83,9 @@ void NatCollector::Update()
 	}
 	case NatCollectionSteps::UpdateNATInfo:
 	{
-		if (auto res = utilities::TryGetFuture<shared::Result<shared::NATSample>>(nat_ident_task))
+		if (auto res = utilities::TryGetFuture<shared::Result<shared::AddressVector>>(nat_ident_task))
 		{
-			if (auto sample = std::get_if<shared::NATSample>(&*res))
+			if (auto sample = std::get_if<shared::AddressVector>(&*res))
 			{
 				LOGW("Received nat sample %s:%d %s:%d",
 					sample->address_vector[0].ip_address.c_str(),
@@ -110,25 +111,49 @@ void NatCollector::Update()
 	}
 
 	case NatCollectionSteps::StartCollectPorts:
-		LOGW("Done so Far");
-// // 	UDPCollectTask::NatTypeInfo info{	
-// // 		/* remote address */			"192.168.2.110",
-// // 		/* first remote port */			7777,
-// // 		/* second remote port */		7778,
-// // 		/* local port*/					44444,
-// // 		/* time between requests in ms */ 20
-// // 	};
-// // 	//exec = planner.Evaluate<shared::NATType>(info);
-// // 
-// // 	auto fut = std::async(UDPCollectTask::StartNatTypeTask, info);
-// // 	auto next = fut.get();
+	{
+		UDPCollectTask::CollectInfo info
+		{
+			/* remote address */				"192.168.2.110",
+			/* remote port */					7777,
+			/* local port */					0,
+			/* amount of ports */				100,
+			/* time between requests in ms */	20
+
+		};
+
+		nat_collect_task = std::async(UDPCollectTask::StartCollectTask, info);
+		current = NatCollectionSteps::UpdateCollectPorts;
 		break;
+	}
 	case NatCollectionSteps::UpdateCollectPorts:
+	{
+		if (auto res = utilities::TryGetFuture<shared::Result<shared::AddressVector>>(nat_collect_task))
+		{
+			if (auto sample = std::get_if<shared::AddressVector>(&*res))
+			{
+				collected_nat_data = sample->address_vector;
+				current = NatCollectionSteps::StartUploadDB;
+				break;
+			}
+			else
+			{
+				auto error = std::get<shared::ServerResponse>(*res);
+				LOGW("First Error during Update Collect Ports : %s", error.messages[0].c_str());
+				current = NatCollectionSteps::Error;
+				break;
+			}
+		}
 		break;
+	}
 	case NatCollectionSteps::StartUploadDB:
-//		ServerRequest request = helper::CreateServerRequest<RequestType::INSERT_MONGO>(test_address, "NatInfo", "test");
-//		response_future = std::async(TCPTask::ServerTransaction, request, "192.168.2.110", 7779);
+	{
+		using namespace shared;
+// 		ServerRequest request = helper::CreateServerRequest<RequestType::INSERT_MONGO>(test_address, "NatInfo", "test");
+// 		response_future = std::async(TCPTask::ServerTransaction, request, "192.168.2.110", 7779);
+		LOGW("Done so far");
 		break;
+	}
 	case NatCollectionSteps::UpdateUploadDB:
 // 		if (!response_future.valid())return;
 // 

@@ -31,7 +31,8 @@ class NatCollector
 	using sh = std::shared_ptr<T>;
 
 	using IPInfoTask = std::future<shared::Result<std::string>>;
-	using NATIdentTask = std::future<shared::Result<shared::NATSample>>;
+	using NATIdentTask = std::future<shared::Result<shared::AddressVector>>;
+	using NATCollectTask = std::future<shared::Result<shared::AddressVector>>;
 
 public:
 	void Update();
@@ -49,10 +50,12 @@ private:
 	// Tasks
 	IPInfoTask ip_info_task;
 	NATIdentTask nat_ident_task;
+	NATCollectTask nat_collect_task;
 
 	// Data
 	shared::IPMetaData ip_meta_data;
 	std::vector<shared::NATType> identified_nat_types;
+	std::vector<shared::Address> collected_nat_data;
 	
 
 	// Expect always exactly 2 ports inside the vector
