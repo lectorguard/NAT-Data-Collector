@@ -15,6 +15,7 @@
 
 int main()
 {
+	std::cout << "Buffer size is " << BUFFER_SIZE << std::endl;
 	if (auto server_config = ServerConfig::Get())
 	{
 		std::cout << "Successfully read server_config.json file" << std::endl;

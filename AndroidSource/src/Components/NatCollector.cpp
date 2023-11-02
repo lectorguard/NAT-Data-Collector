@@ -11,6 +11,7 @@
 #include "nlohmann/json.hpp"
 #include "Utilities/NetworkHelpers.h"
 #include "UDPCollectTask.h"
+#include "ctime"
 
 
  void NatCollector::Activate(Application* app)
@@ -22,14 +23,19 @@ void NatCollector::Update()
 {
 	switch (current)
 	{
+	case NatCollectionSteps::Idle:
+	{
+		break;
+	}
 	case NatCollectionSteps::Start:
 	{
-		LOGW("Started Collection Process");
+		LOGW("Started NAT Sample Creation Process");
 		current = NatCollectionSteps::StartIPInfo;
 		break;
 	}
 	case NatCollectionSteps::StartIPInfo:
 	{
+		LOGW("Started retrieving IP info");
 		std::stringstream requestHeader;
 		requestHeader << "GET /json/ HTTP/1.1\r\n";
 		requestHeader << "Host: ip-api.com\r\n";
@@ -70,6 +76,7 @@ void NatCollector::Update()
 	}
 	case NatCollectionSteps::StartNATInfo:
 	{
+		LOGW("Started collecting NAT info");
 		UDPCollectTask::NatTypeInfo info{
 			/* remote address */			"192.168.2.110",
 			/* first remote port */			7777,
@@ -112,17 +119,21 @@ void NatCollector::Update()
 
 	case NatCollectionSteps::StartCollectPorts:
 	{
+		LOGW("Started collecting Ports");
+		//Start Collecting
 		UDPCollectTask::CollectInfo info
 		{
 			/* remote address */				"192.168.2.110",
 			/* remote port */					7777,
 			/* local port */					0,
-			/* amount of ports */				100,
+			/* amount of ports */				5,
 			/* time between requests in ms */	20
 
 		};
-
+		// Start Task
 		nat_collect_task = std::async(UDPCollectTask::StartCollectTask, info);
+		// Create Timestamp
+		time_stamp = CreateTimeStampNow();
 		current = NatCollectionSteps::UpdateCollectPorts;
 		break;
 	}
@@ -148,27 +159,56 @@ void NatCollector::Update()
 	}
 	case NatCollectionSteps::StartUploadDB:
 	{
+		LOGW("Started upload to DB");
 		using namespace shared;
-// 		ServerRequest request = helper::CreateServerRequest<RequestType::INSERT_MONGO>(test_address, "NatInfo", "test");
-// 		response_future = std::async(TCPTask::ServerTransaction, request, "192.168.2.110", 7779);
-		LOGW("Done so far");
+		// Create Object
+		NATSample sampleToInsert
+		{
+			ip_meta_data.isp,
+			ip_meta_data.country,
+			ip_meta_data.region,
+			ip_meta_data.city,
+			ip_meta_data.timezone,
+			time_stamp,
+			GetMostLikelyNatType(identified_nat_types),
+			collected_nat_data
+		};
+
+		Result<ServerRequest> request_result = helper::CreateServerRequest<RequestType::INSERT_MONGO>(sampleToInsert, "NatInfo", "test2");
+		if (auto request = std::get_if<ServerRequest>(&request_result))
+		{
+			transaction_task = std::async(TCPTask::ServerTransaction, *request, "192.168.2.110", 7779);
+			current = NatCollectionSteps::UpdateUploadDB;
+			break;
+		}
+		else
+		{
+			auto error = std::get<shared::ServerResponse>(request_result);
+			LOGW("First Error during creation of server request : %s", error.messages[0].c_str());
+			current = NatCollectionSteps::Error;
+			break;
+		}
 		break;
 	}
 	case NatCollectionSteps::UpdateUploadDB:
-// 		if (!response_future.valid())return;
-// 
-// 		if (response_future.wait_for(std::chrono::milliseconds(1)) == std::future_status::ready)
-// 		{
-// 			if (ServerResponse response = response_future.get())
-// 			{
-// 				LOGW("Successfully inserted element into mongo");
-// 			}
-// 			else
-// 			{
-// 				LOGW("Error on receive, First Error : %s", response.error_message[0].c_str());
-// 			}
-// 		}
+	{
+		if (auto res = utilities::TryGetFuture<shared::ServerResponse>(transaction_task))
+		{
+			if (res)
+			{
+				LOGW("Successfully inserted NAT sample to DB");
+				current = NatCollectionSteps::Idle;
+				break;
+			}
+			else
+			{
+				LOGW("Failed to insert NAT sample to DB");
+				current = NatCollectionSteps::Error;
+				break;
+			}
+		}
 		break;
+	}
 	case NatCollectionSteps::Error:
 		break;
 	default:
@@ -201,6 +241,45 @@ shared::NATType NatCollector::IdentifyNatType(std::vector<shared::Address> two_a
 	{
 		return shared::NATType::RANDOM_SYM;
 	}
+}
+
+
+
+shared::NATType NatCollector::GetMostLikelyNatType(const std::vector<shared::NATType>& nat_types) const
+{
+	// Gets Nat Type mostly frequent in the map
+	std::map<shared::NATType, uint16_t> helper_map;
+	for (const shared::NATType& t : nat_types)
+	{
+		if (helper_map.contains(t))
+		{
+			helper_map[t]++;
+		}
+		else
+		{
+			helper_map.emplace(t, 1);
+		}
+	}
+	return std::max_element(helper_map.begin(), helper_map.end())->first;
+}
+
+std::string NatCollector::CreateTimeStampNow() const
+{
+	auto now = std::chrono::system_clock::now();
+	auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count();
+
+	// Convert milliseconds to seconds
+	std::time_t t = ms / 1000;
+
+	// Get the remaining milliseconds
+	int milliseconds = ms % 1000;
+	auto local_time = *std::localtime(&t);
+
+	// Write to string
+	std::ostringstream oss;
+	oss << std::put_time(&local_time, "%d-%m-%Y %H-%M-%S");
+	oss	<< "-" << std::setfill('0') << std::setw(3) << milliseconds;
+	return oss.str();
 }
 
 

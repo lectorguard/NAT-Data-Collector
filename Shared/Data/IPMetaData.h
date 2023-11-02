@@ -32,7 +32,7 @@ namespace shared
 		{
 			return 
 				JSerializable::AddItem().Append(JSER_ADD(SerializeManagerType, status, country, countryCode, region, regionName))
-				.Append(JSER_ADD(SerializeManagerType, city, zip, lat, lon, timezone, as, query));
+				.Append(JSER_ADD(SerializeManagerType, city, zip, lat, lon, timezone, isp, org, as, query));
 		}
 	};
 }

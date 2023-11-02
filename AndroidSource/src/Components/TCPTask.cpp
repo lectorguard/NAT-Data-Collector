@@ -34,7 +34,7 @@ shared::ServerResponse TCPTask::ServerTransaction(shared::ServerRequest request,
 		if (!response) break;
 
 		// Receive Answer from Server
-		char buf[4096];
+		char buf[BUFFER_SIZE];
 		std::size_t len = socket.read_some(asio::buffer(buf), asio_error);
 		response = utilities::HandleAsioError(asio_error, "Read Answer from Server Request");
 		if (!response) break;

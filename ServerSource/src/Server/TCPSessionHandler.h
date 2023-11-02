@@ -37,7 +37,7 @@ namespace TCPSessionHandler
 		{
 			// Init
 			asio::error_code error;
-			char read_buffer[1024];
+			char read_buffer[BUFFER_SIZE];
 
 			// Read request
 			std::size_t len = co_await s.async_read_some(asio::buffer(read_buffer), asio::redirect_error(asio::use_awaitable, error));

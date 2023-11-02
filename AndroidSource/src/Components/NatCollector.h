@@ -11,7 +11,8 @@
 
 enum class NatCollectionSteps : uint16_t
 {
-	Start =0,
+	Idle = 0,
+	Start,
 	StartIPInfo,
 	UpdateIPInfo,
 	StartNATInfo,
@@ -25,14 +26,10 @@ enum class NatCollectionSteps : uint16_t
 
 class NatCollector
 {
-	template<typename T>
-	using op = std::optional<T>;
-	template<typename T>
-	using sh = std::shared_ptr<T>;
-
 	using IPInfoTask = std::future<shared::Result<std::string>>;
 	using NATIdentTask = std::future<shared::Result<shared::AddressVector>>;
 	using NATCollectTask = std::future<shared::Result<shared::AddressVector>>;
+	using TransactionTask = std::future<shared::ServerResponse>;
 
 public:
 	void Update();
@@ -51,8 +48,10 @@ private:
 	IPInfoTask ip_info_task;
 	NATIdentTask nat_ident_task;
 	NATCollectTask nat_collect_task;
+	TransactionTask transaction_task;
 
 	// Data
+	std::string time_stamp;
 	shared::IPMetaData ip_meta_data;
 	std::vector<shared::NATType> identified_nat_types;
 	std::vector<shared::Address> collected_nat_data;
@@ -60,4 +59,6 @@ private:
 
 	// Expect always exactly 2 ports inside the vector
 	shared::NATType IdentifyNatType(std::vector<shared::Address> two_addresses);
+	shared::NATType GetMostLikelyNatType(const std::vector<shared::NATType>& nat_types) const;
+	std::string CreateTimeStampNow() const;
 };
