@@ -41,8 +41,8 @@ public:
 
 private:
 	// Constants
-	static const int required_nat_samples = 5;
-	static const int time_between_samples_ms = 30'000;
+	const int required_nat_samples = 5;
+	const int time_between_samples_ms = 30'000;
 
 	// State
 	NatCollectionSteps current = NatCollectionSteps::Start;

@@ -1,16 +1,16 @@
 #pragma once
 #include <variant>
 #include <array>
+#include <memory>
 
 template<typename ... Args>
 struct ComponentManager
 {
-	using VariantType = typename std::variant<Args ...>;
+	using VariantType = typename std::variant<std::unique_ptr<Args> ...>;
 
 	ComponentManager()
 	{
-		using TupleType = typename std::tuple<Args...>;
-		std::apply([&](auto&& ... args) { _components = { {std::move(args) ...} }; }, TupleType());
+		_components = { std::make_unique<Args>(Args())... };
 	}
 
 	template<typename T>
@@ -18,9 +18,9 @@ struct ComponentManager
 	{
 		for (auto& variant : _components)
 		{
-			if (std::holds_alternative<T>(variant))
+			if (std::holds_alternative<std::unique_ptr<T>>(variant))
 			{
-				return std::get<T>(variant);
+				return *std::get<std::unique_ptr<T>>(variant);
 			};
 		};
 		throw std::runtime_error("Type must exist");
@@ -29,11 +29,12 @@ struct ComponentManager
 	template<typename T>
 	void ForEach(const T& cb)
 	{
+
 		for (auto& variant : _components)
 		{
 			std::visit([cb](auto&& x)
 				{
-					cb(x);
+					cb(*x);
 				}, variant);
 		};
 	}
