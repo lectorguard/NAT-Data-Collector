@@ -5,13 +5,20 @@
 
 namespace utilities
 {
-	inline void ShutdownTCPSocket(asio::ip::tcp::socket& socket)
+	inline void ShutdownTCPSocket(asio::ip::tcp::socket& socket, asio::error_code& ec)
 	{
-		socket.shutdown(asio::ip::tcp::socket::shutdown_both);
-		socket.close();
+		socket.shutdown(asio::ip::tcp::socket::shutdown_both, ec);
+		// Ignore this case
+		if (ec == asio::error::not_connected)
+		{
+			ec = asio::error_code{};
+		}
+		if (ec)
+			return;
+		socket.close(ec);
 	}
 
-	inline shared::ServerResponse HandleAsioError(asio::error_code ec, const std::string& context)
+	inline shared::ServerResponse HandleAsioError(const asio::error_code& ec, const std::string& context)
 	{
 		using namespace shared;
 		if (ec == asio::error::eof)

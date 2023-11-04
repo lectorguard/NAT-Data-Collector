@@ -49,6 +49,8 @@ shared::ServerResponse TCPTask::ServerTransaction(shared::ServerRequest request,
 		response = server_answer;
 		break;
 	}
-	utilities::ShutdownTCPSocket(socket);
+	asio::error_code toIgnore;
+	utilities::ShutdownTCPSocket(socket, toIgnore);
 	return response;
+
 }

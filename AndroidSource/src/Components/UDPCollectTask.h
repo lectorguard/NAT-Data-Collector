@@ -3,6 +3,7 @@
 #include "Data/Address.h"
 #include "asio.hpp"
 #include "chrono"
+#include <queue>
 
 class UDPCollectTask
 {
@@ -46,8 +47,11 @@ private:
 	void send_request(Socket& local_socket, asio::io_service& io_service, SharedEndpoint remote_endpoint, const std::error_code& ec);
 	void start_receive(Socket& local_socket, asio::io_service& io_service, const std::error_code& ec);
 	void handle_receive(std::shared_ptr<AddressBuffer> buffer, std::size_t len, asio::io_service& io_service, const std::error_code& ec);
+	asio::system_timer CreateDeadline(asio::io_service& service, std::shared_ptr<asio::ip::udp::socket> socket);
 
 	std::vector<Socket> socket_list;
 	shared::ServerResponse stored_response = shared::ServerResponse::OK();
 	shared::AddressVector stored_natsample{};
+	std::queue<std::shared_ptr<asio::system_timer>> deadline_queue;
+	bool bUsesSingleSocket = false;
 };

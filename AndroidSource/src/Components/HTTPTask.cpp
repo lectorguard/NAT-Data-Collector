@@ -38,8 +38,8 @@ shared::Result<std::string> HTTPTask::SimpleHttpRequest(std::string_view request
 		result = std::string(buf, len);
 		break;
 	}
-
-	utilities::ShutdownTCPSocket(sock);
+	asio::error_code toIgnore;
+	utilities::ShutdownTCPSocket(sock, toIgnore);
 	if (response)
 	{
 		if (ignoreRespondHeader)

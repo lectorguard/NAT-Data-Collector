@@ -4,7 +4,7 @@
 #include "Data/Address.h"
 #include "Data/IPMetaData.h"
 #include <future>
-#include "CustomCollections/TaskPlanner.h"
+#include "CustomCollections/SimpleTimer.h"
 
 
 
@@ -21,6 +21,8 @@ enum class NatCollectionSteps : uint16_t
 	UpdateCollectPorts,
 	StartUploadDB,
 	UpdateUploadDB,
+	StartWait,
+	UpdateWait,
 	Error
 };
 
@@ -40,9 +42,13 @@ public:
 private:
 	// Constants
 	static const int required_nat_samples = 5;
+	static const int time_between_samples_ms = 30'000;
 
 	// State
 	NatCollectionSteps current = NatCollectionSteps::Start;
+
+	// Timer
+	SimpleTimer wait_timer{};
 
 	// Tasks
 	IPInfoTask ip_info_task;

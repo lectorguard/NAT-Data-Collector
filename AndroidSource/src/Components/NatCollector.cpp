@@ -94,13 +94,20 @@ void NatCollector::Update()
 		{
 			if (auto sample = std::get_if<shared::AddressVector>(&*res))
 			{
-				LOGW("Received nat sample %s:%d %s:%d",
-					sample->address_vector[0].ip_address.c_str(),
-					sample->address_vector[0].port,
-					sample->address_vector[1].ip_address.c_str(),
-					sample->address_vector[0].port);
+				if (sample->address_vector.size() != 2)
+				{
+					LOGW("Failed to get NAT Info information from server");
+				}
+				else
+				{
+					LOGW("Received nat sample %s:%d %s:%d",
+						sample->address_vector[0].ip_address.c_str(),
+						sample->address_vector[0].port,
+						sample->address_vector[1].ip_address.c_str(),
+						sample->address_vector[0].port);
 
-				identified_nat_types.push_back(IdentifyNatType(sample->address_vector));
+					identified_nat_types.push_back(IdentifyNatType(sample->address_vector));
+				}
 				if (identified_nat_types.size() < required_nat_samples)
 					current = NatCollectionSteps::StartNATInfo;
 				else current = NatCollectionSteps::StartCollectPorts;
@@ -143,6 +150,12 @@ void NatCollector::Update()
 		{
 			if (auto sample = std::get_if<shared::AddressVector>(&*res))
 			{
+				if (sample->address_vector.empty())
+				{
+					LOGW("Failed to get any ports");
+					current = NatCollectionSteps::Error;
+					break;
+				}
 				collected_nat_data = sample->address_vector;
 				current = NatCollectionSteps::StartUploadDB;
 				break;
@@ -194,18 +207,33 @@ void NatCollector::Update()
 	{
 		if (auto res = utilities::TryGetFuture<shared::ServerResponse>(transaction_task))
 		{
-			if (res)
+			if (*res)
 			{
 				LOGW("Successfully inserted NAT sample to DB");
-				current = NatCollectionSteps::Idle;
+				current = NatCollectionSteps::StartWait;
 				break;
 			}
 			else
 			{
-				LOGW("Failed to insert NAT sample to DB");
+				LOGW("Failed to insert NAT sample to DB. First error : %s", res->messages[0].c_str());
 				current = NatCollectionSteps::Error;
 				break;
 			}
+		}
+	}
+	case NatCollectionSteps::StartWait:
+	{
+		LOGW("Start Wait");
+		wait_timer.ExpiresFromNow(std::chrono::milliseconds(time_between_samples_ms));
+		current = NatCollectionSteps::UpdateWait;
+		break;
+	}
+	case NatCollectionSteps::UpdateWait:
+	{
+		if (wait_timer.HasExpired())
+		{
+			wait_timer.SetActive(false);
+			current = NatCollectionSteps::StartCollectPorts;
 		}
 		break;
 	}
@@ -247,6 +275,11 @@ shared::NATType NatCollector::IdentifyNatType(std::vector<shared::Address> two_a
 
 shared::NATType NatCollector::GetMostLikelyNatType(const std::vector<shared::NATType>& nat_types) const
 {
+	if (nat_types.empty())
+	{
+		return shared::NATType::UNDEFINED;
+	}
+
 	// Gets Nat Type mostly frequent in the map
 	std::map<shared::NATType, uint16_t> helper_map;
 	for (const shared::NATType& t : nat_types)

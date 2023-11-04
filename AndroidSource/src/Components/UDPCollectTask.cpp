@@ -2,6 +2,7 @@
 #include "optional"
 #include "asio/awaitable.hpp"
 #include "asio/use_awaitable.hpp"
+#include "asio/deadline_timer.hpp"
 #include "Application/Application.h"
 #include "Data/Address.h"
 #include "SharedHelpers.h"
@@ -49,12 +50,14 @@
 	{
 		// Each socket binds new port
 		createSocket = [&io_service]() {return std::make_shared<asio::ip::udp::socket>(io_service, asio::ip::udp::endpoint{ asio::ip::udp::v4(), 0 }); };
+		bUsesSingleSocket = false;
 	}
 	else
 	{
-		// All sockets use same port
+		// Single socket, single port
 		auto shared_local_socket = std::make_shared<asio::ip::udp::socket>(io_service, asio::ip::udp::endpoint{ asio::ip::udp::v4(), info.local_port });
 		createSocket = [shared_local_socket]() {return shared_local_socket; };
+		bUsesSingleSocket = true;
 	}
 
 	socket_list.reserve(info.amount_ports);
@@ -81,9 +84,10 @@ UDPCollectTask::UDPCollectTask(const NatTypeInfo& info, asio::io_service& io_ser
 		return;
 	}
 
-	// All sockets use same port
+	// Single socket single port
 	auto shared_local_socket = std::make_shared<asio::ip::udp::socket>(io_service, asio::ip::udp::endpoint{ asio::ip::udp::v4(), info.local_port });
 	auto createSocket = [shared_local_socket]() {return shared_local_socket; };
+	bUsesSingleSocket = true;
 
 	socket_list.reserve(2);
 	std::vector<uint16_t> ports = {info.first_remote_port, info.second_remote_port};
@@ -179,16 +183,40 @@ void UDPCollectTask::start_receive(Socket& local_socket, asio::io_service& io_se
 
 	asio::ip::udp::endpoint remote_endpoint;
 	auto shared_buffer = std::make_shared<AddressBuffer>();
-	local_socket.socket->async_receive_from(
-		asio::buffer(*shared_buffer), remote_endpoint,
-		[this, &io_service, shared_buffer](const std::error_code& ec, std::size_t bytesTransferred)
-		{
-			handle_receive(shared_buffer, bytesTransferred, io_service, ec);
-		});
+	auto deadline_timer = std::make_shared<asio::system_timer>(CreateDeadline(io_service, local_socket.socket));
+	// Create a queue of deadline timer
+	// Pending async receive calls, which packages were dropped will get killed by the deadline at the end
+	if (bUsesSingleSocket)
+	{
+		deadline_queue.push(deadline_timer);
+		local_socket.socket->async_receive_from(
+			asio::buffer(*shared_buffer), remote_endpoint,
+			[this, &io_service, shared_buffer](const std::error_code& ec, std::size_t bytesTransferred)
+			{
+				deadline_queue.pop(); // cancel oldest deadline on receive
+				handle_receive(shared_buffer, bytesTransferred, io_service, ec);
+			});
+	}
+	else
+	{
+		local_socket.socket->async_receive_from(
+			asio::buffer(*shared_buffer), remote_endpoint,
+			[this, &io_service, shared_buffer, deadline_timer](const std::error_code& ec, std::size_t bytesTransferred)
+			{
+				deadline_timer->cancel(); // cancel time associated with socket
+				handle_receive(shared_buffer, bytesTransferred, io_service, ec);
+			});
+	}
 }
 
 void UDPCollectTask::handle_receive(std::shared_ptr<AddressBuffer> buffer, std::size_t len, asio::io_service& io_service, const std::error_code& ec)
 {
+	if (ec == asio::error::operation_aborted)
+	{
+		// Potential timeout, package might be dropped
+		return;
+	}
+
 	if (ec && ec != asio::error::message_size)
 	{
 		stored_response.resp_type = shared::ResponseType::ERROR;
@@ -211,4 +239,26 @@ void UDPCollectTask::handle_receive(std::shared_ptr<AddressBuffer> buffer, std::
 		return;
 	}
 	stored_natsample.address_vector.push_back(address);
+}
+
+asio::system_timer UDPCollectTask::CreateDeadline(asio::io_service& service, std::shared_ptr<asio::ip::udp::socket> socket)
+{
+	auto timer = asio::system_timer(service);
+	timer.expires_from_now(std::chrono::milliseconds(SOCKET_TIMEOUT_MS));
+	timer.async_wait(
+		[socket](auto error) 
+		{
+			// If timer activates without abortion, we close the socket
+			if (error != asio::error::operation_aborted)
+			{
+				// We do NOT create here an error
+				// Package loss is expected
+				// If there is no internet connection,
+				// an error will be created at a later stage
+				LOGW("Socket operation expired");
+				socket->cancel();
+			}
+		}
+	);
+	return timer;
 }
