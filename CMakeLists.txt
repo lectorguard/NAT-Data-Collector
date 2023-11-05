@@ -16,6 +16,19 @@ set(lib_asio_name asio)
 set(lib_asio_include_path ${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty/asio-1.24.0/include/)
 set(lib_asio_source_path ${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty/asio-1.24.0/include/)
 
+#imgui library
+set(imgui_name imgui)
+set(imgui_source_path ${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty/imgui)
+set(imgui_android_source 		
+		${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty/imgui/imgui.cpp
+		${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty/imgui/imgui_demo.cpp
+		${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty/imgui/imgui_draw.cpp
+		${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty/imgui/imgui_tables.cpp
+		${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty/imgui/imgui_widgets.cpp
+		${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty/imgui/backends/imgui_impl_android.cpp
+		${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty/imgui/backends/imgui_impl_opengl3.cpp)
+
+
 #shared data path
 set(shared_data_path ${CMAKE_CURRENT_SOURCE_DIR}/Shared/)
 
@@ -69,6 +82,14 @@ target_include_directories(${lib_asio_name} INTERFACE ${lib_asio_include_path})
 #target_compile_definitions(${lib_asio_name} INTERFACE ASIO_NO_EXCEPTIONS=1)
 
 if(${CMAKE_SYSTEM_NAME} STREQUAL "Android")
+	# add imgui lib
+	add_library(${imgui_name} STATIC ${imgui_android_source})
+	target_compile_definitions(${imgui_name} PRIVATE IMGUI_IMPL_OPENGL_ES3)
+	target_include_directories(${imgui_name} PRIVATE ${imgui_source_path})
+	file(GLOB_RECURSE IMGUI_FILES CONFIGURE_DEPENDS ${imgui_source_path}/**)
+	source_group(TREE "${imgui_source_path}/" PREFIX "include" FILES ${IMGUI_FILES})
+	message(STATUS "Created successfully library with name: ${imgui_name}")
+
 	add_subdirectory(AndroidSource)
 	target_compile_definitions(native-activity PRIVATE BUFFER_SIZE=16384)
 	target_compile_definitions(native-activity PRIVATE SOCKET_TIMEOUT_MS=5000) 

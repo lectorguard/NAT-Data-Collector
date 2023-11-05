@@ -1,4 +1,5 @@
 #include "Application/Application.h"
+#include "imgui.h"
 
 /**
  * This is the main entry point of a native application that is using
