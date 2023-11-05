@@ -5,6 +5,7 @@
 #include "Components/SensorManager.h"
 #include "Components/InputManager.h"
 #include "Components/NatCollector.h"
+#include "Components/UI.h"
 #include "android/log.h"
 
 
@@ -13,7 +14,7 @@
 
 class Application
 {
-	using ComponentsType = ComponentManager<SensorManager, Renderer, InputManager, NatCollector>;
+	using ComponentsType = ComponentManager<SensorManager, Renderer, InputManager, NatCollector, UI>;
 
 public:
 	Application() {};
@@ -30,6 +31,7 @@ public:
 	Event<struct android_app*> AndroidShutdownEvent{};
 	// Called every frame when animating
 	Event<Application*> UpdateEvent{};
+	Event<Application*> DrawEvent{};
 	// Every component needs Activate(Application*) and Deactivate(Application*) function
 	// By default every component is instantiated once
 	ComponentsType _components;

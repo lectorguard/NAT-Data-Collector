@@ -1,11 +1,13 @@
 #include "Components/Renderer.h"
 #include "Application/Application.h"
+#include "imgui.h"
+#include "backends/imgui_impl_android.h"
+#include "backends/imgui_impl_opengl3.h"
 
 void Renderer::Activate(class Application* app)
 {
 	app->AndroidCommandEvent.Subscribe([this](struct android_app* state, int32_t cmd) { OnAndroidEvent(state, cmd); });
 	app->AndroidShutdownEvent.Subscribe([this](struct android_app* state) { AndroidShutdown(state); });
-	app->UpdateEvent.Subscribe([this](Application* app) {DrawFrame(app); });
 }
 
 void Renderer::OnAndroidEvent(struct android_app* app, int32_t cmd)
@@ -18,7 +20,6 @@ void Renderer::OnAndroidEvent(struct android_app* app, int32_t cmd)
 		if (app->window != nullptr)
 		{
 			InitDisplay(app);
-			DrawFrame((class Application*)app->userData);
 		}
 		break;
 	}
@@ -31,7 +32,6 @@ void Renderer::OnAndroidEvent(struct android_app* app, int32_t cmd)
 	case APP_CMD_LOST_FOCUS:
 	{
 		_animating = 0;
-		DrawFrame((class Application*)app->userData);
 		break;
 	}
 	default:
@@ -41,129 +41,132 @@ void Renderer::OnAndroidEvent(struct android_app* app, int32_t cmd)
 
 void Renderer::InitDisplay(struct android_app* app)
 {
-	// initialize OpenGL ES and EGL
-
-	/*
-	 * Here specify the attributes of the desired configuration.
-	 * Below, we select an EGLConfig with at least 8 bits per color
-	 * component compatible with on-screen windows
-	 */
-	const EGLint attribs[] = {
-			EGL_SURFACE_TYPE, EGL_WINDOW_BIT,
-			EGL_BLUE_SIZE, 8,
-			EGL_GREEN_SIZE, 8,
-			EGL_RED_SIZE, 8,
-			EGL_NONE
-	};
-	EGLint w, h, format;
-	EGLint numConfigs;
-	EGLConfig config = nullptr;
-	EGLSurface surface;
-	EGLContext context;
-
-	EGLDisplay display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
-
-	eglInitialize(display, nullptr, nullptr);
-
-	/* Here, the application chooses the configuration it desires.
-	 * find the best match if possible, otherwise use the very first one
-	 */
-	eglChooseConfig(display, attribs, nullptr, 0, &numConfigs);
-	std::unique_ptr<EGLConfig[]> supportedConfigs(new EGLConfig[numConfigs]);
-	assert(supportedConfigs);
-	eglChooseConfig(display, attribs, supportedConfigs.get(), numConfigs, &numConfigs);
-	assert(numConfigs);
-	auto i = 0;
-	for (; i < numConfigs; i++) {
-		auto& cfg = supportedConfigs[i];
-		EGLint r, g, b, d;
-		if (eglGetConfigAttrib(display, cfg, EGL_RED_SIZE, &r) &&
-			eglGetConfigAttrib(display, cfg, EGL_GREEN_SIZE, &g) &&
-			eglGetConfigAttrib(display, cfg, EGL_BLUE_SIZE, &b) &&
-			eglGetConfigAttrib(display, cfg, EGL_DEPTH_SIZE, &d) &&
-			r == 8 && g == 8 && b == 8 && d == 0) {
-
-			config = supportedConfigs[i];
-			break;
-		}
-	}
-	if (i == numConfigs) {
-		config = supportedConfigs[0];
-	}
-
-	if (config == nullptr) {
-		// LOGW("Unable to initialize EGLConfig");
-		throw std::runtime_error("Unable to initialize EGLConfig");
-	}
-
-	/* EGL_NATIVE_VISUAL_ID is an attribute of the EGLConfig that is
-	 * guaranteed to be accepted by ANativeWindow_setBuffersGeometry().
-	 * As soon as we picked a EGLConfig, we can safely reconfigure the
-	 * ANativeWindow buffers to match, using EGL_NATIVE_VISUAL_ID. */
-	eglGetConfigAttrib(display, config, EGL_NATIVE_VISUAL_ID, &format);
-	surface = eglCreateWindowSurface(display, config, app->window, nullptr);
-	context = eglCreateContext(display, config, nullptr, nullptr);
-
-	if (eglMakeCurrent(display, surface, surface, context) == EGL_FALSE) {
-		//LOGW("Unable to eglMakeCurrent");
-		throw std::runtime_error("Unable to eglMakeCurrent");
-	}
-
-	eglQuerySurface(display, surface, EGL_WIDTH, &w);
-	eglQuerySurface(display, surface, EGL_HEIGHT, &h);
-
-	_display = display;
-	_context = context;
-	_surface = surface;
-	_width = w;
-	_height = h;
-
-	// Check openGL on the system
-	auto opengl_info = { GL_VENDOR, GL_RENDERER, GL_VERSION, GL_EXTENSIONS };
-	for (auto name : opengl_info) {
-		auto info = glGetString(name);
-		LOGI("OpenGL Info: %s", info);
-	}
-	// Initialize GL state.
-	glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_FASTEST);
-	glEnable(GL_CULL_FACE);
-	glShadeModel(GL_SMOOTH);
-	glDisable(GL_DEPTH_TEST);
+	InitEGL(app);
+	InitImGUI(app);
+	_animating = 1;
+	ImGui::StyleColorsDark();
+	SetFontSize(70.0f);
+	SetImguiScale(7.0f);
 }
 
 void Renderer::AndroidShutdown(struct android_app* app)
 {
-	if (_display != EGL_NO_DISPLAY) {
+	if (_display != EGL_NO_DISPLAY)
+	{
+		ImGui_ImplOpenGL3_Shutdown();
+		ImGui_ImplAndroid_Shutdown();
+		ImGui::DestroyContext();
+
 		eglMakeCurrent(_display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
-		if (_context != EGL_NO_CONTEXT) {
+
+		if (_context != EGL_NO_CONTEXT)
 			eglDestroyContext(_display, _context);
-		}
-		if (_surface != EGL_NO_SURFACE) {
+
+		if (_surface != EGL_NO_SURFACE)
 			eglDestroySurface(_display, _surface);
-		}
+
 		eglTerminate(_display);
 	}
 	_animating = 0;
 	_display = EGL_NO_DISPLAY;
 	_context = EGL_NO_CONTEXT;
 	_surface = EGL_NO_SURFACE;
+	ANativeWindow_release(app->window);
 }
 
-void Renderer::DrawFrame(class Application* app)
+void Renderer::StartFrame()
 {
-	if (_animating)
+	ImGui_ImplOpenGL3_NewFrame();
+	ImGui_ImplAndroid_NewFrame();
+	ImGui::NewFrame();
+}
+
+void Renderer::EndFrame()
+{
+	ImGuiIO& io = ImGui::GetIO();
+	ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
+
+	ImGui::Render();
+	glViewport(0, 0, (int)io.DisplaySize.x, (int)io.DisplaySize.y);
+	glClearColor(clear_color.x * clear_color.w, clear_color.y * clear_color.w, clear_color.z * clear_color.w, clear_color.w);
+	glClear(GL_COLOR_BUFFER_BIT);
+	ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+	eglSwapBuffers(_display, _surface);
+}
+
+void Renderer::SetFontSize(float fontSizePixels)
+{
+	if (!CanDraw())
 	{
-		if (_display == nullptr) {
-			// No display.
-			return;
-		}
+		LOGW("Can not cahnge font size, _display not initialized no context");
+		return;
+	}
+	ImGuiIO& io = ImGui::GetIO();
+	ImFontConfig font_cfg;
+	font_cfg.SizePixels = fontSizePixels;
+	io.Fonts->AddFontDefault(&font_cfg);
+}
 
-		InputManager& inputManager = app->_components.Get<InputManager>();
-		// Just fill the screen with a color.
-		glClearColor(inputManager.x / (float)_width, inputManager.angle, inputManager.y / (float)_height, 1);
-		glClear(GL_COLOR_BUFFER_BIT);
+void Renderer::SetImguiScale(float scaleValue)
+{
+	ImGui::GetStyle().ScaleAllSizes(scaleValue);
+}
 
-		eglSwapBuffers(_display, _surface);
+bool Renderer::CanDraw() const
+{
+	return _display != nullptr && _animating;
+}
+
+void Renderer::InitEGL(struct android_app* app)
+{
+	// Initialize window
+	ANativeWindow_acquire(app->window);
+
+	_display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
+	if (_display == EGL_NO_DISPLAY)
+		LOGW("eglGetDisplay(EGL_DEFAULT_DISPLAY) returned EGL_NO_DISPLAY");
+
+	if (eglInitialize(_display, 0, 0) != EGL_TRUE)
+		LOGW("eglInitialize() returned with an error");
+
+	const EGLint egl_attributes[] = { EGL_BLUE_SIZE, 8, EGL_GREEN_SIZE, 8, EGL_RED_SIZE, 8, EGL_DEPTH_SIZE, 24, EGL_SURFACE_TYPE, EGL_WINDOW_BIT, EGL_NONE };
+	EGLint num_configs = 0;
+	if (eglChooseConfig(_display, egl_attributes, nullptr, 0, &num_configs) != EGL_TRUE)
+		LOGW("eglChooseConfig() returned with an error");
+	if (num_configs == 0)
+		LOGW("eglChooseConfig() returned 0 matching config");
+
+	// Get the first matching config
+	EGLConfig egl_config;
+	eglChooseConfig(_display, egl_attributes, &egl_config, 1, &num_configs);
+	EGLint egl_format;
+	eglGetConfigAttrib(_display, egl_config, EGL_NATIVE_VISUAL_ID, &egl_format);
+	ANativeWindow_setBuffersGeometry(app->window, 0, 0, egl_format);
+
+	const EGLint egl_context_attributes[] = { EGL_CONTEXT_CLIENT_VERSION, 3, EGL_NONE };
+	_context = eglCreateContext(_display, egl_config, EGL_NO_CONTEXT, egl_context_attributes);
+
+	if (_context == EGL_NO_CONTEXT)
+		LOGW("eglCreateContext() returned EGL_NO_CONTEXT");
+
+	_surface = eglCreateWindowSurface(_display, egl_config, app->window, nullptr);
+	eglMakeCurrent(_display, _surface, _surface, _context);
+}
+
+void Renderer::InitImGUI(struct android_app* app)
+{
+	if (_display != nullptr)
+	{
+		IMGUI_CHECKVERSION();
+		ImGui::CreateContext();
+		ImGuiIO& io = ImGui::GetIO();
+
+		g_IniFilename = std::string(app->activity->internalDataPath) + "/imgui.ini";
+		io.IniFilename = g_IniFilename.c_str();;
+
+		// Setup Platform/Renderer backends
+		ImGui_ImplAndroid_Init(app->window);
+		ImGui_ImplOpenGL3_Init("#version 300 es");
 	}
 }
 

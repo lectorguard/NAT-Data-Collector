@@ -26,7 +26,7 @@ void Application::run(struct android_app* state)
 		// If animating, we loop until all events are read, then continue
 		// to draw the next frame of animation.
 		//
-		while ((ident = ALooper_pollAll(_components.Get<Renderer>()._animating ? 0 : -1, nullptr, &events,
+		while ((ident = ALooper_pollAll(_components.Get<Renderer>().IsAnimating() ? 0 : -1, nullptr, &events,
 			(void**)&source)) >= 0) {
 
 			// Process this event.
@@ -45,11 +45,14 @@ void Application::run(struct android_app* state)
 				return;
 			}
 		}
-
-		if (_components.Get<Renderer>()._animating)
+		UpdateEvent.Publish(this);
+		if (_components.Get<Renderer>().CanDraw())
 		{
-			UpdateEvent.Publish(this);
+			_components.Get<Renderer>().StartFrame();
+			DrawEvent.Publish(this);
+			_components.Get<Renderer>().EndFrame();
 		}
+		
 	}
 }
 

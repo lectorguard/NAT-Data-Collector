@@ -45,7 +45,7 @@ private:
 	const int time_between_samples_ms = 30'000;
 
 	// State
-	NatCollectionSteps current = NatCollectionSteps::Start;
+	NatCollectionSteps current = NatCollectionSteps::Idle;
 
 	// Timer
 	SimpleTimer wait_timer{};

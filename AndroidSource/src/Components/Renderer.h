@@ -5,6 +5,7 @@
 #include <cassert>
 #include <stdexcept>
 #include <memory>
+#include <string>
 
 class Renderer
 {
@@ -18,12 +19,23 @@ public:
     void OnAndroidEvent(struct android_app* app, int32_t cmd);
     void InitDisplay(struct android_app* app);
     void AndroidShutdown(struct android_app* app);
-    void DrawFrame(class Application* app);
 
-    int _animating = 0;
+    void StartFrame();
+    void EndFrame();
+
+    void SetFontSize(float fontSizePixels);
+    void SetImguiScale(float scaleValue);
+
+    bool CanDraw() const;
+    bool IsAnimating() const { return _animating; };
+private:
     EGLDisplay _display = NULL;
     EGLSurface _surface = NULL;
     EGLContext _context = NULL;
-    int32_t _width = 0;
-    int32_t _height = 0;
+    std::string g_IniFilename{};
+
+    int _animating = 0;
+    void InitEGL(struct android_app* app);
+    void InitImGUI(struct android_app* app);
+
 };
