@@ -1,6 +1,8 @@
 #pragma once
 #include <functional>
 #include <vector>
+#include "android/log.h"
+#define LOGW(...) ((void)__android_log_print(ANDROID_LOG_WARN, "native-activity", __VA_ARGS__))
 
 template<typename ... EventParams>
 struct Event
@@ -22,7 +24,14 @@ struct Event
 	{
 		for (const std::function<void(EventParams ...)>& cb : _event)
 		{
-			cb(params ...);
+			if (cb != nullptr)
+			{
+				cb(params ...);
+			}
+			else
+			{
+				LOGW("Failed to publish event");
+			}
 		}
 	}
 

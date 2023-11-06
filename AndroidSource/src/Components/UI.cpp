@@ -6,7 +6,7 @@ void UI::Activate(Application* app)
 {
 	app->DrawEvent.Subscribe([this](auto* app) {Draw(); });
 }
-
+char buffer[128];
 void UI::Draw()
 {
 	ImGuiIO& io = ImGui::GetIO();
@@ -15,5 +15,16 @@ void UI::Draw()
 	ImGui::Begin("", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse); // Create a window called "Hello, world!" and append into it.
 	ImGui::Button("Button");
 	ImGui::Text("This is some useful text.");
+	ImGui::InputText("Test Keyboard", buffer, sizeof(buffer));
+	//if (ImGui::IsKeyPressed(ImGuiKey_Backspace))
+	//{
+	//	int len = strlen(buffer);
+	//	if (len > 0)
+	//	{
+	//		buffer[len - 1] = '\0'; // Remove the last character
+	//	}
+	//	LOGW("removed char");
+	//}
+
 	ImGui::End();
 }

@@ -34,7 +34,11 @@ struct ComponentManager
 		{
 			std::visit([cb](auto&& x)
 				{
-					cb(*x);
+					if (x)
+					{
+						cb(*x);
+					}
+					
 				}, variant);
 		};
 	}

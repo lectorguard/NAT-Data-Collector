@@ -7,8 +7,8 @@
 void Renderer::Activate(class Application* app)
 {
 	app->AndroidCommandEvent.Subscribe([this](struct android_app* state, int32_t cmd) { OnAndroidEvent(state, cmd); });
-	app->AndroidShutdownEvent.Subscribe([this](struct android_app* state) { AndroidShutdown(state); });
 }
+
 
 void Renderer::OnAndroidEvent(struct android_app* app, int32_t cmd)
 {
@@ -25,8 +25,9 @@ void Renderer::OnAndroidEvent(struct android_app* app, int32_t cmd)
 	}
 	case APP_CMD_TERM_WINDOW:
 	{
-		// The window is being hidden or closed, clean it up.
-		AndroidShutdown(app);
+		// Shutdown rendering part completely
+		Deactivate(nullptr);
+		ANativeWindow_release(app->window);
 		break;
 	}
 	case APP_CMD_LOST_FOCUS:
@@ -49,7 +50,7 @@ void Renderer::InitDisplay(struct android_app* app)
 	SetImguiScale(7.0f);
 }
 
-void Renderer::AndroidShutdown(struct android_app* app)
+void Renderer::Deactivate(class Application* app)
 {
 	if (_display != EGL_NO_DISPLAY)
 	{
@@ -71,7 +72,6 @@ void Renderer::AndroidShutdown(struct android_app* app)
 	_display = EGL_NO_DISPLAY;
 	_context = EGL_NO_CONTEXT;
 	_surface = EGL_NO_SURFACE;
-	ANativeWindow_release(app->window);
 }
 
 void Renderer::StartFrame()

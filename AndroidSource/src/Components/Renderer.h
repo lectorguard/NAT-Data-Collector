@@ -14,11 +14,10 @@ public:
     ~Renderer() {};
 
     void Activate(class Application* app);
-    void Deactivate(class Application* app) {};
+    void Deactivate(class Application* app);
 
     void OnAndroidEvent(struct android_app* app, int32_t cmd);
     void InitDisplay(struct android_app* app);
-    void AndroidShutdown(struct android_app* app);
 
     void StartFrame();
     void EndFrame();

@@ -1,53 +1,54 @@
 #include "Components/InputManager.h"
 #include "Application/Application.h"
 #include "backends/imgui_impl_android.h"
+#include "imgui.h"
 
 void InputManager::Activate(class Application* app)
 {
 	app->AndroidStartEvent.Subscribe([this](struct android_app* state) {OnAppStart(state); });
-	app->UpdateEvent.Subscribe([this](auto ignore) {Update(); });
+	app->DrawEvent.Subscribe([this](auto ignore) {UpdateSoftKeyboard(); });
 }
 
 int32_t InputManager::HandleInput(struct android_app* state, AInputEvent* ev)
 {
-	const int result =  ImGui_ImplAndroid_HandleInputEvent(ev);
-
-	switch (AInputEvent_getType(ev))
+	// Issue : Backspace key event is unreliable
+	// Handle Input is not called every time backspace is pressed (Android Event issue)
+	if (AInputEvent_getType(ev) == AINPUT_EVENT_TYPE_KEY && 
+		AKeyEvent_getAction(ev) == AKEY_EVENT_ACTION_DOWN)
 	{
-	case AINPUT_EVENT_TYPE_KEY:
-	{
-		switch (AKeyEvent_getAction(ev))
-		{
-		case AKEY_EVENT_ACTION_DOWN:
-		{
-			int key = AKeyEvent_getKeyCode(ev);
-			int metaState = AKeyEvent_getMetaState(ev);
-			int unicode = metaState ?
+		const int key = AKeyEvent_getKeyCode(ev);
+		const int metaState = AKeyEvent_getMetaState(ev);
+		ImGuiIO& io = ImGui::GetIO();
+		const int unicode = metaState ?
 				GetUnicodeCharacter(state, AKEY_EVENT_ACTION_DOWN, key, metaState) :
 				GetUnicodeCharacter(state, AKEY_EVENT_ACTION_DOWN, key, 0);
-			LOGW("Unicode key is: %d", unicode);
-			break;
-		}
-		default:
-			break;
-		}
-		break;
+		io.AddInputCharacter(unicode);
 	}
-	default:
-		break;
-	}
-	return result;
+	return ImGui_ImplAndroid_HandleInputEvent(ev);
 }
 
 void InputManager::OnAppStart(struct android_app* state)
 {
 	state->onInputEvent = &InputManager::HandleInput;
 	native_app = state;
-	simple.ExpiresFromNow(std::chrono::milliseconds(5000));
 }
 
-void InputManager::ShowKeyboard(bool isVisible)
+void InputManager::UpdateSoftKeyboard()
 {
+	ImGuiIO& io = ImGui::GetIO();
+	ShowKeyboard(io.WantTextInput);
+}
+
+
+void InputManager::ShowKeyboard(bool newVisibility)
+{
+	static bool KeyboardVisibilityState = false;
+	if (newVisibility == KeyboardVisibilityState)
+	{
+		return;
+	}
+	LOGW("Change Visibility to : %s", newVisibility ? "TRUE" : "FALSE");
+
 	// Attaches the current thread to the JVM.
 	jint lResult;
 	jint lFlags = 0;
@@ -102,7 +103,7 @@ void InputManager::ShowKeyboard(bool isVisible)
 	jobject lDecorView = lJNIEnv->CallObjectMethod(lWindow,
 		MethodGetDecorView);
 
-	if (isVisible) {
+	if (newVisibility) {
 		// Runs lInputMethodManager.showSoftInput(...).
 		jmethodID MethodShowSoftInput = lJNIEnv->GetMethodID(
 			ClassInputMethodManager, "showSoftInput",
@@ -110,8 +111,11 @@ void InputManager::ShowKeyboard(bool isVisible)
 		jboolean lResult = lJNIEnv->CallBooleanMethod(
 			lInputMethodManager, MethodShowSoftInput,
 			lDecorView, lFlags);
+
+		KeyboardVisibilityState = true;
 	}
-	else {
+	else 
+	{
 		// Runs lWindow.getViewToken()
 		jclass ClassView = lJNIEnv->FindClass(
 			"android/view/View");
@@ -127,21 +131,12 @@ void InputManager::ShowKeyboard(bool isVisible)
 		jboolean lRes = lJNIEnv->CallBooleanMethod(
 			lInputMethodManager, MethodHideSoftInput,
 			lBinder, lFlags);
+
+		KeyboardVisibilityState = false;
 	}
 
 	// Finished with the JVM.
 	lJavaVM->DetachCurrentThread();
-}
-
-void InputManager::Update()
-{
-	if (simple.HasExpired())
-	{
-		ShowKeyboard(current);
-		current = !current;
-		simple.ExpiresFromNow(std::chrono::milliseconds(5000));
-		LOGW("Open Soft Keyboard");
-	}
 }
 
 int InputManager::GetUnicodeCharacter(android_app* native_app, int eventType, int keyCode, int metaState)

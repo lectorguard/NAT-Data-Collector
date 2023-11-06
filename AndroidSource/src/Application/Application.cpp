@@ -26,7 +26,7 @@ void Application::run(struct android_app* state)
 		// If animating, we loop until all events are read, then continue
 		// to draw the next frame of animation.
 		//
-		while ((ident = ALooper_pollAll(_components.Get<Renderer>().IsAnimating() ? 0 : -1, nullptr, &events,
+		while ((ident = ALooper_pollAll(_components.Get<Renderer>().IsAnimating() ? 0: -1, nullptr, &events,
 			(void**)&source)) >= 0) {
 
 			// Process this event.
@@ -41,7 +41,6 @@ void Application::run(struct android_app* state)
 			if (state->destroyRequested != 0)
 			{
 				_components.ForEach([this](auto&& comp) {comp.Deactivate(this); });
-				AndroidShutdownEvent.Publish(state);
 				return;
 			}
 		}
