@@ -10,6 +10,8 @@
 class Renderer
 {
 public:
+    const float font_size_cm = 0.45f;
+
     Renderer() {};
     ~Renderer() {};
 
@@ -19,15 +21,27 @@ public:
     void OnAndroidEvent(struct android_app* app, int32_t cmd);
     void InitDisplay(struct android_app* app);
 
+    void InitDisplayDensity(struct android_app* app);
+
     void StartFrame();
     void EndFrame();
 
-    void SetFontSize(float fontSizePixels);
+    
+    void SetFontSizeInPixels(float fontSizePixels);
     void SetImguiScale(float scaleValue);
+    float CentimeterToPixel(float fontsize_cm) const;
 
     bool CanDraw() const;
     bool IsAnimating() const { return _animating; };
+
+
 private:
+	int32_t displayDensity;
+	// Density independant pixels
+	int32_t DIPX;
+	// Density independant pixels
+	int32_t DIPY;
+
     EGLDisplay _display = NULL;
     EGLSurface _surface = NULL;
     EGLContext _context = NULL;

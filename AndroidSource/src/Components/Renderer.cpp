@@ -44,10 +44,23 @@ void Renderer::InitDisplay(struct android_app* app)
 {
 	InitEGL(app);
 	InitImGUI(app);
+	InitDisplayDensity(app);
+
+
 	_animating = 1;
 	ImGui::StyleColorsDark();
-	SetFontSize(70.0f);
-	SetImguiScale(7.0f);
+	SetFontSizeInPixels(CentimeterToPixel(font_size_cm));
+}
+
+void Renderer::InitDisplayDensity(struct android_app* app)
+{
+	AConfiguration* config = AConfiguration_new();
+	AConfiguration_fromAssetManager(config, app->activity->assetManager);
+	displayDensity = AConfiguration_getDensity(config);
+	DIPX = AConfiguration_getScreenWidthDp(config);
+	DIPY = AConfiguration_getScreenHeightDp(config);
+	AConfiguration_delete(config);
+	config = nullptr;
 }
 
 void Renderer::Deactivate(class Application* app)
@@ -94,7 +107,7 @@ void Renderer::EndFrame()
 	eglSwapBuffers(_display, _surface);
 }
 
-void Renderer::SetFontSize(float fontSizePixels)
+void Renderer::SetFontSizeInPixels(float fontSizePixels)
 {
 	if (!CanDraw())
 	{
@@ -110,6 +123,11 @@ void Renderer::SetFontSize(float fontSizePixels)
 void Renderer::SetImguiScale(float scaleValue)
 {
 	ImGui::GetStyle().ScaleAllSizes(scaleValue);
+}
+
+float Renderer::CentimeterToPixel(float fontsize_cm) const
+{
+	return fontsize_cm / 2.54f * displayDensity;
 }
 
 bool Renderer::CanDraw() const
