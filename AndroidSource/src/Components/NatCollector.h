@@ -5,6 +5,7 @@
 #include "Data/IPMetaData.h"
 #include <future>
 #include "CustomCollections/SimpleTimer.h"
+#include "UDPCollectTask.h"
 
 
 
@@ -34,6 +35,26 @@ class NatCollector
 	using TransactionTask = std::future<shared::ServerResponse>;
 
 public:
+	const UDPCollectTask::NatTypeInfo natType_config
+	{
+		/* remote address */			"192.168.2.110",
+		/* first remote port */			7777,
+		/* second remote port */		7778,
+		/* local port*/					44444,
+		/* time between requests in ms */ 20
+	};
+
+	const UDPCollectTask::CollectInfo collect_config
+	{
+		/* remote address */				"192.168.2.110",
+		/* remote port */					7777,
+		/* local port */					0,
+		/* amount of ports */				5,
+		/* time between requests in ms */	20
+
+	};
+
+
 	void Update();
 
 	void Activate(class Application* app);
@@ -66,5 +87,4 @@ private:
 	// Expect always exactly 2 ports inside the vector
 	shared::NATType IdentifyNatType(std::vector<shared::Address> two_addresses);
 	shared::NATType GetMostLikelyNatType(const std::vector<shared::NATType>& nat_types) const;
-	std::string CreateTimeStampNow() const;
 };

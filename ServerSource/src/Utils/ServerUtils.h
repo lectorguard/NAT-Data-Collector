@@ -11,12 +11,12 @@
 
 namespace ServerUtils
 {
-	inline std::shared_ptr<std::string> CreateJsonFromEndpoint(const asio::ip::udp::endpoint& endpoint, uint16_t index = 0)
+	inline std::shared_ptr<std::string> CreateJsonFromEndpoint(const asio::ip::udp::endpoint& endpoint, shared::Address& template_address)
 	{
 		using namespace std;
 
 		vector<jser::JSerError> errors;
-		shared::Address toSerialize{ endpoint.address().to_string(), endpoint.port(), index };
+		shared::Address toSerialize{ endpoint.address().to_string(), endpoint.port(), template_address.rtt_ms, template_address.index };
 		const string serializationString = toSerialize.SerializeObjectString(std::back_inserter(errors));
 		if (errors.size() > 0)
 		{

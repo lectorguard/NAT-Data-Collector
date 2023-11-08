@@ -25,6 +25,7 @@ set(imgui_android_source
 		${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty/imgui/imgui_draw.cpp
 		${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty/imgui/imgui_tables.cpp
 		${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty/imgui/imgui_widgets.cpp
+		${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty/imgui/misc/cpp/imgui_stdlib.cpp
 		${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty/imgui/backends/imgui_impl_android.cpp
 		${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty/imgui/backends/imgui_impl_opengl3.cpp)
 

@@ -2,6 +2,8 @@
 #include <functional>
 #include <vector>
 #include "android/log.h"
+#include "Components/UI.h"
+
 #define LOGW(...) ((void)__android_log_print(ANDROID_LOG_WARN, "native-activity", __VA_ARGS__))
 
 template<typename ... EventParams>

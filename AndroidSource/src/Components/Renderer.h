@@ -7,10 +7,17 @@
 #include <memory>
 #include <string>
 
+
 class Renderer
 {
 public:
-    const float font_size_cm = 0.45f;
+    const float font_large_cm = 0.55f;
+    const float font_medium_cm = 0.42f;
+    const float font_small_cm = 0.2f;
+
+    inline static struct ImFont* large_font = nullptr;
+    inline static struct ImFont* medium_font = nullptr;
+    inline static struct ImFont* small_font = nullptr;
 
     Renderer() {};
     ~Renderer() {};
@@ -27,20 +34,20 @@ public:
     void EndFrame();
 
     
-    void SetFontSizeInPixels(float fontSizePixels);
+    ImFont* CreateFontbySizePixels(float fontSizePixels);
     void SetImguiScale(float scaleValue);
-    float CentimeterToPixel(float fontsize_cm) const;
+    static float CentimeterToPixel(float fontsize_cm);
 
     bool CanDraw() const;
     bool IsAnimating() const { return _animating; };
 
 
 private:
-	int32_t displayDensity;
+	inline static int32_t displayDensity = 0;
 	// Density independant pixels
-	int32_t DIPX;
+	inline static int32_t DIPX = 0;
 	// Density independant pixels
-	int32_t DIPY;
+	inline static int32_t DIPY = 0;
 
     EGLDisplay _display = NULL;
     EGLSurface _surface = NULL;

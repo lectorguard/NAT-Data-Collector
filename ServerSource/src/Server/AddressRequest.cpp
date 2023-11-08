@@ -54,7 +54,7 @@ void UDP_Adresss_Echo_Server::handle_receive(const std::error_code& error, std::
 			break;
 		}
 
-		if (auto sendMsg = ServerUtils::CreateJsonFromEndpoint(*remote_endpoint, address.index))
+		if (auto sendMsg = ServerUtils::CreateJsonFromEndpoint(*remote_endpoint, address))
 		{
 			_socket.async_send_to(asio::buffer(*sendMsg), *remote_endpoint,
 				[this, sendMsg](const std::error_code& ec, std::size_t bytesTransferred)

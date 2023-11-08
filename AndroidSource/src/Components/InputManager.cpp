@@ -2,6 +2,7 @@
 #include "Application/Application.h"
 #include "backends/imgui_impl_android.h"
 #include "imgui.h"
+#include "UI.h"
 
 void InputManager::Activate(class Application* app)
 {
@@ -47,7 +48,7 @@ void InputManager::ShowKeyboard(bool newVisibility)
 	{
 		return;
 	}
-	LOGW("Change Visibility to : %s", newVisibility ? "TRUE" : "FALSE");
+	UI::Log(UI::Warning, "Change Visibility to : %s", newVisibility ? "TRUE" : "FALSE");
 
 	// Attaches the current thread to the JVM.
 	jint lResult;

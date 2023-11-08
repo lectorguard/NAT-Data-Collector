@@ -3,6 +3,7 @@
 #include "imgui.h"
 #include "backends/imgui_impl_android.h"
 #include "backends/imgui_impl_opengl3.h"
+#include "UI.h"
 
 void Renderer::Activate(class Application* app)
 {
@@ -49,7 +50,12 @@ void Renderer::InitDisplay(struct android_app* app)
 
 	_animating = 1;
 	ImGui::StyleColorsDark();
-	SetFontSizeInPixels(CentimeterToPixel(font_size_cm));
+	small_font = CreateFontbySizePixels(CentimeterToPixel(font_small_cm));
+	large_font = CreateFontbySizePixels(CentimeterToPixel(font_large_cm));
+
+	//Default is medium
+	medium_font = CreateFontbySizePixels(CentimeterToPixel(font_medium_cm));
+	
 }
 
 void Renderer::InitDisplayDensity(struct android_app* app)
@@ -107,17 +113,17 @@ void Renderer::EndFrame()
 	eglSwapBuffers(_display, _surface);
 }
 
-void Renderer::SetFontSizeInPixels(float fontSizePixels)
+ImFont* Renderer::CreateFontbySizePixels(float fontSizePixels)
 {
 	if (!CanDraw())
 	{
-		LOGW("Can not cahnge font size, _display not initialized no context");
-		return;
+		UI::Log(UI::Warning, "Can not cahnge font size, _display not initialized no context");
+		return nullptr;
 	}
 	ImGuiIO& io = ImGui::GetIO();
 	ImFontConfig font_cfg;
 	font_cfg.SizePixels = fontSizePixels;
-	io.Fonts->AddFontDefault(&font_cfg);
+	return io.Fonts->AddFontDefault(&font_cfg);
 }
 
 void Renderer::SetImguiScale(float scaleValue)
@@ -125,7 +131,7 @@ void Renderer::SetImguiScale(float scaleValue)
 	ImGui::GetStyle().ScaleAllSizes(scaleValue);
 }
 
-float Renderer::CentimeterToPixel(float fontsize_cm) const
+float Renderer::CentimeterToPixel(float fontsize_cm)
 {
 	return fontsize_cm / 2.54f * displayDensity;
 }
@@ -142,17 +148,17 @@ void Renderer::InitEGL(struct android_app* app)
 
 	_display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
 	if (_display == EGL_NO_DISPLAY)
-		LOGW("eglGetDisplay(EGL_DEFAULT_DISPLAY) returned EGL_NO_DISPLAY");
+		UI::Log(UI::Warning, "eglGetDisplay(EGL_DEFAULT_DISPLAY) returned EGL_NO_DISPLAY");
 
 	if (eglInitialize(_display, 0, 0) != EGL_TRUE)
-		LOGW("eglInitialize() returned with an error");
+		UI::Log(UI::Warning, "eglInitialize() returned with an error");
 
 	const EGLint egl_attributes[] = { EGL_BLUE_SIZE, 8, EGL_GREEN_SIZE, 8, EGL_RED_SIZE, 8, EGL_DEPTH_SIZE, 24, EGL_SURFACE_TYPE, EGL_WINDOW_BIT, EGL_NONE };
 	EGLint num_configs = 0;
 	if (eglChooseConfig(_display, egl_attributes, nullptr, 0, &num_configs) != EGL_TRUE)
-		LOGW("eglChooseConfig() returned with an error");
+		UI::Log(UI::Warning, "eglChooseConfig() returned with an error");
 	if (num_configs == 0)
-		LOGW("eglChooseConfig() returned 0 matching config");
+		UI::Log(UI::Warning, "eglChooseConfig() returned 0 matching config");
 
 	// Get the first matching config
 	EGLConfig egl_config;
@@ -165,7 +171,7 @@ void Renderer::InitEGL(struct android_app* app)
 	_context = eglCreateContext(_display, egl_config, EGL_NO_CONTEXT, egl_context_attributes);
 
 	if (_context == EGL_NO_CONTEXT)
-		LOGW("eglCreateContext() returned EGL_NO_CONTEXT");
+		UI::Log(UI::Warning, "eglCreateContext() returned EGL_NO_CONTEXT");
 
 	_surface = eglCreateWindowSurface(_display, egl_config, app->window, nullptr);
 	eglMakeCurrent(_display, _surface, _surface, _context);

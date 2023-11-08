@@ -12,7 +12,7 @@
 {
 	using namespace std::chrono;
 	uint64_t durationInMs = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
-	LOGW("%s :  %" PRIu64 "\n", prepend.c_str(), durationInMs);
+	UI::Log(UI::Warning, "%s :  %" PRIu64 "\n", prepend.c_str(), durationInMs);
 }
 
 
@@ -20,7 +20,7 @@
  {
 
 	 // Print request details
-	 LOGW("Collect NAT data - remote address %s - remote port %d - local port %d - amountPorts %d - deltaTime %dms",
+	 UI::Log(UI::Warning, "Collect NAT data - remote address %s - remote port %d - local port %d - amountPorts %d - deltaTime %dms",
 		 collect_info.remote_address.c_str(),
 		 collect_info.remote_port,
 		 collect_info.local_port,
@@ -33,7 +33,7 @@
  shared::Result<shared::AddressVector> UDPCollectTask::StartNatTypeTask(const NatTypeInfo& collect_info)
  {
 	 // Print request details
-	 LOGW("Nat Type Request - remote address %s - first remote port %d - second remote port %d - local port %d - deltaTime %d ms",
+	 UI::Log(UI::Warning, "Nat Type Request - remote address %s - first remote port %d - second remote port %d - local port %d - deltaTime %d ms",
 		 collect_info.remote_address.c_str(),
 		 collect_info.first_remote_port,
 		 collect_info.second_remote_port,
@@ -80,7 +80,7 @@ UDPCollectTask::UDPCollectTask(const NatTypeInfo& info, asio::io_service& io_ser
 {
 	if (info.local_port == 0)
 	{
-		LOGW("For UDP Collector Task Port 0 is disallowed !!");
+		UI::Log(UI::Warning, "For UDP Collector Task Port 0 is disallowed !!");
 		return;
 	}
 
@@ -149,7 +149,7 @@ void UDPCollectTask::send_request(Socket& local_socket, asio::io_service& io_ser
 		return;
 	}
 
-	shared::Address address{ local_socket.index };
+	shared::Address address{ local_socket.index, shared::helper::CreateTimeStampOnlyMS() };
 	std::vector<jser::JSerError> jser_errors;
 	std::string serialized_address = address.SerializeObjectString(std::back_inserter(jser_errors));
 	if (jser_errors.size() > 0)
@@ -238,6 +238,7 @@ void UDPCollectTask::handle_receive(std::shared_ptr<AddressBuffer> buffer, std::
 		io_service.stop();
 		return;
 	}
+	address.rtt_ms = shared::helper::CreateTimeStampOnlyMS() - address.rtt_ms;
 	stored_natsample.address_vector.push_back(address);
 }
 
@@ -255,7 +256,7 @@ asio::system_timer UDPCollectTask::CreateDeadline(asio::io_service& service, std
 				// Package loss is expected
 				// If there is no internet connection,
 				// an error will be created at a later stage
-				LOGW("Socket operation expired");
+				UI::Log(UI::Warning, "Socket operation expired");
 				socket->cancel();
 			}
 		}

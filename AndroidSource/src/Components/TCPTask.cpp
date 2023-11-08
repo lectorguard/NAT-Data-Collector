@@ -28,7 +28,7 @@ shared::ServerResponse TCPTask::ServerTransaction(shared::ServerRequest request,
 		if (!response) break;
 
 		// Send Request to Server
-		LOGWARN("Send Info : %s", toSend.c_str());
+		UI::Log(UI::Warning, "Send Info : %s", toSend.c_str());
 		asio::write(socket, asio::buffer(toSend), asio_error);
 		response = utilities::HandleAsioError(asio_error, "Write Server Transaction Request");
 		if (!response) break;
@@ -38,7 +38,7 @@ shared::ServerResponse TCPTask::ServerTransaction(shared::ServerRequest request,
 		std::size_t len = socket.read_some(asio::buffer(buf), asio_error);
 		response = utilities::HandleAsioError(asio_error, "Read Answer from Server Request");
 		if (!response) break;
-		LOGWARN("Server answer : %s ", buf);
+		UI::Log(UI::Warning, "Server answer : %s ", buf);
 
 		// Deserialize Server Answer
 		ServerResponse server_answer;
