@@ -2,6 +2,7 @@
 #include "Application/Application.h"
 #include "thread"
 #include "Utilities/NetworkHelpers.h"
+#include "CustomCollections/Log.h"
 
 shared::ServerResponse TCPTask::ServerTransaction(shared::ServerRequest request, std::string_view server_addr, uint16_t server_port)
 {
@@ -28,7 +29,7 @@ shared::ServerResponse TCPTask::ServerTransaction(shared::ServerRequest request,
 		if (!response) break;
 
 		// Send Request to Server
-		UI::Log(UI::Warning, "Send Info : %s", toSend.c_str());
+		//Log::Info( "Send Info : %s", toSend.c_str());
 		asio::write(socket, asio::buffer(toSend), asio_error);
 		response = utilities::HandleAsioError(asio_error, "Write Server Transaction Request");
 		if (!response) break;
@@ -38,7 +39,7 @@ shared::ServerResponse TCPTask::ServerTransaction(shared::ServerRequest request,
 		std::size_t len = socket.read_some(asio::buffer(buf), asio_error);
 		response = utilities::HandleAsioError(asio_error, "Read Answer from Server Request");
 		if (!response) break;
-		UI::Log(UI::Warning, "Server answer : %s ", buf);
+		//Log::Warning( "Server answer : %s ", buf);
 
 		// Deserialize Server Answer
 		ServerResponse server_answer;

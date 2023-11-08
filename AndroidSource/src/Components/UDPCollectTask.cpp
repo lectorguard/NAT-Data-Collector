@@ -7,25 +7,24 @@
 #include "Data/Address.h"
 #include "SharedHelpers.h"
 #include "functional"
+#include "CustomCollections/Log.h"
 
  void LogTimeMs(const std::string& prepend)
 {
 	using namespace std::chrono;
 	uint64_t durationInMs = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
-	UI::Log(UI::Warning, "%s :  %" PRIu64 "\n", prepend.c_str(), durationInMs);
+	Log::Warning( "%s :  %" PRIu64 "\n", prepend.c_str(), durationInMs);
 }
 
 
  shared::Result<shared::AddressVector> UDPCollectTask::StartCollectTask(const CollectInfo& collect_info)
  {
-
-	 // Print request details
-	 UI::Log(UI::Warning, "Collect NAT data - remote address %s - remote port %d - local port %d - amountPorts %d - deltaTime %dms",
-		 collect_info.remote_address.c_str(),
-		 collect_info.remote_port,
-		 collect_info.local_port,
-		 collect_info.amount_ports,
-		 collect_info.time_between_requests_ms);
+	 Log::Info("--- Metadata Collect NAT Samples ---");
+	 Log::Info("Server Address     :  %s", collect_info.remote_address.c_str());
+	 Log::Info("Server Port        :  %d", collect_info.remote_port);
+	 Log::Info("Local Port         :  %d", collect_info.local_port);
+	 Log::Info("Amount of Ports    :  %d", collect_info.amount_ports);
+	 Log::Info("Request Delta Time :  %d ms", collect_info.time_between_requests_ms);
 
 	 return start_task_internal([collect_info](asio::io_service& io) { return UDPCollectTask(collect_info, io); });
  }
@@ -33,12 +32,13 @@
  shared::Result<shared::AddressVector> UDPCollectTask::StartNatTypeTask(const NatTypeInfo& collect_info)
  {
 	 // Print request details
-	 UI::Log(UI::Warning, "Nat Type Request - remote address %s - first remote port %d - second remote port %d - local port %d - deltaTime %d ms",
-		 collect_info.remote_address.c_str(),
-		 collect_info.first_remote_port,
-		 collect_info.second_remote_port,
-		 collect_info.local_port,
-		 collect_info.time_between_requests_ms);
+// 	 Log::Info("--- Metadata Nat Identification ---");
+// 	 Log::Info("Server Address :  %s", collect_info.remote_address.c_str());
+// 	 Log::Info("First remote port :  %d", collect_info.first_remote_port);
+// 	 Log::Info("Second remote port :  %d", collect_info.second_remote_port);
+// 	 Log::Info("Local port :  %d", collect_info.local_port);
+// 	 Log::Info("Request delta time :  %d ms", collect_info.time_between_requests_ms);
+// 	 Log::Info("----------------------------");
 
 	 return start_task_internal([collect_info](asio::io_service& io) { return UDPCollectTask(collect_info, io); });
  }
@@ -80,7 +80,7 @@ UDPCollectTask::UDPCollectTask(const NatTypeInfo& info, asio::io_service& io_ser
 {
 	if (info.local_port == 0)
 	{
-		UI::Log(UI::Warning, "For UDP Collector Task Port 0 is disallowed !!");
+		Log::Warning( "For UDP Collector Task Port 0 is disallowed !!");
 		return;
 	}
 
@@ -256,7 +256,7 @@ asio::system_timer UDPCollectTask::CreateDeadline(asio::io_service& service, std
 				// Package loss is expected
 				// If there is no internet connection,
 				// an error will be created at a later stage
-				UI::Log(UI::Warning, "Socket operation expired");
+				Log::Warning( "Socket operation expired");
 				socket->cancel();
 			}
 		}

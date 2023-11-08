@@ -11,7 +11,7 @@
 #include "nlohmann/json.hpp"
 #include "Utilities/NetworkHelpers.h"
 #include "ctime"
-#include "UI.h"
+#include "CustomCollections/Log.h"
 
 
  void NatCollector::Activate(Application* app)
@@ -29,13 +29,13 @@ void NatCollector::Update()
 	}
 	case NatCollectionSteps::Start:
 	{
-		UI::Log(UI::Warning, "Started NAT Sample Creation Process");
+		Log::Info( "Started NAT Sample Creation Process");
 		current = NatCollectionSteps::StartIPInfo;
 		break;
 	}
 	case NatCollectionSteps::StartIPInfo:
 	{
-		UI::Log(UI::Warning, "Started retrieving IP info");
+		Log::Info( "Started retrieving IP info");
 		std::stringstream requestHeader;
 		requestHeader << "GET /json/ HTTP/1.1\r\n";
 		requestHeader << "Host: ip-api.com\r\n";
@@ -56,18 +56,24 @@ void NatCollector::Update()
 				assert(!metaData.isp.empty());
 				if (jser_errors.size() > 0)
 				{
-					UI::Log(UI::Warning, "Failed to Deserialize IP Info from Server");
+					const auto resp = shared::ServerResponse::Error(shared::helper::JserErrorToString(jser_errors));
+					Log::HandleResponse(resp, "Deserialize IP Address Metadata from Server");
 					current = NatCollectionSteps::Error;
 					break;
 				}
-				ip_meta_data = metaData;
+				// Set client meta data
+				client_meta_data.country = metaData.country;
+				client_meta_data.city = metaData.city;
+				client_meta_data.region = metaData.region;
+				client_meta_data.isp = metaData.isp;
+				client_meta_data.timezone = metaData.timezone;
+				// Next Collect NAT Info
 				current = NatCollectionSteps::StartNATInfo;
 				break;
 			}
 			else
 			{
-				auto error = std::get<shared::ServerResponse>(*res);
-				UI::Log(UI::Warning, "First Error during Update IP Info : %s", error.messages[0].c_str());
+				Log::HandleResponse(std::get<shared::ServerResponse>(*res), "Get IP Address Metadata from Server");
 				current = NatCollectionSteps::Error;
 				break;
 			}
@@ -76,8 +82,7 @@ void NatCollector::Update()
 	}
 	case NatCollectionSteps::StartNATInfo:
 	{
-		UI::Log(UI::Warning, "Started collecting NAT info");
-		
+		Log::Info( "Started collecting NAT info");
 		nat_ident_task = std::async(UDPCollectTask::StartNatTypeTask, natType_config);
 		current = NatCollectionSteps::UpdateNATInfo;
 		break;
@@ -90,27 +95,32 @@ void NatCollector::Update()
 			{
 				if (sample->address_vector.size() != 2)
 				{
-					UI::Log(UI::Warning, "Failed to get NAT Info information from server");
+					Log::Warning( "Failed to get NAT Info information from server");
 				}
 				else
 				{
-					UI::Log(UI::Warning, "Received nat sample %s:%d %s:%d",
-						sample->address_vector[0].ip_address.c_str(),
-						sample->address_vector[0].port,
-						sample->address_vector[1].ip_address.c_str(),
-						sample->address_vector[0].port);
+					Log::Info("-- Collected Nat Sample --");
+					Log::Info("Translated Address     : %s", sample->address_vector[0].ip_address.c_str());
+					Log::Info("First Translated Port  : %d", sample->address_vector[0].port);
+					Log::Info("Second Translated Port : %d", sample->address_vector[1].port);
 
 					identified_nat_types.push_back(IdentifyNatType(sample->address_vector));
 				}
 				if (identified_nat_types.size() < required_nat_samples)
+				{
 					current = NatCollectionSteps::StartNATInfo;
-				else current = NatCollectionSteps::StartCollectPorts;
+				}
+				else
+				{
+					// Set client meta data
+					client_meta_data.nat_type = GetMostLikelyNatType(identified_nat_types);
+					current = NatCollectionSteps::StartCollectPorts;
+				}
 				break;
 			}
 			else
 			{
-				auto error = std::get<shared::ServerResponse>(*res);
-				UI::Log(UI::Warning, "First Error during Update NAT Info : %s", error.messages[0].c_str());
+				Log::HandleResponse(std::get<shared::ServerResponse>(*res), "NAT Identification Server Response");
 				current = NatCollectionSteps::Error;
 				break;
 			}
@@ -120,9 +130,8 @@ void NatCollector::Update()
 
 	case NatCollectionSteps::StartCollectPorts:
 	{
-		UI::Log(UI::Warning, "Started collecting Ports");
+		Log::Info( "Started collecting Ports");
 		//Start Collecting
-		// Start Task
 		nat_collect_task = std::async(UDPCollectTask::StartCollectTask, collect_config);
 		// Create Timestamp
 		time_stamp = shared::helper::CreateTimeStampNow();
@@ -137,7 +146,7 @@ void NatCollector::Update()
 			{
 				if (sample->address_vector.empty())
 				{
-					UI::Log(UI::Warning, "Failed to get any ports");
+					Log::Error("Failed to get any ports");
 					current = NatCollectionSteps::Error;
 					break;
 				}
@@ -147,8 +156,7 @@ void NatCollector::Update()
 			}
 			else
 			{
-				auto error = std::get<shared::ServerResponse>(*res);
-				UI::Log(UI::Warning, "First Error during Update Collect Ports : %s", error.messages[0].c_str());
+				Log::HandleResponse(std::get<shared::ServerResponse>(*res), "Collect NAT Samples Server Response");
 				current = NatCollectionSteps::Error;
 				break;
 			}
@@ -157,22 +165,10 @@ void NatCollector::Update()
 	}
 	case NatCollectionSteps::StartUploadDB:
 	{
-		UI::Log(UI::Warning, "Started upload to DB");
+		Log::Info( "Started upload to DB");
 		using namespace shared;
 		// Create Object
-		NATSample sampleToInsert
-		{
-			ip_meta_data.isp,
-			ip_meta_data.country,
-			ip_meta_data.region,
-			ip_meta_data.city,
-			ip_meta_data.timezone,
-			time_stamp,
-			collect_config.time_between_requests_ms,
-			0, // ROT type has to be figured out
-			GetMostLikelyNatType(identified_nat_types),
-			collected_nat_data
-		};
+		NATSample sampleToInsert{ client_meta_data, time_stamp, collect_config.time_between_requests_ms,/* TODO : Figure out ROT Connection */ 0, collected_nat_data };
 
 		Result<ServerRequest> request_result = helper::CreateServerRequest<RequestType::INSERT_MONGO>(sampleToInsert, "NatInfo", "test2");
 		if (auto request = std::get_if<ServerRequest>(&request_result))
@@ -183,8 +179,7 @@ void NatCollector::Update()
 		}
 		else
 		{
-			auto error = std::get<shared::ServerResponse>(request_result);
-			UI::Log(UI::Warning, "First Error during creation of server request : %s", error.messages[0].c_str());
+			Log::HandleResponse(std::get<shared::ServerResponse>(request_result), "Create DB Insertion Request");
 			current = NatCollectionSteps::Error;
 			break;
 		}
@@ -194,15 +189,14 @@ void NatCollector::Update()
 	{
 		if (auto res = utilities::TryGetFuture<shared::ServerResponse>(transaction_task))
 		{
+			Log::HandleResponse(*res, "Insert NAT sample to DB");
 			if (*res)
 			{
-				UI::Log(UI::Warning, "Successfully inserted NAT sample to DB");
 				current = NatCollectionSteps::StartWait;
 				break;
 			}
 			else
 			{
-				UI::Log(UI::Warning, "Failed to insert NAT sample to DB. First error : %s", res->messages[0].c_str());
 				current = NatCollectionSteps::Error;
 				break;
 			}
@@ -210,7 +204,7 @@ void NatCollector::Update()
 	}
 	case NatCollectionSteps::StartWait:
 	{
-		UI::Log(UI::Warning, "Start Wait");
+		Log::Info("Start Wait for %d ms", time_between_samples_ms);
 		wait_timer.ExpiresFromNow(std::chrono::milliseconds(time_between_samples_ms));
 		current = NatCollectionSteps::UpdateWait;
 		break;

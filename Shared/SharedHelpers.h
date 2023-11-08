@@ -20,13 +20,11 @@ namespace shared::helper
 			return mapVector<jser::JSerError, std::string>(errors, [](auto jser_err) {return jser_err.Message; });
 		}
 
-		inline uint32_t CreateTimeStampOnlyMS()
+		inline uint16_t CreateTimeStampOnlyMS()
 		{
 			auto now = std::chrono::system_clock::now();
 			auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count();
-
-			// Convert milliseconds to seconds
-			return (uint32_t)ms / 1000;
+			return (uint16_t)(ms % 10'000);
 		}
 
 		inline std::string CreateTimeStampNow()

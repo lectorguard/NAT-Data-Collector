@@ -76,6 +76,6 @@ void UDP_Adresss_Echo_Server::handle_receive(const std::error_code& error, std::
 
 void UDP_Adresss_Echo_Server::handle_send(const std::error_code& ec, std::size_t byteTransferred, std::shared_ptr<std::string> msg)
 {
-	std::cout << "Replied request : " << *msg << std::endl;
+	//std::cout << "Replied request : " << *msg << std::endl;
 }
 

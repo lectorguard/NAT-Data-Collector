@@ -3,7 +3,7 @@
 #include "imgui.h"
 #include "backends/imgui_impl_android.h"
 #include "backends/imgui_impl_opengl3.h"
-#include "UI.h"
+#include "CustomCollections/Log.h"
 
 void Renderer::Activate(class Application* app)
 {
@@ -117,7 +117,7 @@ ImFont* Renderer::CreateFontbySizePixels(float fontSizePixels)
 {
 	if (!CanDraw())
 	{
-		UI::Log(UI::Warning, "Can not cahnge font size, _display not initialized no context");
+		Log::Warning( "Can not cahnge font size, _display not initialized no context");
 		return nullptr;
 	}
 	ImGuiIO& io = ImGui::GetIO();
@@ -148,17 +148,17 @@ void Renderer::InitEGL(struct android_app* app)
 
 	_display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
 	if (_display == EGL_NO_DISPLAY)
-		UI::Log(UI::Warning, "eglGetDisplay(EGL_DEFAULT_DISPLAY) returned EGL_NO_DISPLAY");
+		Log::Warning( "eglGetDisplay(EGL_DEFAULT_DISPLAY) returned EGL_NO_DISPLAY");
 
 	if (eglInitialize(_display, 0, 0) != EGL_TRUE)
-		UI::Log(UI::Warning, "eglInitialize() returned with an error");
+		Log::Warning( "eglInitialize() returned with an error");
 
 	const EGLint egl_attributes[] = { EGL_BLUE_SIZE, 8, EGL_GREEN_SIZE, 8, EGL_RED_SIZE, 8, EGL_DEPTH_SIZE, 24, EGL_SURFACE_TYPE, EGL_WINDOW_BIT, EGL_NONE };
 	EGLint num_configs = 0;
 	if (eglChooseConfig(_display, egl_attributes, nullptr, 0, &num_configs) != EGL_TRUE)
-		UI::Log(UI::Warning, "eglChooseConfig() returned with an error");
+		Log::Warning( "eglChooseConfig() returned with an error");
 	if (num_configs == 0)
-		UI::Log(UI::Warning, "eglChooseConfig() returned 0 matching config");
+		Log::Warning( "eglChooseConfig() returned 0 matching config");
 
 	// Get the first matching config
 	EGLConfig egl_config;
@@ -171,7 +171,7 @@ void Renderer::InitEGL(struct android_app* app)
 	_context = eglCreateContext(_display, egl_config, EGL_NO_CONTEXT, egl_context_attributes);
 
 	if (_context == EGL_NO_CONTEXT)
-		UI::Log(UI::Warning, "eglCreateContext() returned EGL_NO_CONTEXT");
+		Log::Warning( "eglCreateContext() returned EGL_NO_CONTEXT");
 
 	_surface = eglCreateWindowSurface(_display, egl_config, app->window, nullptr);
 	eglMakeCurrent(_display, _surface, _surface, _context);

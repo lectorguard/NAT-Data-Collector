@@ -1,5 +1,7 @@
 #pragma once
 #include "stdint.h"
+#include <map>
+#include <string>
 
 namespace shared 
 {
@@ -22,5 +24,12 @@ namespace shared
 		CONE,
 		PROGRESSING_SYM,
 		RANDOM_SYM
+	};
+
+	inline const std::map<NATType, std::string> nat_to_string{ 
+		{NATType::UNDEFINED, "Undefined"},
+		{NATType::CONE, "Full/Restricted Cone"},
+		{NATType::PROGRESSING_SYM, "Progressing Symmetric"},
+		{NATType::RANDOM_SYM, "Random Symmetric"}
 	};
 }

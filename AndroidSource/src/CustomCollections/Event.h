@@ -2,9 +2,7 @@
 #include <functional>
 #include <vector>
 #include "android/log.h"
-#include "Components/UI.h"
-
-#define LOGW(...) ((void)__android_log_print(ANDROID_LOG_WARN, "native-activity", __VA_ARGS__))
+#include "Log.h"
 
 template<typename ... EventParams>
 struct Event
@@ -32,7 +30,7 @@ struct Event
 			}
 			else
 			{
-				LOGW("Failed to publish event");
+				Log::Error("Failed to publish event");
 			}
 		}
 	}

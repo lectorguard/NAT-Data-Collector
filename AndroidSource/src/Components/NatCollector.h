@@ -60,13 +60,14 @@ public:
 	void Activate(class Application* app);
 	void Deactivate(class Application* app);
 
+	inline static shared::ClientMetaData client_meta_data{};
 private:
 	// Constants
 	const int required_nat_samples = 5;
 	const int time_between_samples_ms = 30'000;
 
 	// State
-	NatCollectionSteps current = NatCollectionSteps::Idle;
+	NatCollectionSteps current = NatCollectionSteps::StartIPInfo;
 
 	// Timer
 	SimpleTimer wait_timer{};
@@ -79,7 +80,6 @@ private:
 
 	// Data
 	std::string time_stamp;
-	shared::IPMetaData ip_meta_data;
 	std::vector<shared::NATType> identified_nat_types;
 	std::vector<shared::Address> collected_nat_data;
 	
