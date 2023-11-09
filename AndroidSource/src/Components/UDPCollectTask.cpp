@@ -238,7 +238,7 @@ void UDPCollectTask::handle_receive(std::shared_ptr<AddressBuffer> buffer, std::
 		io_service.stop();
 		return;
 	}
-	address.rtt_ms = shared::helper::CreateTimeStampOnlyMS() - address.rtt_ms;
+	address.rtt_ms = (uint16_t)std::abs((int32_t)shared::helper::CreateTimeStampOnlyMS() - (int32_t)address.rtt_ms);
 	stored_natsample.address_vector.push_back(address);
 }
 
