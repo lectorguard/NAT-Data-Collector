@@ -59,6 +59,10 @@ void UI::Draw()
 	ImGui::Columns(2, "Pairs", false);
 	ImGui::SetColumnWidth(0, LeftColumnWidth * io.DisplaySize.x);
 	{
+		ImGui::Text("Android ID"); ImGui::NextColumn();
+		ImGui::PushItemWidth(io.DisplaySize.x * (1.0f - LeftColumnWidth));
+		ImGui::Text("%s", NatCollector::client_meta_data.android_id.c_str()); ImGui::NextColumn();
+
 		ImGui::Text("ISP"); ImGui::NextColumn();
 		ImGui::PushItemWidth(io.DisplaySize.x * (1.0f - LeftColumnWidth));
 		ImGui::InputText("##ISP", &NatCollector::client_meta_data.isp); ImGui::NextColumn();

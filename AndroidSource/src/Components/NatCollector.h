@@ -58,6 +58,7 @@ public:
 	void Update();
 
 	void Activate(class Application* app);
+	void Start(struct android_app* state);
 	void Deactivate(class Application* app);
 
 	inline static shared::ClientMetaData client_meta_data{};
@@ -67,7 +68,7 @@ private:
 	const int time_between_samples_ms = 30'000;
 
 	// State
-	NatCollectionSteps current = NatCollectionSteps::StartIPInfo;
+	NatCollectionSteps current = NatCollectionSteps::Start;
 
 	// Timer
 	SimpleTimer wait_timer{};

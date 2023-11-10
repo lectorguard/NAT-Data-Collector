@@ -17,6 +17,24 @@
  void NatCollector::Activate(Application* app)
  {
  	app->UpdateEvent.Subscribe([this](Application* app) {Update(); });
+	app->AndroidStartEvent.Subscribe([this](struct android_app* state) {Start(state); });
+ }
+
+ void NatCollector::Start(android_app* state)
+ {
+	 Log::Info("Start reading device android id");
+	 if (auto id = utilities::GetAndroidID(state))
+	 {
+		 client_meta_data.android_id = *id;
+	 }
+	 else
+	 {
+		 client_meta_data.android_id = "Not Identified";
+		 Log::Error("Failed to get android id");
+	 }
+
+	 shared::ROTTypes rot = utilities::GetROT(state);
+	 Log::Error("Identified ROT type %d", (int)rot);
  }
 
 void NatCollector::Update()
@@ -29,7 +47,6 @@ void NatCollector::Update()
 	}
 	case NatCollectionSteps::Start:
 	{
-		Log::Info( "Started NAT Sample Creation Process");
 		current = NatCollectionSteps::StartIPInfo;
 		break;
 	}
@@ -96,6 +113,7 @@ void NatCollector::Update()
 				if (sample->address_vector.size() != 2)
 				{
 					Log::Warning( "Failed to get NAT Info information from server");
+					identified_nat_types.push_back(shared::NATType::UNDEFINED);
 				}
 				else
 				{
