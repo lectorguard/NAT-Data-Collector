@@ -32,9 +32,7 @@
 		 client_meta_data.android_id = "Not Identified";
 		 Log::Error("Failed to get android id");
 	 }
-
-	 shared::ROTTypes rot = utilities::GetROT(state);
-	 Log::Error("Identified ROT type %d", (int)rot);
+	 android_state = state;
  }
 
 void NatCollector::Update()
@@ -47,12 +45,27 @@ void NatCollector::Update()
 	}
 	case NatCollectionSteps::Start:
 	{
-		current = NatCollectionSteps::StartIPInfo;
+		current = NatCollectionSteps::StartReadConnectType;
+		break;
+	}
+	case NatCollectionSteps::StartReadConnectType:
+	{
+		Log::Info("Started reading connection type");
+		client_connect_type = utilities::GetConnectionType(android_state);
+		if (client_connect_type != shared::ConnectionType::NOT_CONNECTED)
+		{
+			current = NatCollectionSteps::StartIPInfo;
+		}
+		else
+		{
+			Log::Warning("Device is not connected. Please establish a connection with your mobile provider.");
+			current = NatCollectionSteps::Idle;
+		}
 		break;
 	}
 	case NatCollectionSteps::StartIPInfo:
 	{
-		Log::Info( "Started retrieving IP info");
+		Log::Info("Started retrieving IP info");
 		std::stringstream requestHeader;
 		requestHeader << "GET /json/ HTTP/1.1\r\n";
 		requestHeader << "Host: ip-api.com\r\n";
@@ -99,7 +112,7 @@ void NatCollector::Update()
 	}
 	case NatCollectionSteps::StartNATInfo:
 	{
-		Log::Info( "Started collecting NAT info");
+		Log::Info("Started collecting NAT info");
 		nat_ident_task = std::async(UDPCollectTask::StartNatTypeTask, natType_config);
 		current = NatCollectionSteps::UpdateNATInfo;
 		break;
@@ -112,7 +125,7 @@ void NatCollector::Update()
 			{
 				if (sample->address_vector.size() != 2)
 				{
-					Log::Warning( "Failed to get NAT Info information from server");
+					Log::Warning("Failed to get NAT Info information from server");
 					identified_nat_types.push_back(shared::NATType::UNDEFINED);
 				}
 				else
@@ -145,7 +158,6 @@ void NatCollector::Update()
 		}
 		break;
 	}
-
 	case NatCollectionSteps::StartCollectPorts:
 	{
 		Log::Info( "Started collecting Ports");
@@ -186,7 +198,7 @@ void NatCollector::Update()
 		Log::Info( "Started upload to DB");
 		using namespace shared;
 		// Create Object
-		NATSample sampleToInsert{ client_meta_data, time_stamp, collect_config.time_between_requests_ms,/* TODO : Figure out ROT Connection */ 0, collected_nat_data };
+		NATSample sampleToInsert{ client_meta_data, time_stamp, collect_config.time_between_requests_ms, client_connect_type, collected_nat_data };
 
 		Result<ServerRequest> request_result = helper::CreateServerRequest<RequestType::INSERT_MONGO>(sampleToInsert, "NatInfo", "test2");
 		if (auto request = std::get_if<ServerRequest>(&request_result))

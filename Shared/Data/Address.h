@@ -75,21 +75,21 @@ namespace shared
 		ClientMetaData meta_data;
 		std::string timestamp;
 		uint16_t sampling_rate_ms =0;
-		int ROT_connection_type = 0; // this should be an enum
+		shared::ConnectionType connection_type = shared::ConnectionType::NOT_CONNECTED;
 		std::vector<Address> address_vector;
 
 		NATSample() {};
-		NATSample(ClientMetaData meta_data, std::string timestamp,  uint16_t sampling_rate_ms, int ROT_connection_type,  const std::vector<Address>& address_vector) :
+		NATSample(ClientMetaData meta_data, std::string timestamp,  uint16_t sampling_rate_ms, shared::ConnectionType connection_type,  const std::vector<Address>& address_vector) :
 			meta_data(meta_data),
 			timestamp(timestamp),
 			sampling_rate_ms(sampling_rate_ms),
-			ROT_connection_type(ROT_connection_type),
+			connection_type(connection_type),
 			address_vector(address_vector)
 		{};
 
 		jser::JserChunkAppender AddItem() override
 		{
-			return JSerializable::AddItem().Append(JSER_ADD(SerializeManagerType, meta_data, ROT_connection_type, timestamp, address_vector, sampling_rate_ms));
+			return JSerializable::AddItem().Append(JSER_ADD(SerializeManagerType, meta_data, connection_type, timestamp, address_vector, sampling_rate_ms));
 		}
 	};
 

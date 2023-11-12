@@ -87,13 +87,18 @@ void UI::Draw()
 		ImGui::PushItemWidth(io.DisplaySize.x * (1.0f - LeftColumnWidth));
 		const std::string nat_type = shared::nat_to_string.at(NatCollector::client_meta_data.nat_type);
 		ImGui::Text("%s", nat_type.c_str()); ImGui::NextColumn();
+
+		ImGui::Text("Connection"); ImGui::NextColumn();
+		ImGui::PushItemWidth(io.DisplaySize.x * (1.0f - LeftColumnWidth));
+		const std::string connection_type = shared::connect_type_to_string.at(NatCollector::client_connect_type);
+		ImGui::Text("%s", connection_type.c_str()); ImGui::NextColumn();
 	}
 	ImGui::Columns(1);
 	ImGui::End();
 
 	
 	// Log
-	ImGui::PushStyleVar(ImGuiStyleVar_ScrollbarSize, Renderer::CentimeterToPixel(0.3f));
+	ImGui::PushStyleVar(ImGuiStyleVar_ScrollbarSize, Renderer::CentimeterToPixel(0.45f));
 	ImGui::SetNextWindowSize(ImVec2(io.DisplaySize.x, io.DisplaySize.y * (1.0f - MainWindowYPercent - WindowPadding)));
 	ImGui::SetNextWindowPos(ImVec2(0, (MainWindowYPercent+ WindowPadding) * io.DisplaySize.y));
 	ImGui::Begin("LOG", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_AlwaysHorizontalScrollbar);

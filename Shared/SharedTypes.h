@@ -33,7 +33,7 @@ namespace shared
 		{NATType::RANDOM_SYM, "Random Symmetric"}
 	};
 
-	enum class ROTTypes : uint16_t
+	enum class ConnectionType : uint16_t
 	{
 		NOT_CONNECTED = 2,
 		WIFI = 1,
@@ -61,5 +61,34 @@ namespace shared
 		FOURG_IWLAN = 180,
 		FOURG_LTE_CA = 190,
 		FIFVEG_NR = 200
+	};
+
+	inline const std::map<ConnectionType, std::string> connect_type_to_string{
+		{ConnectionType::NOT_CONNECTED, "Not Connected"},
+		{ConnectionType::WIFI, "WIFI"},
+		{ConnectionType::MOBILE, "Mobile"},
+		{ConnectionType::WIMAX, "Wimax"},
+		{ConnectionType::ETHERNET, "Ethernet"},
+		{ConnectionType::BLUETOOTH, "Bluetooth"},
+		{ConnectionType::TWOG_GPRS, "2G GPRS"},
+		{ConnectionType::TWOG_EDGE, "2G EDGE"},
+		{ConnectionType::TWOG_UMTS, "2G UMTS"},
+		{ConnectionType::TWOG_CDMA, "2G CDMA"},
+		{ConnectionType::THREEG_EVDO_0, "3G EVDO 0"},
+		{ConnectionType::THREEG_EVDO_A, "3G EVDO A"},
+		{ConnectionType::TWOG_RTT, "2G RTT"},
+		{ConnectionType::THREEG_HSDPA, "3G HSDPA"},
+		{ConnectionType::THREEG_HSUPA, "3G HSUPA"},
+		{ConnectionType::THREEG_HSPA, "3G HSPA"},
+		{ConnectionType::IDEN, "IDEN"},
+		{ConnectionType::THREEG_EVDO_B, "3G EVDO B"},
+		{ConnectionType::FOURG_LTE, "4G LTE"},
+		{ConnectionType::THREEG_EHRPD, "3G EHRPD"},
+		{ConnectionType::THREEG_HSPAP, "3G HSPAP"},
+		{ConnectionType::TWOG_GSM, "2G GSM"},
+		{ConnectionType::THREEG_TD_SCDMA, "3G TD SCDMA"},
+		{ConnectionType::FOURG_IWLAN, "4G IWLAN"},
+		{ConnectionType::FOURG_LTE_CA, "4G LTE CA"},
+		{ConnectionType::FIFVEG_NR, "5G NR"}
 	};
 }

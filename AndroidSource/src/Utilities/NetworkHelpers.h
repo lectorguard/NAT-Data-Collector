@@ -125,8 +125,14 @@ namespace utilities
 		}
 	}
 
-	inline shared::ROTTypes GetROT(struct android_app* native_app)
+	inline shared::ConnectionType GetConnectionType(struct android_app* native_app)
 	{
+		if (!native_app)
+		{
+			Log::Error("Native android_app pointer is invalid. Abort get connection type ...");
+			return shared::ConnectionType::NOT_CONNECTED;
+		}
+
 		jint lResult;
 		jint lFlags = 0;
 
@@ -149,7 +155,7 @@ namespace utilities
 		// if (info.getType() == ConnectivityManager.TYPE_MOBILE) {
 		// 	int networkType = info.getSubtype();
 
-		shared::ROTTypes connection_type = shared::ROTTypes::NOT_CONNECTED;
+		shared::ConnectionType connection_type = shared::ConnectionType::NOT_CONNECTED;
 		for (;;)
 		{
 			lResult = lJavaVM->AttachCurrentThread(&lJNIEnv, &lJavaVMAttachArgs);
@@ -190,12 +196,12 @@ namespace utilities
 			jmethodID getTypeMethod = lJNIEnv->GetMethodID(networkInfoClass, "getType", "()I");
 			jint networkType = lJNIEnv->CallIntMethod(networkInfoObj, getTypeMethod);
 
-			shared::ROTTypes temp_connect_type = static_cast<shared::ROTTypes>((uint16_t)networkType);
-			if (temp_connect_type == shared::ROTTypes::MOBILE)
+			shared::ConnectionType temp_connect_type = static_cast<shared::ConnectionType>((uint16_t)networkType);
+			if (temp_connect_type == shared::ConnectionType::MOBILE)
 			{
 				jmethodID getSubtypeMethod = lJNIEnv->GetMethodID(networkInfoClass, "getSubtype", "()I");
 				jint networkSubtype = lJNIEnv->CallIntMethod(networkInfoObj, getSubtypeMethod);
-				connection_type = static_cast<shared::ROTTypes>((uint16_t)networkSubtype * 10);
+				connection_type = static_cast<shared::ConnectionType>((uint16_t)networkSubtype * 10);
 			}
 			else
 			{

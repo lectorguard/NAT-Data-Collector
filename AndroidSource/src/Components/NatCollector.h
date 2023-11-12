@@ -14,6 +14,7 @@ enum class NatCollectionSteps : uint16_t
 {
 	Idle = 0,
 	Start,
+	StartReadConnectType,
 	StartIPInfo,
 	UpdateIPInfo,
 	StartNATInfo,
@@ -62,6 +63,7 @@ public:
 	void Deactivate(class Application* app);
 
 	inline static shared::ClientMetaData client_meta_data{};
+	inline static shared::ConnectionType client_connect_type = shared::ConnectionType::NOT_CONNECTED;
 private:
 	// Constants
 	const int required_nat_samples = 5;
@@ -88,4 +90,6 @@ private:
 	// Expect always exactly 2 ports inside the vector
 	shared::NATType IdentifyNatType(std::vector<shared::Address> two_addresses);
 	shared::NATType GetMostLikelyNatType(const std::vector<shared::NATType>& nat_types) const;
+
+	struct android_app* android_state = nullptr;
 };
