@@ -8,18 +8,23 @@
 namespace shared
 {
 	template<>
-	struct RequestFactory<RequestType::INSERT_MONGO>
+	struct RequestFactory<RequestType::GET_SCORES>
 	{
 		struct Meta : public jser::JSerializable
 		{
 			std::string db_name{};
-			std::string coll_name{};
+			std::string users_coll_name{};
+			std::string data_coll_name{};
 
-			Meta(std::string db_name, std::string coll_name) : db_name(db_name), coll_name(coll_name) {};
+			Meta(std::string db_name, std::string users_coll_name, std::string data_coll_name) :
+				db_name(db_name),
+				users_coll_name(users_coll_name),
+				data_coll_name(data_coll_name)
+			{};
 			Meta() {};
 			jser::JserChunkAppender AddItem() override
 			{
-				return JSerializable::AddItem().Append(JSER_ADD(SerializeManagerType, db_name, coll_name));
+				return JSerializable::AddItem().Append(JSER_ADD(SerializeManagerType, db_name, users_coll_name, data_coll_name));
 			}
 		};
 
@@ -31,9 +36,9 @@ namespace shared
 			const std::string meta_data_string = meta_data.SerializeObjectString(std::back_inserter(jser_errors));
 			if (jser_errors.size() > 0)
 			{
-				return helper::HandleJserError(jser_errors, "Failed to serialize meta_data during INSERT_MONGO server request creation");
+				return helper::HandleJserError(jser_errors, "Failed to serialize meta_data during GET_SCORES server request creation");
 			}
-			return ServerRequest(RequestType::INSERT_MONGO, request, meta_data_string);
+			return ServerRequest(RequestType::GET_SCORES, request, meta_data_string);
 		}
 	};
 

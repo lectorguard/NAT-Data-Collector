@@ -5,6 +5,7 @@
 #include "Components/SensorManager.h"
 #include "Components/InputManager.h"
 #include "Components/NatCollector.h"
+#include "Components/Scoreboard.h"
 #include "Components/UI.h"
 #include "android/log.h"
 
@@ -14,7 +15,7 @@
 
 class Application
 {
-	using ComponentsType = ComponentManager<SensorManager, Renderer, InputManager, NatCollector, UI>;
+	using ComponentsType = ComponentManager<SensorManager, Renderer, InputManager, NatCollector, UI, Scoreboard>;
 
 public:
 	Application() {};

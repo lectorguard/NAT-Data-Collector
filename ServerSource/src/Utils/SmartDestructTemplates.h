@@ -100,4 +100,21 @@ namespace SD
 	};
 
 //#pragma GCC diagnostic pop
+
+	template<>
+	struct SmartDestructFactory<mongoc_cursor_t>
+	{
+		static SmartDestruct<mongoc_cursor_t> Create(mongoc_collection_t* collection,bson_t* query, bson_t* query_opts)
+		{
+			return
+			{
+				mongoc_collection_find_with_opts(collection, query, query_opts, NULL),
+				[](mongoc_cursor_t* cursor) -> void
+				{
+					mongoc_cursor_destroy(cursor);
+				}
+			};
+		}
+	};
+
 }

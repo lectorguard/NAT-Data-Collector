@@ -8,10 +8,10 @@
 
 void UI::Activate(Application* app)
 {
-	app->DrawEvent.Subscribe([this](auto* app) {Draw(); });
+	app->DrawEvent.Subscribe([this](auto* app) {Draw(app); });
 }
 
-void UI::Draw()
+void UI::Draw(Application* app)
 {
 	const float MainWindowYPercent = 0.65f;
 	const float WindowPadding = 0.005f;
@@ -38,11 +38,15 @@ void UI::Draw()
 	ImGui::Columns(2, "Pairs", false);
 	ImGui::SetColumnWidth(0, LeftColumnWidth * io.DisplaySize.x);
 	{
-		// TO DO : Add name to metadata
-		std::string name;
+		Scoreboard& score_ref = app->_components.Get<Scoreboard>();
+
 		ImGui::Text("Nickname"); ImGui::NextColumn();
 		ImGui::PushItemWidth(io.DisplaySize.x * (1.0f - LeftColumnWidth));
-		ImGui::InputText("##Nickname", &name); ImGui::NextColumn();
+		ImGui::InputText("##Nickname", &score_ref.username); ImGui::NextColumn();
+
+		ImGui::Text("Show Score"); ImGui::NextColumn();
+		ImGui::PushItemWidth(io.DisplaySize.x * (1.0f - LeftColumnWidth));
+		ImGui::Checkbox("##Show Score", &score_ref.show_score); ImGui::NextColumn();
 	}
 	ImGui::Columns(1);
 
@@ -92,6 +96,18 @@ void UI::Draw()
 		ImGui::PushItemWidth(io.DisplaySize.x * (1.0f - LeftColumnWidth));
 		const std::string connection_type = shared::connect_type_to_string.at(NatCollector::client_connect_type);
 		ImGui::Text("%s", connection_type.c_str()); ImGui::NextColumn();
+
+		ImGui::Dummy(ImVec2(0, Renderer::CentimeterToPixel(0.1f)));
+		ImGui::Separator();
+
+		ImGui::Text("Show"); ImGui::NextColumn();
+		ImGui::Combo("##ShowCurrent", reinterpret_cast<int*>(&current_active_display), display_type_array, IM_ARRAYSIZE(display_type_array)); ImGui::NextColumn();
+		if (current_active_display != last_active_display && current_active_display == DisplayType::Scoreboard)
+		{
+			Scoreboard& score_ref = app->_components.Get<Scoreboard>();
+			score_ref.RequestScores();
+			last_active_display = current_active_display;
+		}
 	}
 	ImGui::Columns(1);
 	ImGui::End();
@@ -101,35 +117,52 @@ void UI::Draw()
 	ImGui::PushStyleVar(ImGuiStyleVar_ScrollbarSize, Renderer::CentimeterToPixel(0.45f));
 	ImGui::SetNextWindowSize(ImVec2(io.DisplaySize.x, io.DisplaySize.y * (1.0f - MainWindowYPercent - WindowPadding)));
 	ImGui::SetNextWindowPos(ImVec2(0, (MainWindowYPercent+ WindowPadding) * io.DisplaySize.y));
-	ImGui::Begin("LOG", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_AlwaysHorizontalScrollbar);
 
-	ImGui::PushFont(Renderer::small_font);
-	for (auto info : Log::GetLog())
+	switch (current_active_display)
 	{
-		switch (info.level)
+	case UI::DisplayType::Log:
+	{
+		ImGui::Begin("LOG", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_AlwaysHorizontalScrollbar);
+		ImGui::PushFont(Renderer::small_font);
+		for (auto info : Log::GetLog())
 		{
-		case Log_INFO:
-			ImGui::TextUnformatted(info.buf.begin()); //default
-			break;
-		case Log_WARNING:
-			ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1,0.65f,0,1)); //orange
-			ImGui::TextUnformatted(info.buf.begin());
-			ImGui::PopStyleColor();
-			break;
-		case Log_ERROR:
-			ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1, 0, 0, 1)); //red
-			ImGui::TextUnformatted(info.buf.begin());
-			ImGui::PopStyleColor();
-			break;
-		default:
-			break;
-		}	
-	}
-	if (Log::PopScrolltoBottom())
-		ImGui::SetScrollHereY(1.0f);
+			switch (info.level)
+			{
+			case Log_INFO:
+				ImGui::TextUnformatted(info.buf.begin()); //default
+				break;
+			case Log_WARNING:
+				ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1, 0.65f, 0, 1)); //orange
+				ImGui::TextUnformatted(info.buf.begin());
+				ImGui::PopStyleColor();
+				break;
+			case Log_ERROR:
+				ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1, 0, 0, 1)); //red
+				ImGui::TextUnformatted(info.buf.begin());
+				ImGui::PopStyleColor();
+				break;
+			default:
+				break;
+			}
+		}
+		if (Log::PopScrolltoBottom())
+			ImGui::SetScrollHereY(1.0f);
 
-	ImGui::PopFont(); //small font
-	ImGui::End();
+		ImGui::PopFont(); //small font
+		ImGui::End();
+		break;
+	}
+	case UI::DisplayType::Scoreboard:
+	{
+		ImGui::Begin("Scoreboard", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_AlwaysHorizontalScrollbar);
+		ImGui::TextUnformatted("Here will be scores soon");
+		ImGui::End();
+		break;
+	}
+	default:
+		break;
+	}
+	
 
 	ImGui::PopFont(); // medium font
 	ImGui::PopStyleVar();

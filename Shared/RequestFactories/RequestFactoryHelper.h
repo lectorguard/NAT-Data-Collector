@@ -1,6 +1,7 @@
 #pragma once
 #include "RequestFactory.h"
 #include "MongoRequestFactories.h"
+#include "UtilityRequestFactories.h"
 #include "JSerializer.h"
 
 namespace shared::helper

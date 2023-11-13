@@ -9,6 +9,7 @@ namespace shared
 	{
 		NO_REQUEST = 0,
 		INSERT_MONGO = 1,
+		GET_SCORES = 2
 	};
 
 	enum class ResponseType : uint8_t

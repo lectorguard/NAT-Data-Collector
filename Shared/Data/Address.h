@@ -69,6 +69,25 @@ namespace shared
 		}
 	};
 
+	struct ClientID : public jser::JSerializable
+	{
+		std::string android_id{};
+		std::string username{};
+		bool should_ignore = false;
+
+		ClientID() {};
+		ClientID(std::string android_id, std::string username, bool should_ignore) :
+			android_id(android_id),
+			username(username),
+			should_ignore(should_ignore)
+		{};
+
+		jser::JserChunkAppender AddItem() override
+		{
+			return JSerializable::AddItem().Append(JSER_ADD(SerializeManagerType, android_id, username, should_ignore));
+		}
+	};
+
 
 	struct NATSample : public jser::JSerializable
 	{

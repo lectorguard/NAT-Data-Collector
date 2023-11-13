@@ -2,6 +2,7 @@
 #include "Application/Application.h"
 #include "Utilities/NetworkHelpers.h"
 #include "Application/Application.h"
+#include "SharedHelpers.h"
 
 shared::Result<std::string> HTTPTask::SimpleHttpRequest(std::string_view request, std::string url, bool ignoreRespondHeader, std::string port)
 {
@@ -19,20 +20,20 @@ shared::Result<std::string> HTTPTask::SimpleHttpRequest(std::string_view request
 
 		asio_tcp::resolver::query query(url, port);
 		auto resolved_query = resolver.resolve(query, asio_error);
-		response = utilities::HandleAsioError(asio_error, "Resolve HTTP URL");
+		response = shared::helper::HandleAsioError(asio_error, "Resolve HTTP URL");
 		if (!response) break;
 
 		asio::connect(sock, resolved_query, asio_error);
-		response = utilities::HandleAsioError(asio_error, "Connect to HTTP Server failed");
+		response = shared::helper::HandleAsioError(asio_error, "Connect to HTTP Server failed");
 		if (!response) break;
 
 		asio::write(sock, asio::buffer(request), asio_error);		
-		response = utilities::HandleAsioError(asio_error, "Write HTTP Server GET Request");
+		response = shared::helper::HandleAsioError(asio_error, "Write HTTP Server GET Request");
 		if (!response) break;
 
 		char buf[4096];
 		std::size_t len = sock.read_some(asio::buffer(buf), asio_error);
-		response = utilities::HandleAsioError(asio_error, "Read Answer from HTTP Server Request");
+		response = shared::helper::HandleAsioError(asio_error, "Read Answer from HTTP Server Request");
 		if (!response) break;
 
 		result = std::string(buf, len);
