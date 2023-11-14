@@ -48,6 +48,14 @@ struct RequestHandler<shared::RequestType::GET_SCORES>
 			return helper::HandleJserError(jser_errors, "Failed to deserialize Client Id during score request");
 		}
 
+		// json client id
+		nlohmann::json client_json = client_id.SerializeObjectJson(std::back_inserter(jser_errors));
+		if (jser_errors.size() > 0)
+		{
+			return helper::HandleJserError(jser_errors, "Failed to deserialize Client Id during score request");
+		}
+
+
 		// Retrieve meta data
 		RequestFactory<RequestType::GET_SCORES>::Meta meta_data;
 		meta_data.DeserializeObject(meta_data_string, std::back_inserter(jser_errors));
@@ -56,31 +64,67 @@ struct RequestHandler<shared::RequestType::GET_SCORES>
 			return helper::HandleJserError(jser_errors, "Failed to deserialize Server Request : Insert Mongo Meta Data");
 		}
 
+		// Mongo Update Parameter
 		nlohmann::json query;
 		query["android_id"] = client_id.android_id;
-		return mongoUtils::QueryCollectionCursor(query.dump(), meta_data.db_name, meta_data.users_coll_name, [content, client_id, meta_data](mongoc_cursor_t* cursor, int64_t length)
+		nlohmann::json update;
+		update["$set"] = client_json;
+		nlohmann::json update_options;
+		update_options["upsert"] = true;
+		// Update Users accordingly
+		ServerResponse result = ServerResponse::OK();
+		for (;;)
+		{
+			// Update current user information
 			{
-				if (length <= 0)
-				{
-					std::scoped_lock lock{ mongoWriteMutex };
-					return mongoUtils::InsertElementToCollection(content, meta_data.db_name, meta_data.users_coll_name);
-				}
-				else
-				{
-					auto result = mongoUtils::CursorToJserVector<ClientID>(cursor);
-					if (auto error = std::get_if<ServerResponse>(&result))
-					{
-						return *error;
-					}
-					auto ids = std::get<std::vector<ClientID>>(result);
-					if (!ids.empty() && ids[0].username != client_id.username)
-					{
-						// Update element
-						std::cout << "TODO : Update username field" << std::endl;
-					}
-					return ServerResponse::OK();
+				std::scoped_lock lock{ mongoWriteMutex };
+				result = mongoUtils::UpdateElementInCollection(query.dump(), update.dump(), update_options.dump(), meta_data.db_name, meta_data.users_coll_name);
+			}
+			if (!result)
+				break;
 
-				}
-			});
+			// Get all users 
+			Scores all_scores;
+			result = mongoUtils::FindElementsInCollection("{}", meta_data.db_name, meta_data.users_coll_name, [&all_scores](mongoc_cursor_t* cursor, int64_t length)
+				{
+					return std::visit(shared::helper::Overloaded
+						{
+							[&all_scores](std::vector<ClientID> ids) {all_scores.scores = ids; return ServerResponse::OK(); },
+							[](ServerResponse resp) { return resp; }
+
+						}, mongoUtils::CursorToJserVector<ClientID>(cursor));
+				});
+			if (!result)
+				break;
+			// Remove users to be ignored
+			all_scores.scores.erase(std::remove_if(all_scores.scores.begin(), all_scores.scores.end(), [](ClientID a) { return !a.show_score; }), all_scores.scores.end());
+			
+			// Get number of samples per user
+			for (ClientID& user : all_scores.scores)
+			{
+				nlohmann::json user_query;
+				user_query["meta_data.android_id"] = user.android_id;
+				result = mongoUtils::FindElementsInCollection(user_query.dump(), meta_data.db_name, meta_data.data_coll_name, [&user](mongoc_cursor_t* cursor, int64_t length)
+					{
+						user.uploaded_samples = length > 0 ? length : 0;
+						return ServerResponse::OK();
+					});
+				if (!result)
+					break;
+			}
+			if (!result)
+				break;
+			
+			// to string
+			const std::string scores_string = all_scores.SerializeObjectString(std::back_inserter(jser_errors));
+			if (jser_errors.size() > 0)
+			{
+				result = helper::HandleJserError(jser_errors, "Failed to Serialize scores on server side");
+				break;
+			}
+			result = ServerResponse::OK(scores_string);
+			break;
+		}
+		return result;
 	}
 };

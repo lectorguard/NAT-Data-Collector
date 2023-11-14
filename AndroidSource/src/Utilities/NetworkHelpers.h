@@ -2,6 +2,7 @@
 #include "asio.hpp"
 #include "SharedProtocol.h"
 #include "JSerializer.h"
+#include "SharedHelpers.h"
 
 namespace utilities
 {
@@ -28,10 +29,34 @@ namespace utilities
 		return fut.get();
 	}
 
+	template<typename T>
+	inline std::variant<shared::ServerResponse, T> TryGetObjectFromResponse(const shared::ServerResponse& response)
+	{
+		if (!response)
+		{
+			return response;
+		}
+		if (response.messages.size() == 1)
+		{
+			T toDeserialize;
+			std::vector<jser::JSerError> jser_errors;
+			toDeserialize.DeserializeObject(response.messages[0], std::back_inserter(jser_errors));
+			if (jser_errors.size() > 0)
+			{
+				return shared::helper::HandleJserError(jser_errors, "TryGetObjectFromResponse : Error during deserialization of server response");
+			}
+			return toDeserialize;
+		}
+		else
+		{
+			return shared::ServerResponse::Warning({ "Function TryGetObjectFromResponse, expected a single response message" });
+		}
+
+	}
+
 	inline std::optional<std::string> GetAndroidID(struct android_app* native_app)
 	{
 		jint lResult;
-		jint lFlags = 0;
 
 		JavaVM* lJavaVM = native_app->activity->vm;
 		JNIEnv* lJNIEnv = native_app->activity->env;
@@ -51,7 +76,6 @@ namespace utilities
 
 			// Retrieves NativeActivity.
 			jobject lNativeActivity = native_app->activity->clazz;
-			jclass ClassNativeActivity = lJNIEnv->GetObjectClass(lNativeActivity);
 
 			// Retrieves Context.INPUT_METHOD_SERVICE.
 			jclass ClassContext = lJNIEnv->FindClass("android/content/Context");
@@ -107,7 +131,6 @@ namespace utilities
 		}
 
 		jint lResult;
-		jint lFlags = 0;
 
 		JavaVM* lJavaVM = native_app->activity->vm;
 		JNIEnv* lJNIEnv = native_app->activity->env;
@@ -137,7 +160,6 @@ namespace utilities
 
 			// Retrieves NativeActivity.
 			jobject lNativeActivity = native_app->activity->clazz;
-			jclass ClassNativeActivity = lJNIEnv->GetObjectClass(lNativeActivity);
 
 			// Retrieves Context.INPUT_METHOD_SERVICE.
 			jclass ClassContext = lJNIEnv->FindClass("android/content/Context");

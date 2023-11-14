@@ -74,5 +74,16 @@ namespace shared::helper
 			oss << "-" << std::setfill('0') << std::setw(3) << milliseconds;
 			return oss.str();
 		}
+
+		
+
+		template<class... Lambdas>
+		struct Overloaded : Lambdas...
+		{
+			using Lambdas::operator()...;
+		};
+
+		template<class... Lambdas>
+		Overloaded(Lambdas...) -> Overloaded<Lambdas...>;
 }
 

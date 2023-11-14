@@ -10,7 +10,7 @@
 namespace TCPSessionHandler
 {
 
-	bool HasTCPError(asio::error_code error, std::string_view action)
+	inline bool HasTCPError(asio::error_code error, std::string_view action)
 	{
 		if (error == asio::error::eof)
 		{
@@ -25,7 +25,7 @@ namespace TCPSessionHandler
 		return false;
 	}
 
-	asio::awaitable<void> ServeClient(asio::ip::tcp::socket s)
+	inline asio::awaitable<void> ServeClient(asio::ip::tcp::socket s)
 	{
 		const std::string remote_addr = s.remote_endpoint().address().to_string();
 		const uint16_t remote_port = s.remote_endpoint().port();
@@ -56,7 +56,7 @@ namespace TCPSessionHandler
 	}
 
 
-	asio::awaitable<void> StartService(uint16_t port)
+	inline asio::awaitable<void> StartService(uint16_t port)
 	{
 		std::cout << "Start TCP Transaction Server on port : " << port << std::endl;
 
@@ -75,11 +75,10 @@ namespace TCPSessionHandler
 				continue;
 			}
 
-			asio::co_spawn(ex, [s = std::move(socket)]() mutable
-				{
-					return ServeClient(std::move(s));
-				},
-				asio::detached);
+ 			asio::co_spawn(ex, [s = std::move(socket)]() mutable
+ 				{
+ 					return ServeClient(std::move(s));
+ 				}, asio::detached);
 		}
 	}
 }

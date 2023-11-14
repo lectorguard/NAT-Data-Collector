@@ -108,7 +108,7 @@ void InputManager::ShowKeyboard(bool newVisibility)
 		jmethodID MethodShowSoftInput = lJNIEnv->GetMethodID(
 			ClassInputMethodManager, "showSoftInput",
 			"(Landroid/view/View;I)Z");
-		jboolean lResult = lJNIEnv->CallBooleanMethod(
+		lJNIEnv->CallBooleanMethod(
 			lInputMethodManager, MethodShowSoftInput,
 			lDecorView, lFlags);
 
@@ -128,7 +128,7 @@ void InputManager::ShowKeyboard(bool newVisibility)
 		jmethodID MethodHideSoftInput = lJNIEnv->GetMethodID(
 			ClassInputMethodManager, "hideSoftInputFromWindow",
 			"(Landroid/os/IBinder;I)Z");
-		jboolean lRes = lJNIEnv->CallBooleanMethod(
+		lJNIEnv->CallBooleanMethod(
 			lInputMethodManager, MethodHideSoftInput,
 			lBinder, lFlags);
 

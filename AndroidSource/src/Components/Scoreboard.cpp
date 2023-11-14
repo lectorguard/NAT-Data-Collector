@@ -17,7 +17,7 @@
  {
 	 if (current == ScoreboardSteps::Idle)
 	 {
-		 if (!username.empty() && username.length() < maxUsernameLength)
+		 if (!client_id.username.empty() && client_id.username.length() < maxUsernameLength)
 		 {
 			 current = ScoreboardSteps::StartRequestScores;
 		 }
@@ -44,12 +44,11 @@ void Scoreboard::Update()
 		Log::Info("Started requesting Scoreboard Entries");
 
 		using namespace shared;
-		// Create Object
-		shared::ClientID client_id{ NatCollector::client_meta_data.android_id, username, show_score };
+		// Add android id to client
+		client_id.android_id = NatCollector::client_meta_data.android_id;
 		Result<ServerRequest> request_result = helper::CreateServerRequest<RequestType::GET_SCORES>(client_id, "NatInfo", "users", "data");
 		if (auto request = std::get_if<ServerRequest>(&request_result))
 		{
-			Log::Warning("request message %s", request->req_data.c_str());
 			scoreboard_transaction = std::async(TCPTask::ServerTransaction, *request, "192.168.2.110", 7779);
 			current = ScoreboardSteps::UpdateRequestScores;
 			break;
@@ -57,43 +56,31 @@ void Scoreboard::Update()
 		else
 		{
 			Log::HandleResponse(std::get<shared::ServerResponse>(request_result), "Create Scoreboard Entry request");
-			current = ScoreboardSteps::Error;
+			current = ScoreboardSteps::Idle;
 			break;
 		}
 		break;
 	}
 	case ScoreboardSteps::UpdateRequestScores:
 	{
-		if (auto res = utilities::TryGetFuture<shared::ServerResponse>(scoreboard_transaction))
+		if (auto result_ready = utilities::TryGetFuture<shared::ServerResponse>(scoreboard_transaction))
 		{
-			Log::HandleResponse(*res, "Insert NAT sample to DB");
-			if (*res)
-			{
-				Log::Info("Success request scores");
-				current = ScoreboardSteps::Idle;
-				break;
-			}
-			else
-			{
-				Log::HandleResponse(*res, "Receive Scoreboard Entry");
-				current = ScoreboardSteps::Idle;
-				break;
-			}
+			std::visit(shared::helper::Overloaded
+				{
+					[this](shared::Scores sc) {
+						std::sort(sc.scores.begin(), sc.scores.end(), [](auto l, auto r) {return l.uploaded_samples > r.uploaded_samples; });
+						scores = sc;  
+						Log::Info("Successfully received scores"); },
+					[](shared::ServerResponse resp) { Log::HandleResponse(resp, "Receive Scoreboard Entry"); }
+				}, utilities::TryGetObjectFromResponse<shared::Scores>(*result_ready));
+			current = ScoreboardSteps::Idle;
 		}
 		break;
 	}
-	case ScoreboardSteps::Error:
-		break;
 	default:
 		break;
 	}
-
-	
 }
-
-
-
-
 
 void Scoreboard::Deactivate(Application* app)
 {

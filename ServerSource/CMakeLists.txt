@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.20)
 set(${CMAKE_C_FLAGS}, "${CMAKE_C_FLAGS}")
-set(CMAKE_CXX_FLAGS "-std=c++20 -frtti -fexceptions")
+set(CMAKE_CXX_FLAGS "-std=c++20 -frtti -fexceptions -Wno-ignored-attributes")
 
 
 

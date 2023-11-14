@@ -16,6 +16,7 @@ void UI::Draw(Application* app)
 	const float MainWindowYPercent = 0.65f;
 	const float WindowPadding = 0.005f;
 	const float LeftColumnWidth = 0.33f;
+	const float ScrollbarSize = Renderer::CentimeterToPixel(0.45f);
 
 	ImGui::PushFont(Renderer::medium_font);
 	
@@ -42,11 +43,11 @@ void UI::Draw(Application* app)
 
 		ImGui::Text("Nickname"); ImGui::NextColumn();
 		ImGui::PushItemWidth(io.DisplaySize.x * (1.0f - LeftColumnWidth));
-		ImGui::InputText("##Nickname", &score_ref.username); ImGui::NextColumn();
+		ImGui::InputText("##Nickname", &score_ref.client_id.username); ImGui::NextColumn();
 
 		ImGui::Text("Show Score"); ImGui::NextColumn();
 		ImGui::PushItemWidth(io.DisplaySize.x * (1.0f - LeftColumnWidth));
-		ImGui::Checkbox("##Show Score", &score_ref.show_score); ImGui::NextColumn();
+		ImGui::Checkbox("##Show Score", &score_ref.client_id.show_score); ImGui::NextColumn();
 	}
 	ImGui::Columns(1);
 
@@ -106,15 +107,15 @@ void UI::Draw(Application* app)
 		{
 			Scoreboard& score_ref = app->_components.Get<Scoreboard>();
 			score_ref.RequestScores();
-			last_active_display = current_active_display;
 		}
+		last_active_display = current_active_display;
 	}
 	ImGui::Columns(1);
 	ImGui::End();
 
 	
 	// Log
-	ImGui::PushStyleVar(ImGuiStyleVar_ScrollbarSize, Renderer::CentimeterToPixel(0.45f));
+	ImGui::PushStyleVar(ImGuiStyleVar_ScrollbarSize, ScrollbarSize);
 	ImGui::SetNextWindowSize(ImVec2(io.DisplaySize.x, io.DisplaySize.y * (1.0f - MainWindowYPercent - WindowPadding)));
 	ImGui::SetNextWindowPos(ImVec2(0, (MainWindowYPercent+ WindowPadding) * io.DisplaySize.y));
 
@@ -154,8 +155,50 @@ void UI::Draw(Application* app)
 	}
 	case UI::DisplayType::Scoreboard:
 	{
-		ImGui::Begin("Scoreboard", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_AlwaysHorizontalScrollbar);
-		ImGui::TextUnformatted("Here will be scores soon");
+		const uint16_t placementWidth = Renderer::medium_font->FontSize * 2.5;
+
+		ImGui::Begin("Scoreboard", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse);
+		shared::Scores& scores = app->_components.Get<Scoreboard>().scores;
+		ImGui::Columns(3, "Triples", false);
+		ImGui::SetColumnWidth(0, placementWidth);
+		ImGui::SetColumnWidth(1, (io.DisplaySize.x - placementWidth - ScrollbarSize) * 2/3.0f);
+		ImGui::SetColumnWidth(2, (io.DisplaySize.x - placementWidth - ScrollbarSize) * 1/3.0f);
+
+		// Testing
+		//scores.scores = {	shared::ClientID("first", "first", true, 120123),
+		//					shared::ClientID("second", "second", true, 120120),
+		//					shared::ClientID("third", "very long name", true, 640123),
+		//					shared::ClientID("s", "s", true, 120),
+		//					shared::ClientID("p", "peter haus", true, 1300),
+		//					shared::ClientID("farns", "fabs", true, 6601),
+		//					shared::ClientID("enu", "schmest", true, 10000),
+		//					shared::ClientID("klo", "klo", true, 4) ,
+		//					shared::ClientID("paul", "pel", true, 452) ,
+		//					shared::ClientID("katze", "katze", true, 700) ,
+		//					shared::ClientID("neu", "wau", true, 1600) };
+		//std::sort(scores.scores.begin(), scores.scores.end(), [](auto l, auto r) {return l.uploaded_samples > r.uploaded_samples; });
+
+		ImGui::Text("#"); ImGui::NextColumn();
+		ImGui::Text("Nickname"); ImGui::NextColumn();
+		ImGui::Text("Samples"); ImGui::NextColumn();
+
+		for (uint32_t i = 0; i < scores.scores.size(); ++i)
+		{
+			if (i == 0)ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1, 0.84, 0, 1)); //gold
+			if (i == 1)ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.82, 0.8, 0.82, 1)); //silver
+			if (i == 2)ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.75, 0.54, 0.44, 1)); //bronze
+
+
+			ImGui::Text("%d", i+1); ImGui::NextColumn();
+			ImGui::Text("%s", scores.scores[i].username.c_str()); ImGui::NextColumn();
+			char amount[20];
+			std::size_t len = sprintf(amount, "%d", scores.scores[i].uploaded_samples);
+			ImGui::SetCursorPosX(ImGui::GetWindowWidth() * 0.98f - ScrollbarSize - ImGui::CalcTextSize(std::string(amount, len).c_str()).x);
+			ImGui::Text("%d", scores.scores[i].uploaded_samples); ImGui::NextColumn();
+
+			if (i == 0 || i == 1 || i == 2) ImGui::PopStyleColor();
+		}
+		ImGui::Columns(1);
 		ImGui::End();
 		break;
 	}

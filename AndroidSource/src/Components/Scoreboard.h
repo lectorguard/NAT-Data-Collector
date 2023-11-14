@@ -14,8 +14,7 @@ enum class ScoreboardSteps : uint16_t
 {
 	Idle = 0,
 	StartRequestScores,
-	UpdateRequestScores,
-	Error
+	UpdateRequestScores
 };
 
 class Scoreboard
@@ -29,10 +28,10 @@ public:
 
 	void RequestScores();
 
-	const int maxUsernameLength = 7;
+	const int maxUsernameLength = 14;
 
-	std::string username{};
-	bool show_score = true;
+	shared::ClientID client_id;
+	shared::Scores scores;
 private:
 	// State
 	ScoreboardSteps current = ScoreboardSteps::Idle;
