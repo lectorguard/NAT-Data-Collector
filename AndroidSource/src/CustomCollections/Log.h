@@ -55,11 +55,28 @@ public:
 
 	static void HandleResponse(const shared::ServerResponse& resp, const std::string& context)
 	{
-		if (resp)
+		switch (resp.resp_type)
 		{
-			Info("%s : OK", context.c_str());
+		case shared::ResponseType::OK:
+		{
+			if (!context.empty())
+			{
+				Info("%s : OK", context.c_str());
+			}
+			break;
 		}
-		else
+		case shared::ResponseType::WARNING:
+		{
+			Warning("%s : Produced Warning", context.c_str());
+			Warning("---- START TRACE ----");
+			for (const auto& msg : resp.messages)
+			{
+				Warning("%s", msg.c_str());
+			}
+			Warning("----- END TRACE -----");
+			break;
+		}
+		case shared::ResponseType::ERROR:
 		{
 			Error("%s : FAILED", context.c_str());
 			Error("---- START TRACE ----");
@@ -68,6 +85,10 @@ public:
 				Error("%s", msg.c_str());
 			}
 			Error("----- END TRACE -----");
+			break;
+		}
+		default:
+			break;
 		}
 	}
 

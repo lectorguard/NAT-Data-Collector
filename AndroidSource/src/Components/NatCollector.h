@@ -62,8 +62,8 @@ public:
 	void Start(struct android_app* state);
 	void Deactivate(class Application* app);
 
-	inline static shared::ClientMetaData client_meta_data{};
-	inline static shared::ConnectionType client_connect_type = shared::ConnectionType::NOT_CONNECTED;
+	shared::ClientMetaData client_meta_data{};
+	shared::ConnectionType client_connect_type = shared::ConnectionType::NOT_CONNECTED;
 private:
 	// Constants
 	const int required_nat_samples = 5;

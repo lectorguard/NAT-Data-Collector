@@ -4,6 +4,7 @@
 #include "misc/cpp/imgui_stdlib.h"
 #include "Renderer.h"
 #include "CustomCollections/Log.h"
+#include "UserData.h"
 #include "NatCollector.h"
 
 void UI::Activate(Application* app)
@@ -39,15 +40,15 @@ void UI::Draw(Application* app)
 	ImGui::Columns(2, "Pairs", false);
 	ImGui::SetColumnWidth(0, LeftColumnWidth * io.DisplaySize.x);
 	{
-		Scoreboard& score_ref = app->_components.Get<Scoreboard>();
+		UserData& user_data = app->_components.Get<UserData>();
 
 		ImGui::Text("Nickname"); ImGui::NextColumn();
 		ImGui::PushItemWidth(io.DisplaySize.x * (1.0f - LeftColumnWidth));
-		ImGui::InputText("##Nickname", &score_ref.client_id.username); ImGui::NextColumn();
+		ImGui::InputText("##Nickname", &user_data.info.username); ImGui::NextColumn();
 
 		ImGui::Text("Show Score"); ImGui::NextColumn();
 		ImGui::PushItemWidth(io.DisplaySize.x * (1.0f - LeftColumnWidth));
-		ImGui::Checkbox("##Show Score", &score_ref.client_id.show_score); ImGui::NextColumn();
+		ImGui::Checkbox("##Show Score", &user_data.info.show_score); ImGui::NextColumn();
 	}
 	ImGui::Columns(1);
 
@@ -64,38 +65,41 @@ void UI::Draw(Application* app)
 	ImGui::Columns(2, "Pairs", false);
 	ImGui::SetColumnWidth(0, LeftColumnWidth * io.DisplaySize.x);
 	{
+		NatCollector& nat_collector = app->_components.Get<NatCollector>();
+		shared::ClientMetaData& meta_data = nat_collector.client_meta_data;
+
 		ImGui::Text("Android ID"); ImGui::NextColumn();
 		ImGui::PushItemWidth(io.DisplaySize.x * (1.0f - LeftColumnWidth));
-		ImGui::Text("%s", NatCollector::client_meta_data.android_id.c_str()); ImGui::NextColumn();
+		ImGui::Text("%s", meta_data.android_id.c_str()); ImGui::NextColumn();
 
 		ImGui::Text("ISP"); ImGui::NextColumn();
 		ImGui::PushItemWidth(io.DisplaySize.x * (1.0f - LeftColumnWidth));
-		ImGui::InputText("##ISP", &NatCollector::client_meta_data.isp); ImGui::NextColumn();
+		ImGui::InputText("##ISP", &meta_data.isp); ImGui::NextColumn();
 
 		ImGui::Text("Country"); ImGui::NextColumn();
 		ImGui::PushItemWidth(io.DisplaySize.x * (1.0f - LeftColumnWidth));
-		ImGui::InputText("##Country", &NatCollector::client_meta_data.country); ImGui::NextColumn();
+		ImGui::InputText("##Country", &meta_data.country); ImGui::NextColumn();
 
 		ImGui::Text("Region"); ImGui::NextColumn();
 		ImGui::PushItemWidth(io.DisplaySize.x * (1.0f - LeftColumnWidth));
-		ImGui::InputText("##Region", &NatCollector::client_meta_data.region); ImGui::NextColumn();
+		ImGui::InputText("##Region", &meta_data.region); ImGui::NextColumn();
 
 		ImGui::Text("City"); ImGui::NextColumn();
 		ImGui::PushItemWidth(io.DisplaySize.x * (1.0f - LeftColumnWidth));
-		ImGui::InputText("##City", &NatCollector::client_meta_data.city); ImGui::NextColumn();
+		ImGui::InputText("##City", &meta_data.city); ImGui::NextColumn();
 
 		ImGui::Text("Timezone"); ImGui::NextColumn();
 		ImGui::PushItemWidth(io.DisplaySize.x * (1.0f - LeftColumnWidth));
-		ImGui::InputText("##Timezone", &NatCollector::client_meta_data.timezone); ImGui::NextColumn();
+		ImGui::InputText("##Timezone", &meta_data.timezone); ImGui::NextColumn();
 
 		ImGui::Text("NAT Type"); ImGui::NextColumn();
 		ImGui::PushItemWidth(io.DisplaySize.x * (1.0f - LeftColumnWidth));
-		const std::string nat_type = shared::nat_to_string.at(NatCollector::client_meta_data.nat_type);
+		const std::string nat_type = shared::nat_to_string.at(meta_data.nat_type);
 		ImGui::Text("%s", nat_type.c_str()); ImGui::NextColumn();
 
 		ImGui::Text("Connection"); ImGui::NextColumn();
 		ImGui::PushItemWidth(io.DisplaySize.x * (1.0f - LeftColumnWidth));
-		const std::string connection_type = shared::connect_type_to_string.at(NatCollector::client_connect_type);
+		const std::string connection_type = shared::connect_type_to_string.at(nat_collector.client_connect_type);
 		ImGui::Text("%s", connection_type.c_str()); ImGui::NextColumn();
 
 		ImGui::Dummy(ImVec2(0, Renderer::CentimeterToPixel(0.1f)));
@@ -105,8 +109,11 @@ void UI::Draw(Application* app)
 		ImGui::Combo("##ShowCurrent", reinterpret_cast<int*>(&current_active_display), display_type_array, IM_ARRAYSIZE(display_type_array)); ImGui::NextColumn();
 		if (current_active_display != last_active_display && current_active_display == DisplayType::Scoreboard)
 		{
+			UserData& user_data = app->_components.Get<UserData>();
+			Log::HandleResponse(user_data.WriteToDisc(), "Write user data to disc");
+
 			Scoreboard& score_ref = app->_components.Get<Scoreboard>();
-			score_ref.RequestScores();
+			score_ref.RequestScores(app);
 		}
 		last_active_display = current_active_display;
 	}

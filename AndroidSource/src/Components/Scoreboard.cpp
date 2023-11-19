@@ -5,26 +5,28 @@
 #include "Data/Address.h"
 #include "TCPTask.h"
 #include "Utilities/NetworkHelpers.h"
+#include "UserData.h"
 #include "RequestFactories/RequestFactoryHelper.h"
 
 
  void Scoreboard::Activate(Application* app)
  {
- 	app->UpdateEvent.Subscribe([this](Application* app) {Update(); });
+ 	app->UpdateEvent.Subscribe([this](Application* app) {Update(app); });
  }
 
- void Scoreboard::RequestScores()
- {
+ void Scoreboard::RequestScores(Application* app)
+{
 	 if (current == ScoreboardSteps::Idle)
 	 {
-		 if (!client_id.username.empty() && client_id.username.length() < maxUsernameLength)
+		 auto user_data = app->_components.Get<UserData>();
+		 auto response = user_data.ValidateUsername();
+		 if (response)
 		 {
 			 current = ScoreboardSteps::StartRequestScores;
 		 }
 		 else
 		 {
-			 Log::Warning("Please enter valid username first.");
-			 Log::Warning("Username must have at least 1 and max %d characters", maxUsernameLength);
+			 Log::HandleResponse(response, "Requesting Scoreboard Scores");
 		 }
 	 }
 	 else
@@ -33,7 +35,7 @@
 	 }
  }
 
-void Scoreboard::Update()
+void Scoreboard::Update(Application* app)
 {
 	switch (current)
 	{
@@ -44,8 +46,12 @@ void Scoreboard::Update()
 		Log::Info("Started requesting Scoreboard Entries");
 
 		using namespace shared;
-		// Add android id to client
-		client_id.android_id = NatCollector::client_meta_data.android_id;
+
+		// Get reference
+		UserData& user_data = app->_components.Get<UserData>();
+		NatCollector& nat_collector = app->_components.Get<NatCollector>();
+		// Create client id
+		ClientID client_id{ nat_collector.client_meta_data.android_id, user_data.info.username, user_data.info.show_score, 0 };
 		Result<ServerRequest> request_result = helper::CreateServerRequest<RequestType::GET_SCORES>(client_id, "NatInfo", "users", "data");
 		if (auto request = std::get_if<ServerRequest>(&request_result))
 		{

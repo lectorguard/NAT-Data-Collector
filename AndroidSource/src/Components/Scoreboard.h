@@ -8,7 +8,7 @@
 #include "UDPCollectTask.h"
 
 
-
+class Application;
 
 enum class ScoreboardSteps : uint16_t
 {
@@ -21,16 +21,13 @@ class Scoreboard
 {
 
 public:
-	void Update();
+	void Update(Application* app);
 
-	void Activate(class Application* app);
-	void Deactivate(class Application* app);
+	void Activate(Application* app);
+	void Deactivate(Application* app);
 
-	void RequestScores();
+	void RequestScores(Application* app);
 
-	const int maxUsernameLength = 14;
-
-	shared::ClientID client_id;
 	shared::Scores scores;
 private:
 	// State
