@@ -58,7 +58,7 @@ void NatCollector::Update()
 		}
 		else
 		{
-			Log::Warning("Device is not connected. Please establish a connection with your mobile provider.");
+			Log::Warning("Device is not connected. Please establish a connection with your mobile provider and restart app.");
 			current = NatCollectionSteps::Idle;
 		}
 		break;
@@ -145,7 +145,16 @@ void NatCollector::Update()
 				{
 					// Set client meta data
 					client_meta_data.nat_type = GetMostLikelyNatType(identified_nat_types);
-					current = NatCollectionSteps::StartCollectPorts;
+					
+					//if (CheckClientRelevantAndInform())
+					//{
+						current = NatCollectionSteps::StartCollectPorts;
+					//}
+					//else
+					//{
+					//	current = NatCollectionSteps::Idle;
+					//}
+					
 				}
 				break;
 			}
@@ -308,6 +317,39 @@ shared::NATType NatCollector::GetMostLikelyNatType(const std::vector<shared::NAT
 }
 
 
+bool NatCollector::CheckClientRelevantAndInform()
+{
+	// We are only interested in Random Nat Type
+	Log::Warning("Thank you for downloading the app");
+	Log::Warning("This project collects data of mobile network providers using RANDOM SYMMETRIC NAT");
+	if (client_meta_data.nat_type != shared::NATType::RANDOM_SYM)
+	{
+		
+		if (client_connect_type == shared::ConnectionType::WIFI)
+		{
+			Log::Warning("You are currently connected to WIFI. Please disable WIFI and enable your mobile data to participate.");
+			Log::Warning("After that restart the app. Thank you.");
+		}
+		else
+		{
+			Log::Warning("It seems like your mobile network provider is NOT using RANDOM SYMMETRIC NAT");
+			Log::Warning("No data will be collected.");
+			Log::Warning("If you plan to change your mobile provider soon, please come back and try again.");
+			Log::Warning("Otherwise feel free to delete this app.");
+		}
+		return false;
+	}
+	else
+	{
+		Log::Warning("Luckily your mobile provider is using RANDOM SYMMETRIC NAT :)");
+		Log::Warning("This app starts now to collect some data of your mobile provider.");
+		Log::Warning("Every 5-10 minutes a sample is generated and uploaded to the database.");
+		Log::Warning("Please keep this app open, while the data for each sample is collected.");
+		Log::Warning("The user who uploads the most samples in the next few months, wins a crate of tasty beer.");
+		Log::Warning("Check out the scoreboard to see your ranking.");
+		return true;
+	}
+}
 
 
 
@@ -315,4 +357,5 @@ shared::NATType NatCollector::GetMostLikelyNatType(const std::vector<shared::NAT
 void NatCollector::Deactivate(Application* app)
 {
 }
+
 

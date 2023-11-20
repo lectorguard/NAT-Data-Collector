@@ -65,12 +65,14 @@ public:
 	shared::ClientMetaData client_meta_data{};
 	shared::ConnectionType client_connect_type = shared::ConnectionType::NOT_CONNECTED;
 private:
+	bool CheckClientRelevantAndInform();
+
 	// Constants
 	const int required_nat_samples = 5;
 	const int time_between_samples_ms = 30'000;
 
 	// State
-	NatCollectionSteps current = NatCollectionSteps::Idle;
+	NatCollectionSteps current = NatCollectionSteps::Start;
 
 	// Timer
 	SimpleTimer wait_timer{};

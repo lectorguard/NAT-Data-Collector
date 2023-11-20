@@ -72,7 +72,8 @@ std::variant<UserData::Information, shared::ServerResponse> UserData::ReadFromDi
 	}
 	else
 	{
-		return shared::ServerResponse::Warning({ "This warning is expected on first app usage","Failed to open user data file : " + *GetAbsoluteUserDataPath() });
+		// Failed to open user data file, file might not exist yet
+		return shared::ServerResponse::OK();
 	}
 	
 }
