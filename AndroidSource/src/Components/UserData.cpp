@@ -12,15 +12,12 @@ void UserData::Activate(class Application* app)
 
 void UserData::OnStart(struct android_app* native_app)
 {
-	if (auto res = GetExternalFilesDir(native_app))
-	{
-		external_files_dir = *res;
-	}
-	else
-	{
-		Log::Error("Failed to retrieve android external files directory");
-	}
-	
+	std::visit(shared::helper::Overloaded
+		{
+			[this](std::string dir) { external_files_dir = dir; },
+			[](shared::ServerResponse resp) { Log::HandleResponse(resp, "Try retrieving external files directory from JNI"); }
+		}, GetExternalFilesDir(native_app));
+
 	std::visit(shared::helper::Overloaded
 		{
 			[this](Information user_info) { info = user_info; },
@@ -44,7 +41,13 @@ shared::ServerResponse UserData::ValidateUsername()
 
 std::variant<UserData::Information, shared::ServerResponse> UserData::ReadFromDisc()
 {
-	if (FILE* appConfigFile = std::fopen(GetAbsoluteUserDataPath().c_str(), "r+"))
+	const auto user_data_path = GetAbsoluteUserDataPath();
+	if (!user_data_path)
+	{
+		return shared::ServerResponse::Error({ "Absolute Android User Data Path is invalid" });
+	}
+
+	if (FILE* appConfigFile = std::fopen(user_data_path->c_str(), "r+"))
 	{
 		fseek(appConfigFile, 0, SEEK_END);
 		long fsize = ftell(appConfigFile);
@@ -69,7 +72,7 @@ std::variant<UserData::Information, shared::ServerResponse> UserData::ReadFromDi
 	}
 	else
 	{
-		return shared::ServerResponse::Warning({ "Failed to open user data file : " + GetAbsoluteUserDataPath() });
+		return shared::ServerResponse::Warning({ "This warning is expected on first app usage","Failed to open user data file : " + *GetAbsoluteUserDataPath() });
 	}
 	
 }
@@ -84,9 +87,15 @@ shared::ServerResponse UserData::WriteToDisc()
 		return shared::helper::HandleJserError(jser_errors, "Write to disc : Serialize user data"); 
 	}
 
+	const auto user_data_path = GetAbsoluteUserDataPath();
+	if (!user_data_path)
+	{
+		return shared::ServerResponse::Error({ "Absolute Android User Data Path is invalid" });
+	}
+
 	// Write to file
 	shared::ServerResponse result = shared::ServerResponse::OK();
-	if (FILE* appConfigFile = std::fopen(GetAbsoluteUserDataPath().c_str(), "w+"))
+	if (FILE* appConfigFile = std::fopen(user_data_path->c_str(), "w+"))
 	{
 		auto res = std::fwrite(user_info.c_str(), sizeof(char), user_info.size(), appConfigFile);
 		if (res != user_info.size())
@@ -97,20 +106,25 @@ shared::ServerResponse UserData::WriteToDisc()
 	}
 	else
 	{
-		result = shared::ServerResponse::Error({ "Failed to open user data file : " + GetAbsoluteUserDataPath() });
+		result = shared::ServerResponse::Error({ "Failed to open user data file : " + *user_data_path });
 	}
 	return result;
 }
 
 
 
-std::string UserData::GetAbsoluteUserDataPath() const
+std::optional<std::string> UserData::GetAbsoluteUserDataPath() const
 {
-	return external_files_dir + "/" + user_data_file;
+	return external_files_dir ? *external_files_dir + "/" + user_data_file : external_files_dir;
 }
 
-std::optional<std::string> UserData::GetExternalFilesDir(android_app* native_app) const
+std::variant<shared::ServerResponse, std::string> UserData::GetExternalFilesDir(struct android_app* native_app) const
 {
+	if (!native_app)
+	{
+		return shared::ServerResponse::Error({ "Passed android native app pointer is invalid" });
+	}
+
 	jint lResult;
 
 	JavaVM* lJavaVM = native_app->activity->vm;
@@ -121,49 +135,53 @@ std::optional<std::string> UserData::GetExternalFilesDir(android_app* native_app
 	lJavaVMAttachArgs.name = "NativeThread";
 	lJavaVMAttachArgs.group = NULL;
 
-	std::string result_id{};
-	for (;;)
+	lResult = lJavaVM->AttachCurrentThread(&lJNIEnv, &lJavaVMAttachArgs);
+	if (lResult == JNI_ERR)
 	{
-		lResult = lJavaVM->AttachCurrentThread(&lJNIEnv, &lJavaVMAttachArgs);
-		if (lResult == JNI_ERR) {
-			break;
-		}
-
-		// Retrieves NativeActivity.
-		jobject lNativeActivity = native_app->activity->clazz;
-
-		// Retrieves Context.INPUT_METHOD_SERVICE.
-		jclass ClassContext = lJNIEnv->FindClass("android/content/Context");
-
-		jmethodID getExternalFilesDirMethod = lJNIEnv->GetMethodID(ClassContext, "getExternalFilesDir", "(Ljava/lang/String;)Ljava/io/File;");
-		jstring nullString = NULL; // Passing null as the argument
-		jobject externalFilesDirObj = lJNIEnv->CallObjectMethod(lNativeActivity, getExternalFilesDirMethod, nullString);
-
-		if (externalFilesDirObj != NULL) {
-			// Get the absolute path from the File object
-			jclass fileClass = lJNIEnv->GetObjectClass(externalFilesDirObj);
-			jmethodID getAbsolutePathMethod = lJNIEnv->GetMethodID(fileClass, "getAbsolutePath", "()Ljava/lang/String;");
-			jstring absolutePath = (jstring)lJNIEnv->CallObjectMethod(externalFilesDirObj, getAbsolutePathMethod);
-
-			// Convert the Java string to a C++ string
-			const char* pathStr = lJNIEnv->GetStringUTFChars(absolutePath, NULL);
-			result_id = std::string(pathStr);
-
-			// Release local references
-			lJNIEnv->ReleaseStringUTFChars(absolutePath, pathStr);
-			lJNIEnv->DeleteLocalRef(fileClass);
-			lJNIEnv->DeleteLocalRef(externalFilesDirObj);
-		}
-		break;
+		return shared::ServerResponse::Error({ "Failed to attach to JNI thread from native activity" });
 	}
-	lJavaVM->DetachCurrentThread();
-	if (result_id.empty())
-	{
-		return std::nullopt;
+
+	// Return information
+	std::string result_id{};
+	shared::ServerResponse response = shared::ServerResponse::OK();
+
+	// Retrieves NativeActivity.
+	jobject lNativeActivity = native_app->activity->clazz;
+
+	// Retrieves Context.INPUT_METHOD_SERVICE.
+	jclass ClassContext = lJNIEnv->FindClass("android/content/Context");
+
+	jmethodID getExternalFilesDirMethod = lJNIEnv->GetMethodID(ClassContext, "getExternalFilesDir", "(Ljava/lang/String;)Ljava/io/File;");
+	jstring nullString = NULL; // Passing null as the argument
+	jobject externalFilesDirObj = lJNIEnv->CallObjectMethod(lNativeActivity, getExternalFilesDirMethod, nullString);
+
+	if (externalFilesDirObj != NULL) {
+		// Get the absolute path from the File object
+		jclass fileClass = lJNIEnv->GetObjectClass(externalFilesDirObj);
+		jmethodID getAbsolutePathMethod = lJNIEnv->GetMethodID(fileClass, "getAbsolutePath", "()Ljava/lang/String;");
+		jstring absolutePath = (jstring)lJNIEnv->CallObjectMethod(externalFilesDirObj, getAbsolutePathMethod);
+
+		// Convert the Java string to a C++ string
+		const char* pathStr = lJNIEnv->GetStringUTFChars(absolutePath, NULL);
+		result_id = std::string(pathStr);
+
+		// Release local references
+		lJNIEnv->ReleaseStringUTFChars(absolutePath, pathStr);
+		lJNIEnv->DeleteLocalRef(fileClass);
+		lJNIEnv->DeleteLocalRef(externalFilesDirObj);
 	}
 	else
 	{
+		response = shared::ServerResponse::Error({ "Failed retrieving ExternalFilesDirObject from JNI" });
+	}
+	// Make sure to detach always
+	lJavaVM->DetachCurrentThread();
+	if (response)
+	{
 		return result_id;
 	}
-	return result_id;
+	else
+	{
+		return response;
+	}
 }

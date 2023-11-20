@@ -36,9 +36,9 @@ public:
 
 private:
 	std::variant<Information, shared::ServerResponse> ReadFromDisc();
-	std::string GetAbsoluteUserDataPath() const;
-	std::optional<std::string> GetExternalFilesDir(struct android_app* native_app) const;
+	std::optional<std::string> GetAbsoluteUserDataPath() const;
+	std::variant<shared::ServerResponse, std::string> GetExternalFilesDir(struct android_app* native_app) const;
 
 	const std::string user_data_file = "user_data.json";
-	std::string external_files_dir{};
+	std::optional<std::string> external_files_dir = std::nullopt;
 };
