@@ -14,11 +14,8 @@ public:
 	static int32_t HandleInput(struct android_app* state, AInputEvent* ev);
 	void OnAppStart(struct android_app* state);
 
-	void ShowKeyboard(bool newVisibility);
-	void UpdateSoftKeyboard();
+	void ShowKeyboard(bool newVisibility, android_app* state);
+	void UpdateSoftKeyboard(Application* app);
 private:
 	static int GetUnicodeCharacter(struct android_app* native_app, int eventType, int keyCode, int metaState);
-
-	struct android_app* native_app;
-
 };

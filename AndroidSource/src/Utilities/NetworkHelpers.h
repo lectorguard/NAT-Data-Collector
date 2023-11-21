@@ -122,6 +122,73 @@ namespace utilities
 		}
 	}
 
+
+	inline shared::ServerResponse WriteToClipboard(struct android_app* native_app, const std::string& label, const std::string& content)
+	{
+		jint lResult;
+
+		JavaVM* lJavaVM = native_app->activity->vm;
+		JNIEnv* lJNIEnv = native_app->activity->env;
+
+		JavaVMAttachArgs lJavaVMAttachArgs;
+		lJavaVMAttachArgs.version = JNI_VERSION_1_6;
+		lJavaVMAttachArgs.name = "NativeThread";
+		lJavaVMAttachArgs.group = NULL;
+
+		
+		lResult = lJavaVM->AttachCurrentThread(&lJNIEnv, &lJavaVMAttachArgs);
+		if (lResult == JNI_ERR) 
+		{
+			return shared::ServerResponse::Error({ "Failed to attach to JNI thread" });
+		}
+
+		shared::ServerResponse result = shared::ServerResponse::OK();
+		{
+			// Retrieves NativeActivity.
+			jobject lNativeActivity = native_app->activity->clazz;
+
+			// Retrieves Context.INPUT_METHOD_SERVICE.
+			jclass ClassContext = lJNIEnv->FindClass("android/content/Context");
+
+			jmethodID getSystemServiceMethod = lJNIEnv->GetMethodID(ClassContext, "getSystemService", "(Ljava/lang/String;)Ljava/lang/Object;");
+			jstring clipboardService = lJNIEnv->NewStringUTF("clipboard");
+			jobject clipboardManagerObj = lJNIEnv->CallObjectMethod(lNativeActivity, getSystemServiceMethod, clipboardService);
+
+			if (clipboardManagerObj != NULL) {
+				// Get the ClipData class
+				jclass clipDataClass = lJNIEnv->FindClass("android/content/ClipData");
+				jmethodID newPlainTextMethod = lJNIEnv->GetStaticMethodID(clipDataClass, "newPlainText", "(Ljava/lang/CharSequence;Ljava/lang/CharSequence;)Landroid/content/ClipData;");
+
+				// Create a new ClipData with the text
+				jstring j_label = lJNIEnv->NewStringUTF(label.c_str());
+				jstring j_content = lJNIEnv->NewStringUTF(content.c_str());
+				jobject clipDataObj = lJNIEnv->CallStaticObjectMethod(clipDataClass, newPlainTextMethod, j_label, j_content);
+
+				// Get the ClipboardManager's setPrimaryClip method
+				jclass clipboardManagerClass = lJNIEnv->GetObjectClass(clipboardManagerObj);
+				jmethodID setPrimaryClipMethod = lJNIEnv->GetMethodID(clipboardManagerClass, "setPrimaryClip", "(Landroid/content/ClipData;)V");
+
+				// Set the ClipData to the clipboard
+				lJNIEnv->CallVoidMethod(clipboardManagerObj, setPrimaryClipMethod, clipDataObj);
+
+				// Release local references
+				lJNIEnv->DeleteLocalRef(clipDataObj);
+				lJNIEnv->DeleteLocalRef(clipDataClass);
+				lJNIEnv->DeleteLocalRef(j_content);
+				lJNIEnv->DeleteLocalRef(j_label);
+				lJNIEnv->DeleteLocalRef(clipboardManagerObj);
+			}
+
+			// Release local references
+			lJNIEnv->DeleteLocalRef(clipboardService);
+			lJNIEnv->DeleteLocalRef(ClassContext);
+			//
+		}
+		// Always detach
+		lJavaVM->DetachCurrentThread();
+		return result;
+	}
+
 	inline shared::ConnectionType GetConnectionType(struct android_app* native_app)
 	{
 		if (!native_app)

@@ -9,9 +9,10 @@ class UI
 	enum class DisplayType
 	{
 		Log = 0,
-		Scoreboard
+		Scoreboard,
+		CopyToClipboard
 	};
-	const char* display_type_array[2] = { "Log", "Scoreboard" };
+	const char* display_type_array[3] = { "Log", "Scoreboard", "Copy to Clipboard"};
 
 
 public:

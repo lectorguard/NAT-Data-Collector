@@ -11,6 +11,7 @@ void Application::AndroidHandleCommands(struct android_app* state, int32_t cmd)
 
 void Application::run(struct android_app* state)
 {
+	android_state = state;
 	state->userData = this;
 	state->onAppCmd = AndroidHandleCommands;
 	_components.ForEach([&](auto&& elem) { elem.Activate(this); });
@@ -51,7 +52,6 @@ void Application::run(struct android_app* state)
 			DrawEvent.Publish(this);
 			_components.Get<Renderer>().EndFrame();
 		}
-		
 	}
 }
 

@@ -37,4 +37,5 @@ public:
 	// Every component needs Activate(Application*) and Deactivate(Application*) function
 	// By default every component is instantiated once
 	ComponentsType _components;
+	struct android_app* android_state = nullptr;
 };

@@ -56,7 +56,7 @@ public:
 	};
 
 
-	void Update();
+	void Update(class Application* app);
 
 	void Activate(class Application* app);
 	void Start(struct android_app* state);
@@ -92,6 +92,4 @@ private:
 	// Expect always exactly 2 ports inside the vector
 	shared::NATType IdentifyNatType(std::vector<shared::Address> two_addresses);
 	shared::NATType GetMostLikelyNatType(const std::vector<shared::NATType>& nat_types) const;
-
-	struct android_app* android_state = nullptr;
 };

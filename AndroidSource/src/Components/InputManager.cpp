@@ -3,11 +3,12 @@
 #include "backends/imgui_impl_android.h"
 #include "imgui.h"
 #include "CustomCollections/Log.h"
+#include "Application/Application.h"
 
-void InputManager::Activate(class Application* app)
+void InputManager::Activate(Application* app)
 {
 	app->AndroidStartEvent.Subscribe([this](struct android_app* state) {OnAppStart(state); });
-	app->DrawEvent.Subscribe([this](auto ignore) {UpdateSoftKeyboard(); });
+	app->DrawEvent.Subscribe([this](Application* app) {UpdateSoftKeyboard(app); });
 }
 
 int32_t InputManager::HandleInput(struct android_app* state, AInputEvent* ev)
@@ -31,17 +32,16 @@ int32_t InputManager::HandleInput(struct android_app* state, AInputEvent* ev)
 void InputManager::OnAppStart(struct android_app* state)
 {
 	state->onInputEvent = &InputManager::HandleInput;
-	native_app = state;
 }
 
-void InputManager::UpdateSoftKeyboard()
+void InputManager::UpdateSoftKeyboard(Application* app)
 {
 	ImGuiIO& io = ImGui::GetIO();
-	ShowKeyboard(io.WantTextInput);
+	ShowKeyboard(io.WantTextInput, app->android_state);
 }
 
 
-void InputManager::ShowKeyboard(bool newVisibility)
+void InputManager::ShowKeyboard(bool newVisibility, android_app* state)
 {
 	static bool KeyboardVisibilityState = false;
 	if (newVisibility == KeyboardVisibilityState)
@@ -53,8 +53,8 @@ void InputManager::ShowKeyboard(bool newVisibility)
 	jint lResult;
 	jint lFlags = 0;
 
-	JavaVM* lJavaVM = native_app->activity->vm;
-	JNIEnv* lJNIEnv = native_app->activity->env;
+	JavaVM* lJavaVM = state->activity->vm;
+	JNIEnv* lJNIEnv = state->activity->env;
 
 	JavaVMAttachArgs lJavaVMAttachArgs;
 	lJavaVMAttachArgs.version = JNI_VERSION_1_6;
@@ -67,7 +67,7 @@ void InputManager::ShowKeyboard(bool newVisibility)
 	}
 
 	// Retrieves NativeActivity.
-	jobject lNativeActivity = native_app->activity->clazz;
+	jobject lNativeActivity = state->activity->clazz;
 	jclass ClassNativeActivity = lJNIEnv->GetObjectClass(lNativeActivity);
 
 	// Retrieves Context.INPUT_METHOD_SERVICE.

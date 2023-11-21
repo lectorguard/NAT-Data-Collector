@@ -16,7 +16,7 @@
 
  void NatCollector::Activate(Application* app)
  {
- 	app->UpdateEvent.Subscribe([this](Application* app) {Update(); });
+ 	app->UpdateEvent.Subscribe([this](Application* app) {Update(app); });
 	app->AndroidStartEvent.Subscribe([this](struct android_app* state) {Start(state); });
  }
 
@@ -32,10 +32,9 @@
 		 client_meta_data.android_id = "Not Identified";
 		 Log::Error("Failed to get android id");
 	 }
-	 android_state = state;
  }
 
-void NatCollector::Update()
+void NatCollector::Update(Application* app)
 {
 	switch (current)
 	{
@@ -51,7 +50,7 @@ void NatCollector::Update()
 	case NatCollectionSteps::StartReadConnectType:
 	{
 		Log::Info("Started reading connection type");
-		client_connect_type = utilities::GetConnectionType(android_state);
+		client_connect_type = utilities::GetConnectionType(app->android_state);
 		if (client_connect_type != shared::ConnectionType::NOT_CONNECTED)
 		{
 			current = NatCollectionSteps::StartIPInfo;

@@ -6,6 +6,7 @@
 #include "CustomCollections/Log.h"
 #include "UserData.h"
 #include "NatCollector.h"
+#include "Utilities/NetworkHelpers.h"
 
 void UI::Activate(Application* app)
 {
@@ -107,13 +108,36 @@ void UI::Draw(Application* app)
 
 		ImGui::Text("Show"); ImGui::NextColumn();
 		ImGui::Combo("##ShowCurrent", reinterpret_cast<int*>(&current_active_display), display_type_array, IM_ARRAYSIZE(display_type_array)); ImGui::NextColumn();
-		if (current_active_display != last_active_display && current_active_display == DisplayType::Scoreboard)
+		if (current_active_display != last_active_display)
 		{
-			UserData& user_data = app->_components.Get<UserData>();
-			Log::HandleResponse(user_data.WriteToDisc(), "Write user data to disc");
+			switch (current_active_display)
+			{
+			case UI::DisplayType::Log:
+				break;
+			case UI::DisplayType::Scoreboard:
+			{
+				UserData& user_data = app->_components.Get<UserData>();
+				Log::HandleResponse(user_data.WriteToDisc(), "Write user data to disc");
 
-			Scoreboard& score_ref = app->_components.Get<Scoreboard>();
-			score_ref.RequestScores(app);
+				Scoreboard& score_ref = app->_components.Get<Scoreboard>();
+				score_ref.RequestScores(app);
+				break;
+			}
+			case UI::DisplayType::CopyToClipboard:
+			{
+				std::stringstream ss;
+				for (auto info : Log::GetLog())
+				{
+					ss << info.buf.c_str() << "\r\n";
+				}
+				const std::string clipboard_content = ss.str();
+				const auto response = utilities::WriteToClipboard(app->android_state, "NAT Collector Log", clipboard_content);
+				Log::HandleResponse(response, "Write Log to clipboard");
+			}
+			default:
+				break;
+			}
+			
 		}
 		last_active_display = current_active_display;
 	}
