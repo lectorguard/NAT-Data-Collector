@@ -193,7 +193,6 @@ namespace utilities
 	{
 		if (!native_app)
 		{
-			Log::Error("Native android_app pointer is invalid. Abort get connection type ...");
 			return shared::ConnectionType::NOT_CONNECTED;
 		}
 

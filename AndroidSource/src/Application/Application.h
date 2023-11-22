@@ -7,7 +7,7 @@
 #include "Components/NatCollector.h"
 #include "Components/Scoreboard.h"
 #include "Components/UserData.h"
-#include "Components/UI.h"
+#include "UI/MainScreen.h"
 #include "android/log.h"
 
 
@@ -16,7 +16,7 @@
 
 class Application
 {
-	using ComponentsType = ComponentManager<SensorManager, Renderer, InputManager, NatCollector, UI, Scoreboard, UserData>;
+	using ComponentsType = ComponentManager<SensorManager, Renderer, InputManager, NatCollector, MainScreen, Scoreboard, UserData>;
 
 public:
 	Application() {};

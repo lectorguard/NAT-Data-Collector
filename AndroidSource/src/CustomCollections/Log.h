@@ -3,6 +3,7 @@
 #include "vector"
 #include "android/log.h"
 #include "SharedProtocol.h"
+#include "Utilities/NetworkHelpers.h"
 
 enum LogWarn
 {
@@ -98,6 +99,18 @@ public:
 		 auto last = scrollToBottom;
 		 scrollToBottom = false;
 		 return last;
+	 }
+
+	 static void CopyLogToClipboard(struct android_app* state)
+	 {
+		 std::stringstream ss;
+		 for (auto info : Log::GetLog())
+		 {
+			 ss << info.buf.c_str() << "\r\n";
+		 }
+		 const std::string clipboard_content = ss.str();
+		 const auto response = utilities::WriteToClipboard(state, "NAT Collector Log", clipboard_content);
+		 Log::HandleResponse(response, "Write Log to clipboard");
 	 }
 
 private:
