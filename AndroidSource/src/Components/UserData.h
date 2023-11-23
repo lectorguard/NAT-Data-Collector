@@ -10,7 +10,7 @@ public:
 	{
 		std::string username{};
 		bool show_score = true;
-
+		bool ignore_pop_up = false;
 		Information() {};
 		Information(std::string username, bool show_score) :
 			username(username),
@@ -19,7 +19,7 @@ public:
 
 		jser::JserChunkAppender AddItem() override
 		{
-			return JSerializable::AddItem().Append(JSER_ADD(SerializeManagerType, username, show_score));
+			return JSerializable::AddItem().Append(JSER_ADD(SerializeManagerType, username, show_score, ignore_pop_up));
 		}
 	};
 
@@ -32,7 +32,7 @@ public:
 
 	void Activate(class Application* app);
 	void Deactivate(class Application* app) {};
-	void OnStart(struct android_app* native_app);
+
 
 private:
 	std::variant<Information, shared::ServerResponse> ReadFromDisc();

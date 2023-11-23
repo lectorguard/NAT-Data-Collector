@@ -6,6 +6,7 @@
 #include "Components/Renderer.h"
 #include "UserWindow.h"
 #include "LogWindow.h"
+#include "PopUpWindow.h"
 #include "ScoreboardWindow.h"
 #include "imgui.h"
 
@@ -32,24 +33,25 @@ public:
 		const float UserWinCursor = 0.0f;
 		const float TabWinCursor = UserWinCursor + UserWinSize;
 		const float BotWinCursor = TabWinCursor + TabWinSize;
-
-		const ImVec4 Pressed = { 163 / 255.0f, 163 / 255.0f, 163 / 255.0f,1.0f };
-		const ImVec4 Selected = { 88 / 255.0f, 88 / 255.0f, 88 / 255.0f, 1.0f };
-		const ImVec4 Unselected = { 46 / 255.0f, 46 / 255.0f, 46 / 255.0f, 1.0f };
 	};
 
 	const Settings settings;
 	UserWindow user_window;
 	LogWindow log_window;
 	ScoreboardWindow scoreboard_window;
+	PopUpWindow pop_up_window;
 
 
 	void Activate(class Application* app);
 	void Deactivate(class Application* app) {};
 	void Draw(Application* app);
+
+	
+
 private:
-	ImVec4 log_bc = settings.Unselected;
-	ImVec4 scoreboard_bc = settings.Unselected;
-	ImVec4 clipboard_bc = settings.Unselected;
-	bool StyledButton(const char* label, ImVec4& currentColor, bool isSelected = false);
+	void ClosePopUpAndStartApp(Application* app);
+	ImVec4 log_bc;
+	ImVec4 scoreboard_bc;
+	ImVec4 clipboard_bc;
+	bool showPopup = true;
 };

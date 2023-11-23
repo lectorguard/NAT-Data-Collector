@@ -50,6 +50,7 @@ void Renderer::InitDisplay(struct android_app* app)
 
 	_animating = 1;
 	ImGui::StyleColorsDark();
+	very_small_font = CreateFontbySizePixels(CentimeterToPixel(font_very_small_cm));
 	small_font = CreateFontbySizePixels(CentimeterToPixel(font_small_cm));
 	large_font = CreateFontbySizePixels(CentimeterToPixel(font_large_cm));
 

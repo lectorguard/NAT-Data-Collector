@@ -3,6 +3,7 @@
 #include "SharedProtocol.h"
 #include "JSerializer.h"
 #include "SharedHelpers.h"
+#include "imgui.h"
 
 namespace utilities
 {
@@ -272,6 +273,23 @@ namespace utilities
 		}
 		lJavaVM->DetachCurrentThread();
 		return connection_type;
+	}
+
+	inline bool StyledButton(const char* label, ImVec4& currentColor, bool isSelected = false)
+	{
+		const ImVec4 Pressed = { 163 / 255.0f, 163 / 255.0f, 163 / 255.0f,1.0f };
+		const ImVec4 Selected = { 88 / 255.0f, 88 / 255.0f, 88 / 255.0f, 1.0f };
+		const ImVec4 Unselected = { 46 / 255.0f, 46 / 255.0f, 46 / 255.0f, 1.0f };
+
+		ImGui::PushStyleColor(ImGuiCol_Button, currentColor);
+		ImGui::PushStyleColor(ImGuiCol_ButtonActive, currentColor);
+		ImGui::PushStyleColor(ImGuiCol_ButtonHovered, currentColor);
+		bool released = ImGui::Button(label);
+		if (ImGui::IsItemActive()) currentColor = Pressed;
+		else if (isSelected) currentColor = Selected;
+		else currentColor = Unselected;
+		ImGui::PopStyleColor(3);
+		return released;
 	}
 }
 

@@ -59,8 +59,9 @@ public:
 	void Update(class Application* app);
 
 	void Activate(class Application* app);
-	void Start(struct android_app* state);
+	void OnStart(struct android_app* state);
 	void Deactivate(class Application* app);
+	void StartStateMachine() { current = NatCollectionSteps::Start; };
 
 	shared::ClientMetaData client_meta_data{};
 	shared::ConnectionType client_connect_type = shared::ConnectionType::NOT_CONNECTED;
@@ -72,7 +73,7 @@ private:
 	const int time_between_samples_ms = 30'000;
 
 	// State
-	NatCollectionSteps current = NatCollectionSteps::Start;
+	NatCollectionSteps current = NatCollectionSteps::Idle;
 
 	// Timer
 	SimpleTimer wait_timer{};

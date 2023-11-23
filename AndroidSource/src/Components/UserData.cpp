@@ -3,20 +3,16 @@
 #include "CustomCollections/Log.h"
 #include "SharedHelpers.h"
 #include "Utilities/NetworkHelpers.h"
+#include "NatCollector.h"
 
 
 void UserData::Activate(class Application* app)
-{
-	app->AndroidStartEvent.Subscribe([this](struct android_app* state) { OnStart(state); });
-}
-
-void UserData::OnStart(struct android_app* native_app)
 {
 	std::visit(shared::helper::Overloaded
 		{
 			[this](std::string dir) { external_files_dir = dir; },
 			[](shared::ServerResponse resp) { Log::HandleResponse(resp, "Try retrieving external files directory from JNI"); }
-		}, GetExternalFilesDir(native_app));
+		}, GetExternalFilesDir(app->android_state));
 
 	std::visit(shared::helper::Overloaded
 		{

@@ -17,10 +17,10 @@
  void NatCollector::Activate(Application* app)
  {
  	app->UpdateEvent.Subscribe([this](Application* app) {Update(app); });
-	app->AndroidStartEvent.Subscribe([this](struct android_app* state) {Start(state); });
+	app->AndroidStartEvent.Subscribe([this](struct android_app* state) {OnStart(state); });
  }
 
- void NatCollector::Start(android_app* state)
+ void NatCollector::OnStart(android_app* state)
  {
 	 Log::Info("Start reading device android id");
 	 if (auto id = utilities::GetAndroidID(state))
