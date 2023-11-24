@@ -42,7 +42,6 @@ public:
 		/* remote address */			SERVER_IP,
 		/* first remote port */			7777,
 		/* second remote port */		7778,
-		/* local port*/					44444,
 		/* time between requests in ms */ 20
 	};
 

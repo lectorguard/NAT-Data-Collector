@@ -57,14 +57,17 @@ void WrongNatTypeWindow::Draw(class Application* app, std::function<void()> onCl
 	}
 	else
 	{
-		ImGui::TextWrapped("This app is only interested in collecting data of network providers implementing random symmetric NAT. "
-			"Your identified NAT type is %s. If you are not planning to change your provider soon, you can safely uninstall this app. "
+		ImGui::TextWrapped("Thank you for downloading this app. "
+			"Unfortunately, this app is only interested in collecting data of network providers implementing random symmetric NAT. "
+			"Your identified NAT type is %s. If you plan to change your mobile provider soon, "
+			"please keep the app and reopen it with the simcard of your new provider. "
+			"In all other cases you can safely uninstall this app. "
 			"No samples will be collected. Have a nice day.", shared::nat_to_string.at(nat_type).c_str()
 		);
 
 		ImGui::Dummy(ImVec2(0, Renderer::CentimeterToPixel(0.2f)));
 		ImGui::PushFont(Renderer::medium_font);
-
+		ImGui::SetCursorPosX(ImGui::GetWindowWidth() / 2.0f - ImGui::CalcTextSize("Close").x / 2.0f);
 		if (utilities::StyledButton("Close", close_cb, false))
 		{
 			onClose();

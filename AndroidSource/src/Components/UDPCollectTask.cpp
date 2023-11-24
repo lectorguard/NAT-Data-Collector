@@ -36,7 +36,6 @@
 // 	 Log::Info("Server Address :  %s", collect_info.remote_address.c_str());
 // 	 Log::Info("First remote port :  %d", collect_info.first_remote_port);
 // 	 Log::Info("Second remote port :  %d", collect_info.second_remote_port);
-// 	 Log::Info("Local port :  %d", collect_info.local_port);
 // 	 Log::Info("Request delta time :  %d ms", collect_info.time_between_requests_ms);
 // 	 Log::Info("----------------------------");
 
@@ -78,14 +77,8 @@
 
 UDPCollectTask::UDPCollectTask(const NatTypeInfo& info, asio::io_service& io_service)
 {
-	if (info.local_port == 0)
-	{
-		Log::Warning( "For UDP Collector Task Port 0 is disallowed !!");
-		return;
-	}
-
 	// Single socket single port
-	auto shared_local_socket = std::make_shared<asio::ip::udp::socket>(io_service, asio::ip::udp::endpoint{ asio::ip::udp::v4(), info.local_port });
+	auto shared_local_socket = std::make_shared<asio::ip::udp::socket>(io_service, asio::ip::udp::endpoint{ asio::ip::udp::v4(), 0 });
 	auto createSocket = [shared_local_socket]() {return shared_local_socket; };
 	bUsesSingleSocket = true;
 

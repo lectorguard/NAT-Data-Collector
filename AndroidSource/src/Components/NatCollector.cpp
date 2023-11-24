@@ -144,6 +144,7 @@ void NatCollector::Update(Application* app)
 				{
 					// Set client meta data
 					client_meta_data.nat_type = GetMostLikelyNatType(identified_nat_types);
+					Log::Info("Identified NAT type %s", shared::nat_to_string.at(client_meta_data.nat_type).c_str());
 					NatTypeIdentifiedEvent.Publish(client_meta_data.nat_type);
 					if (client_meta_data.nat_type == shared::NATType::RANDOM_SYM)
 					{
@@ -152,7 +153,7 @@ void NatCollector::Update(Application* app)
 					}
 					else
 					{
-						Log::Warning("Identified NAT type, is not eligible for network data collection.");
+						Log::Warning("Identified NAT type is not eligible for network data collection.");
 						Log::Warning("Abort ...");
 						current = NatCollectionSteps::Idle;
 					}

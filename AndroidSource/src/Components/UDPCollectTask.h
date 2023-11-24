@@ -24,7 +24,6 @@ public:
 		std::string remote_address;
 		uint16_t first_remote_port;
 		uint16_t second_remote_port;
-		uint16_t local_port;
 		uint16_t time_between_requests_ms;
 	};
 
