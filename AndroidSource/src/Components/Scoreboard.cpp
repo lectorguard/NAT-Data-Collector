@@ -55,7 +55,7 @@ void Scoreboard::Update(Application* app)
 		Result<ServerRequest> request_result = helper::CreateServerRequest<RequestType::GET_SCORES>(client_id, "NatInfo", "users", "data");
 		if (auto request = std::get_if<ServerRequest>(&request_result))
 		{
-			scoreboard_transaction = std::async(TCPTask::ServerTransaction, *request, "192.168.2.110", 7779);
+			scoreboard_transaction = std::async(TCPTask::ServerTransaction, *request, SERVER_IP, 7779);
 			current = ScoreboardSteps::UpdateRequestScores;
 			break;
 		}

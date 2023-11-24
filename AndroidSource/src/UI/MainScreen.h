@@ -7,8 +7,12 @@
 #include "UserWindow.h"
 #include "LogWindow.h"
 #include "PopUpWindow.h"
+#include "WrongNatTypeWindow.h"
 #include "ScoreboardWindow.h"
 #include "imgui.h"
+
+// Forward enum
+namespace shared { enum class NATType : uint8_t;}
 
 class MainScreen
 {
@@ -40,18 +44,20 @@ public:
 	LogWindow log_window;
 	ScoreboardWindow scoreboard_window;
 	PopUpWindow pop_up_window;
+	WrongNatTypeWindow wrong_nat_type_window;
 
 
 	void Activate(class Application* app);
 	void Deactivate(class Application* app) {};
 	void Draw(Application* app);
 
-	
-
 private:
+	void OpenWrongNatWindow(shared::NATType ident_nat);
+	void CloseWrongNatWindow(Application* app);
 	void ClosePopUpAndStartApp(Application* app);
 	ImVec4 log_bc;
 	ImVec4 scoreboard_bc;
 	ImVec4 clipboard_bc;
 	bool showPopup = true;
+	bool wrong_nat_type = false;
 };

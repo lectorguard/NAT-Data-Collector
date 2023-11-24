@@ -144,16 +144,18 @@ void NatCollector::Update(Application* app)
 				{
 					// Set client meta data
 					client_meta_data.nat_type = GetMostLikelyNatType(identified_nat_types);
-					
-					//if (CheckClientRelevantAndInform())
-					//{
+					NatTypeIdentifiedEvent.Publish(client_meta_data.nat_type);
+					if (client_meta_data.nat_type == shared::NATType::RANDOM_SYM)
+					{
+						// correct nat type continue
 						current = NatCollectionSteps::StartCollectPorts;
-					//}
-					//else
-					//{
-					//	current = NatCollectionSteps::Idle;
-					//}
-					
+					}
+					else
+					{
+						Log::Warning("Identified NAT type, is not eligible for network data collection.");
+						Log::Warning("Abort ...");
+						current = NatCollectionSteps::Idle;
+					}
 				}
 				break;
 			}
@@ -211,7 +213,7 @@ void NatCollector::Update(Application* app)
 		Result<ServerRequest> request_result = helper::CreateServerRequest<RequestType::INSERT_MONGO>(sampleToInsert, "NatInfo", "data");
 		if (auto request = std::get_if<ServerRequest>(&request_result))
 		{
-			transaction_task = std::async(TCPTask::ServerTransaction, *request, "192.168.2.110", 7779);
+			transaction_task = std::async(TCPTask::ServerTransaction, *request, SERVER_IP, 7779);
 			current = NatCollectionSteps::UpdateUploadDB;
 			break;
 		}
@@ -350,11 +352,26 @@ bool NatCollector::CheckClientRelevantAndInform()
 	}
 }
 
+shared::ServerResponse NatCollector::RecalculateNAT()
+{
+	if (current == NatCollectionSteps::Idle)
+	{
+		identified_nat_types.clear();
+		current = NatCollectionSteps::StartNATInfo;
+		return shared::ServerResponse::OK();
+	}
+	else
+	{
+		return shared::ServerResponse::Error({ "NAT can not be recalculated, state machine is busy." });
+	}
+}
 
 
 
 void NatCollector::Deactivate(Application* app)
 {
 }
+
+
 
 

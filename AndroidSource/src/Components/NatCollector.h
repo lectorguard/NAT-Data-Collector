@@ -6,6 +6,7 @@
 #include <future>
 #include "CustomCollections/SimpleTimer.h"
 #include "UDPCollectTask.h"
+#include "CustomCollections/Event.h"
 
 
 
@@ -38,7 +39,7 @@ class NatCollector
 public:
 	const UDPCollectTask::NatTypeInfo natType_config
 	{
-		/* remote address */			"192.168.2.110",
+		/* remote address */			SERVER_IP,
 		/* first remote port */			7777,
 		/* second remote port */		7778,
 		/* local port*/					44444,
@@ -47,7 +48,7 @@ public:
 
 	const UDPCollectTask::CollectInfo collect_config
 	{
-		/* remote address */				"192.168.2.110",
+		/* remote address */				SERVER_IP,
 		/* remote port */					7777,
 		/* local port */					0,
 		/* amount of ports */				5,
@@ -62,9 +63,12 @@ public:
 	void OnStart(struct android_app* state);
 	void Deactivate(class Application* app);
 	void StartStateMachine() { current = NatCollectionSteps::Start; };
+	shared::ServerResponse RecalculateNAT();
 
 	shared::ClientMetaData client_meta_data{};
 	shared::ConnectionType client_connect_type = shared::ConnectionType::NOT_CONNECTED;
+
+	Event<shared::NATType> NatTypeIdentifiedEvent;
 private:
 	bool CheckClientRelevantAndInform();
 

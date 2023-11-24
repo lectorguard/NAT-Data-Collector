@@ -4,6 +4,8 @@
 #include "JSerializer.h"
 #include "SharedHelpers.h"
 #include "imgui.h"
+#include "jni.h"
+#include "android_native_app_glue.h"
 
 namespace utilities
 {

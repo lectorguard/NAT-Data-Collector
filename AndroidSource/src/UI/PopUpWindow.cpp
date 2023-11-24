@@ -10,8 +10,6 @@
 
 void PopUpWindow::Draw(class Application* app, std::function<void(bool)> onClose)
 {
-	ImGuiIO& io = ImGui::GetIO();
-	
 	ImGui::PushFont(Renderer::large_font);
 	ImGui::Begin("##Welcom Popup", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse );
 	
