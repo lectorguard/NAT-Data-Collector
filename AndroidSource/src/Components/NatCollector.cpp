@@ -136,7 +136,7 @@ void NatCollector::Update(Application* app)
 
 					identified_nat_types.push_back(IdentifyNatType(sample->address_vector));
 				}
-				if (identified_nat_types.size() < required_nat_samples)
+				if (identified_nat_types.size() < NAT_IDENT_AMOUNT_SAMPLES_USED)
 				{
 					current = NatCollectionSteps::StartNATInfo;
 				}
@@ -145,6 +145,7 @@ void NatCollector::Update(Application* app)
 					// Set client meta data
 					client_meta_data.nat_type = GetMostLikelyNatType(identified_nat_types);
 					Log::Info("Identified NAT type %s", shared::nat_to_string.at(client_meta_data.nat_type).c_str());
+#if RANDOM_SYM_NAT_REQUIRED
 					NatTypeIdentifiedEvent.Publish(client_meta_data.nat_type);
 					if (client_meta_data.nat_type == shared::NATType::RANDOM_SYM)
 					{
@@ -157,6 +158,9 @@ void NatCollector::Update(Application* app)
 						Log::Warning("Abort ...");
 						current = NatCollectionSteps::Idle;
 					}
+#else
+					current = NatCollectionSteps::StartCollectPorts;
+#endif
 				}
 				break;
 			}
@@ -211,10 +215,11 @@ void NatCollector::Update(Application* app)
 		// Create Object
 		NATSample sampleToInsert{ client_meta_data, time_stamp, collect_config.time_between_requests_ms, client_connect_type, collected_nat_data };
 
-		Result<ServerRequest> request_result = helper::CreateServerRequest<RequestType::INSERT_MONGO>(sampleToInsert, "NatInfo", "data");
+		Result<ServerRequest> request_result = 
+			helper::CreateServerRequest<RequestType::INSERT_MONGO>(sampleToInsert, MONGO_DB_NAME, MONGO_NAT_SAMPLES_COLL_NAME);
 		if (auto request = std::get_if<ServerRequest>(&request_result))
 		{
-			transaction_task = std::async(TCPTask::ServerTransaction, *request, SERVER_IP, 7779);
+			transaction_task = std::async(TCPTask::ServerTransaction, *request, SERVER_IP, SERVER_TRANSACTION_TCP_PORT);
 			current = NatCollectionSteps::UpdateUploadDB;
 			break;
 		}
@@ -245,8 +250,8 @@ void NatCollector::Update(Application* app)
 	}
 	case NatCollectionSteps::StartWait:
 	{
-		Log::Info("Start Wait for %d ms", time_between_samples_ms);
-		wait_timer.ExpiresFromNow(std::chrono::milliseconds(time_between_samples_ms));
+		Log::Info("Start Wait for %d ms", NAT_COLLECT_SAMPLE_DELAY_MS);
+		wait_timer.ExpiresFromNow(std::chrono::milliseconds(NAT_COLLECT_SAMPLE_DELAY_MS));
 		current = NatCollectionSteps::UpdateWait;
 		break;
 	}
@@ -272,7 +277,6 @@ shared::NATType NatCollector::IdentifyNatType(std::vector<shared::Address> two_a
 
 	shared::Address& first = two_addresses[0];
 	shared::Address& second = two_addresses[1];
-	const int maxDeltaForProgressing = 50;
 
 	if (first.ip_address.compare(second.ip_address) != 0)
 	{
@@ -283,7 +287,7 @@ shared::NATType NatCollector::IdentifyNatType(std::vector<shared::Address> two_a
 	{
 		return shared::NATType::CONE;
 	}
-	if (std::abs((int)first.port - (int)second.port) < maxDeltaForProgressing)
+	if (std::abs((int)first.port - (int)second.port) < NAT_IDENT_MAX_PROG_SYM_DELTA)
 	{
 		return shared::NATType::PROGRESSING_SYM;
 	}

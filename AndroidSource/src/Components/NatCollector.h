@@ -40,21 +40,19 @@ public:
 	const UDPCollectTask::NatTypeInfo natType_config
 	{
 		/* remote address */			SERVER_IP,
-		/* first remote port */			7777,
-		/* second remote port */		7778,
-		/* time between requests in ms */ 20
+		/* first remote port */			SERVER_NAT_UDP_PORT_1,
+		/* second remote port */		SERVER_NAT_UDP_PORT_2,
+		/* nat request frequency */		NAT_IDENT_REQUEST_FREQUNCY_MS
 	};
 
 	const UDPCollectTask::CollectInfo collect_config
 	{
 		/* remote address */				SERVER_IP,
-		/* remote port */					7777,
+		/* remote port */					SERVER_NAT_UDP_PORT_1,
 		/* local port */					0,
-		/* amount of ports */				5,
-		/* time between requests in ms */	20
-
+		/* amount of ports */				NAT_COLLECT_PORTS_PER_SAMPLE,
+		/* time between requests in ms */	NAT_COLLECT_REQUEST_DELAY_MS
 	};
-
 
 	void Update(class Application* app);
 
@@ -71,9 +69,7 @@ public:
 private:
 	bool CheckClientRelevantAndInform();
 
-	// Constants
-	const int required_nat_samples = 5;
-	const int time_between_samples_ms = 30'000;
+
 
 	// State
 	NatCollectionSteps current = NatCollectionSteps::Idle;
