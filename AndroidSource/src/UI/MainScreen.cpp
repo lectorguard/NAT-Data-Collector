@@ -1,6 +1,6 @@
 #include "MainScreen.h"
 #include "Application/Application.h"
-
+#include "Components/Scoreboard.h"
 #include "CustomCollections/Log.h"
 #include "Components/UserData.h"
 #include "Utilities/NetworkHelpers.h"
@@ -71,6 +71,7 @@ void MainScreen::Draw(Application* app)
 	ImGui::SameLine();
 	if (utilities::StyledButton("Scoreboard", scoreboard_bc, currentWindow == DisplayType::Scoreboard))
 	{
+		app->_components.Get<Scoreboard>().RequestScores(app);
 		currentWindow = DisplayType::Scoreboard;
 	}
 	ImGui::SameLine();

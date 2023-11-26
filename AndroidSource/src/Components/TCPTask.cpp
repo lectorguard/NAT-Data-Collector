@@ -29,6 +29,15 @@ shared::ServerResponse TCPTask::ServerTransaction(shared::ServerRequest request,
 		response = shared::helper::HandleJserError(jser_error, "Serialize Server Request during Transaction Attempt");
 		if (!response) break;
 
+
+		std::stringstream ss;
+		ss << std::setw(5) << std::setfill('0') << toSend.size();
+		std::string buffer_len = ss.str();
+
+		asio::write(socket, asio::buffer(buffer_len), asio_error);
+		response = shared::helper::HandleAsioError(asio_error, "Write Server Message length");
+		if (!response) break;
+
 		// Send Request to Server
 		//Log::Info( "Send Info : %s", toSend.c_str());
 		asio::write(socket, asio::buffer(toSend), asio_error);

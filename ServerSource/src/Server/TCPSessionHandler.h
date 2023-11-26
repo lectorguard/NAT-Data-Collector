@@ -36,13 +36,15 @@ namespace TCPSessionHandler
 		for (;;)
 		{
 			// Init
-			asio::error_code error;
+ 			asio::error_code error;
+			
+			char len_buffer[5];
+			std::size_t len = co_await async_read(s, asio::buffer(len_buffer), asio::transfer_exactly(5), asio::use_awaitable);
+			int next_msg_len = std::stoi(std::string(len_buffer, len));
+
 			char read_buffer[BUFFER_SIZE];
-
-			// Read request
-			std::size_t len = co_await s.async_read_some(asio::buffer(read_buffer), asio::redirect_error(asio::use_awaitable, error));
-			if (HasTCPError(error, "Serve Client Async Read")) break;
-
+			len = co_await async_read(s, asio::buffer(read_buffer), asio::transfer_exactly(next_msg_len), asio::use_awaitable);
+			
 			// Handle transaction
 			shared::ServerResponse response = TransactionFactory::Handle(std::string(read_buffer, len));
 			std::shared_ptr<std::string> response_string = std::make_unique<std::string>(response.toString());
