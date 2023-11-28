@@ -11,6 +11,20 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(JSERIALIZER_ONLY_LIBRARY ON CACHE BOOL "no tests" FORCE)
 add_subdirectory(ThirdParty/JSerializer)
 
+#zlib
+set(ZSTD_BUILD_STATIC OFF)
+set(ZSTD_BUILD_SHARED ON)
+set(BUILD_TESTING OFF)
+set(ZSTD_BUILD_PROGRAMS OFF)
+set(ZSTD_BUILD_TESTS OFF)
+set(ZSTD_BUILD_CONTRIB OFF)
+set(ZSTD_LEGACY_SUPPORT ON)
+set(lib_zstd_include_path ${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty/zstd/lib)
+# Remove the file during the build process
+file(REMOVE "ThirdParty/zstd/lib/decompress/huf_decompress_amd64.S")
+add_subdirectory(ThirdParty/zstd/build/cmake)
+
+
 #asio library
 set(lib_asio_name asio)
 set(lib_asio_include_path ${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty/asio-1.24.0/include/)

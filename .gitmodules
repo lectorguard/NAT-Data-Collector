@@ -7,3 +7,7 @@
 [submodule "ThirdParty/imgui"]
 	path = ThirdParty/imgui
 	url = git@github.com:ocornut/imgui.git
+[submodule "ThirdParty/zstd"]
+	path = ThirdParty/zstd
+	url = https://github.com/facebook/zstd.git
+	ignore = dirty
