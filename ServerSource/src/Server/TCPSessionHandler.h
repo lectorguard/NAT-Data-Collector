@@ -46,8 +46,16 @@ namespace TCPSessionHandler
 			len = co_await async_read(s, asio::buffer(read_buffer), asio::transfer_exactly(next_msg_len), asio::use_awaitable);
 			
 			// Handle transaction
-			shared::ServerResponse response = TransactionFactory::Handle(std::string(read_buffer, len));
-			std::shared_ptr<std::string> response_string = std::make_unique<std::string>(response.toString());
+			shared::ServerResponse::Helper response = TransactionFactory::Handle(std::string(read_buffer, len));
+			std::vector<jser::JSerError> jser_errors;
+			std::string result_buffer = response.SerializeObjectString(std::back_inserter(jser_errors));
+			if (jser_errors.size() > 0)
+			{
+				std::cout << "Failed to deserialize request answer" << std::endl;
+				break;
+			}
+
+			std::shared_ptr<std::string> response_string = std::make_unique<std::string>(result_buffer);
 
 			// Send response
 			len = co_await asio::async_write(s, asio::buffer(*response_string), asio::redirect_error(asio::use_awaitable, error));

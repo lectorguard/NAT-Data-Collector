@@ -30,7 +30,7 @@ namespace shared
 		};
 		
 		template<typename ...Args>
-		static RequestClient Create(const shared::ClientID& sample, Args&& ... args)
+		static ServerRequest Create(const shared::ClientID& sample, Args&& ... args)
 		{
 			Meta meta_data{ std::forward<Args>(args)... };
 			return { RequestType::GET_SCORES, std::make_unique<ClientID>(sample), std::make_unique<Meta>(meta_data) };

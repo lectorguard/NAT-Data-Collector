@@ -39,22 +39,14 @@ namespace utilities
 		{
 			return response;
 		}
-		if (response.messages.size() == 1)
+		T toDeserialize;
+		std::vector<jser::JSerError> jser_errors;
+		toDeserialize.DeserializeObject(response.answer, std::back_inserter(jser_errors));
+		if (jser_errors.size() > 0)
 		{
-			T toDeserialize;
-			std::vector<jser::JSerError> jser_errors;
-			toDeserialize.DeserializeObject(response.messages[0], std::back_inserter(jser_errors));
-			if (jser_errors.size() > 0)
-			{
-				return shared::helper::HandleJserError(jser_errors, "TryGetObjectFromResponse : Error during deserialization of server response");
-			}
-			return toDeserialize;
+			return shared::helper::HandleJserError(jser_errors, "TryGetObjectFromResponse : Error during deserialization of server response");
 		}
-		else
-		{
-			return shared::ServerResponse::Warning({ "Function TryGetObjectFromResponse, expected a single response message" });
-		}
-
+		return toDeserialize;
 	}
 
 	inline std::optional<std::string> GetAndroidID(struct android_app* native_app)

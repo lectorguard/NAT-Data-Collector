@@ -9,7 +9,7 @@ shared::Result<std::string> HTTPTask::SimpleHttpRequest(std::string_view request
 	using asio_tcp = asio::ip::tcp;
 	using namespace shared;
 
-	ServerResponse response{ ResponseType::OK, {""} };
+	ServerResponse response = ServerResponse::OK();
 	asio::io_context io_context;
 	asio_tcp::resolver resolver{ io_context };
 	asio_tcp::socket sock{ io_context };

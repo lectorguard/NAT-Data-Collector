@@ -5,12 +5,12 @@
 #include "CustomCollections/Log.h"
 #include "SharedHelpers.h"
 
-shared::ServerResponse TCPTask::ServerTransaction(shared::RequestClient&& request, std::string server_addr, uint16_t server_port)
+shared::ServerResponse TCPTask::ServerTransaction(shared::ServerRequest&& request, std::string server_addr, uint16_t server_port)
 {
 	using asio_tcp = asio::ip::tcp;
 	using namespace shared;
 
-	ServerResponse response{ ResponseType::OK, {""} };
+	ServerResponse response = ServerResponse::OK();
 	asio::io_context io_context;
 	asio_tcp::resolver resolver{ io_context };
 	asio_tcp::socket socket{ io_context };

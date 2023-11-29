@@ -25,7 +25,7 @@ namespace shared
 		};
 
 		template<typename ...Args>
-		static RequestClient Create(const shared::NATSample& sample, Args&& ... args)
+		static ServerRequest Create(const shared::NATSample& sample, Args&& ... args)
 		{
 			Meta meta_data{ std::forward<Args>(args)... };
 			return { RequestType::INSERT_MONGO, std::make_unique<NATSample>(sample), std::make_unique<Meta>(meta_data) };
