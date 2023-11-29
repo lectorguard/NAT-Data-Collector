@@ -4,6 +4,7 @@
 #include "RequestFactory.h"
 #include "SharedProtocol.h"
 #include "SharedHelpers.h"
+#include "Data/Address.h"
 
 namespace shared
 {
@@ -24,16 +25,10 @@ namespace shared
 		};
 
 		template<typename ...Args>
-		static Result<ServerRequest> Create(const std::string& request, Args&& ... args)
+		static RequestClient Create(const shared::NATSample& sample, Args&& ... args)
 		{
 			Meta meta_data{ std::forward<Args>(args)... };
-			std::vector<jser::JSerError> jser_errors;
-			const std::string meta_data_string = meta_data.SerializeObjectString(std::back_inserter(jser_errors));
-			if (jser_errors.size() > 0)
-			{
-				return helper::HandleJserError(jser_errors, "Failed to serialize meta_data during INSERT_MONGO server request creation");
-			}
-			return ServerRequest(RequestType::INSERT_MONGO, request, meta_data_string);
+			return { RequestType::INSERT_MONGO, std::make_unique<NATSample>(sample), std::make_unique<Meta>(meta_data) };
 		}
 	};
 

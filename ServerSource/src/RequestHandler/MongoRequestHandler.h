@@ -13,21 +13,29 @@ inline static std::mutex mongoWriteMutex{};
 template<>
 struct RequestHandler<shared::RequestType::INSERT_MONGO>
 {
-	static const shared::ServerResponse Handle(const std::string content, const std::string meta_data_string)
+	static const shared::ServerResponse Handle(std::string req)
 	{
 		using namespace shared;
-		RequestFactory<RequestType::INSERT_MONGO>::Meta meta_data;
-		std::vector<jser::JSerError> jser_errors;
-		meta_data.DeserializeObject(meta_data_string, std::back_inserter(jser_errors));
-		if (jser_errors.size() > 0)
+		RequestServer<NATSample, RequestFactory<RequestType::INSERT_MONGO>::Meta> request;
+		std::vector<jser::JSerError> errors;
+		request.DeserializeObject(req, std::back_inserter(errors));
+		if (errors.size() > 0)
 		{
-			return helper::HandleJserError(jser_errors, "Failed to deserialize Server Request : Insert Mongo Meta Data");
+			std::vector<std::string> error_messages = shared::helper::mapVector<jser::JSerError, std::string>(errors, [](auto e) {return e.Message; });
+			error_messages.push_back("Handle insert mongo request");
+			return shared::ServerResponse::Error(error_messages);
 		}
 
-		
+		std::vector<jser::JSerError> jser_errors;
+		std::string content_string = request.req_data.SerializeObjectString(std::back_inserter(jser_errors));
+		if (jser_errors.size() > 0)
+		{
+			return helper::HandleJserError(jser_errors, "Failed to serialize request data server side : Insert Mongo Meta Data");
+		}
+
 		// Data races are possible when same user writes to same document/collection
 		std::scoped_lock lock{ mongoWriteMutex };
-		return mongoUtils::InsertElementToCollection(content, meta_data.db_name, meta_data.coll_name);
+		return mongoUtils::InsertElementToCollection(content_string, request.req_meta_data.db_name, request.req_meta_data.coll_name);
 	}
 };
 
@@ -35,38 +43,30 @@ struct RequestHandler<shared::RequestType::INSERT_MONGO>
 template<>
 struct RequestHandler<shared::RequestType::GET_SCORES>
 {
-	static const shared::ServerResponse Handle(const std::string content, const std::string meta_data_string)
+	static const shared::ServerResponse Handle(std::string req)
 	{
 		using namespace shared;
-
-		// Retrieve content
-		ClientID client_id;
-		std::vector<jser::JSerError> jser_errors;
-		client_id.DeserializeObject(content, std::back_inserter(jser_errors));
-		if (jser_errors.size() > 0)
+		RequestServer<ClientID, RequestFactory<RequestType::GET_SCORES>::Meta> request;
+		std::vector<jser::JSerError> errors;
+		request.DeserializeObject(req, std::back_inserter(errors));
+		if (errors.size() > 0)
 		{
-			return helper::HandleJserError(jser_errors, "Failed to deserialize Client Id during score request");
+			std::vector<std::string> error_messages = shared::helper::mapVector<jser::JSerError, std::string>(errors, [](auto e) {return e.Message; });
+			error_messages.push_back("Get Scores from Server");
+			return shared::ServerResponse::Error(error_messages);
 		}
 
 		// json client id
-		nlohmann::json client_json = client_id.SerializeObjectJson(std::back_inserter(jser_errors));
+		std::vector<jser::JSerError> jser_errors;
+		nlohmann::json client_json = request.req_data.SerializeObjectJson(std::back_inserter(jser_errors));
 		if (jser_errors.size() > 0)
 		{
 			return helper::HandleJserError(jser_errors, "Failed to deserialize Client Id during score request");
-		}
-
-
-		// Retrieve meta data
-		RequestFactory<RequestType::GET_SCORES>::Meta meta_data;
-		meta_data.DeserializeObject(meta_data_string, std::back_inserter(jser_errors));
-		if (jser_errors.size() > 0)
-		{
-			return helper::HandleJserError(jser_errors, "Failed to deserialize Server Request : Insert Mongo Meta Data");
 		}
 
 		// Mongo Update Parameter
 		nlohmann::json query;
-		query["android_id"] = client_id.android_id;
+		query["android_id"] = request.req_data.android_id;
 		nlohmann::json update;
 		update["$set"] = client_json;
 		nlohmann::json update_options;
@@ -78,14 +78,14 @@ struct RequestHandler<shared::RequestType::GET_SCORES>
 			// Update current user information
 			{
 				std::scoped_lock lock{ mongoWriteMutex };
-				result = mongoUtils::UpdateElementInCollection(query.dump(), update.dump(), update_options.dump(), meta_data.db_name, meta_data.users_coll_name);
+				result = mongoUtils::UpdateElementInCollection(query.dump(), update.dump(), update_options.dump(), request.req_meta_data.db_name, request.req_meta_data.users_coll_name);
 			}
 			if (!result)
 				break;
 
 			// Get all users 
 			Scores all_scores;
-			result = mongoUtils::FindElementsInCollection("{}", meta_data.db_name, meta_data.users_coll_name, [&all_scores](mongoc_cursor_t* cursor, int64_t length)
+			result = mongoUtils::FindElementsInCollection("{}", request.req_meta_data.db_name, request.req_meta_data.users_coll_name, [&all_scores](mongoc_cursor_t* cursor, int64_t length)
 				{
 					return std::visit(shared::helper::Overloaded
 						{
@@ -104,7 +104,8 @@ struct RequestHandler<shared::RequestType::GET_SCORES>
 			{
 				nlohmann::json user_query;
 				user_query["meta_data.android_id"] = user.android_id;
-				result = mongoUtils::FindElementsInCollection(user_query.dump(), meta_data.db_name, meta_data.data_coll_name, [&user](mongoc_cursor_t* cursor, int64_t length)
+				result = mongoUtils::FindElementsInCollection(user_query.dump(), request.req_meta_data.db_name, request.req_meta_data.data_coll_name, 
+					[&user](mongoc_cursor_t* cursor, int64_t length)
 					{
 						user.uploaded_samples = length > 0 ? length : 0;
 						return ServerResponse::OK();

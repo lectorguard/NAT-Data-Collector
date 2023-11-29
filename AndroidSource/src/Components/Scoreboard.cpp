@@ -46,28 +46,16 @@ void Scoreboard::Update(Application* app)
 		Log::Info("Started requesting Scoreboard Entries");
 
 		using namespace shared;
+		using Factory = RequestFactory<RequestType::GET_SCORES>;
 
 		// Get reference
 		UserData& user_data = app->_components.Get<UserData>();
 		NatCollector& nat_collector = app->_components.Get<NatCollector>();
 		// Create client id
 		ClientID client_id{ nat_collector.client_meta_data.android_id, user_data.info.username, user_data.info.show_score, 0 };
-		Result<ServerRequest> request_result = helper::CreateServerRequest<RequestType::GET_SCORES>(client_id,
-																									MONGO_DB_NAME,
-																									MONGO_NAT_USERS_COLL_NAME,
-																									MONGO_NAT_SAMPLES_COLL_NAME);
-		if (auto request = std::get_if<ServerRequest>(&request_result))
-		{
-			scoreboard_transaction = std::async(TCPTask::ServerTransaction, *request, SERVER_IP, SERVER_TRANSACTION_TCP_PORT);
-			current = ScoreboardSteps::UpdateRequestScores;
-			break;
-		}
-		else
-		{
-			Log::HandleResponse(std::get<shared::ServerResponse>(request_result), "Create Scoreboard Entry request");
-			current = ScoreboardSteps::Idle;
-			break;
-		}
+		auto request = Factory::Create(client_id, MONGO_DB_NAME, MONGO_NAT_USERS_COLL_NAME, MONGO_NAT_SAMPLES_COLL_NAME);
+		scoreboard_transaction = std::async(TCPTask::ServerTransaction, std::move(request), SERVER_IP, SERVER_TRANSACTION_TCP_PORT);
+		current = ScoreboardSteps::UpdateRequestScores;
 		break;
 	}
 	case ScoreboardSteps::UpdateRequestScores:

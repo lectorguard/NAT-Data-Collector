@@ -212,23 +212,14 @@ void NatCollector::Update(Application* app)
 	{
 		Log::Info( "Started upload to DB");
 		using namespace shared;
+		using Factory = RequestFactory<RequestType::INSERT_MONGO>;
+
 		// Create Object
 		NATSample sampleToInsert{ client_meta_data, time_stamp, collect_config.time_between_requests_ms, client_connect_type, collected_nat_data };
-		Result<ServerRequest> request_result = 
-			helper::CreateServerRequest<RequestType::INSERT_MONGO>(sampleToInsert, MONGO_DB_NAME, MONGO_NAT_SAMPLES_COLL_NAME);
-		if (auto request = std::get_if<ServerRequest>(&request_result))
-		{
-			Log::Info("Sample size : %d byte, Meta data size : %d byte", request->req_data.size(), request->req_meta_data.size());
-			transaction_task = std::async(TCPTask::ServerTransaction, *request, SERVER_IP, SERVER_TRANSACTION_TCP_PORT);
-			current = NatCollectionSteps::UpdateUploadDB;
-			break;
-		}
-		else
-		{
-			Log::HandleResponse(std::get<shared::ServerResponse>(request_result), "Create DB Insertion Request");
-			current = NatCollectionSteps::Error;
-			break;
-		}
+		auto request = Factory::Create(sampleToInsert, MONGO_DB_NAME, MONGO_NAT_SAMPLES_COLL_NAME);
+
+		transaction_task = std::async(TCPTask::ServerTransaction,std::move(request), SERVER_IP, SERVER_TRANSACTION_TCP_PORT);
+		current = NatCollectionSteps::UpdateUploadDB;
 		break;
 	}
 	case NatCollectionSteps::UpdateUploadDB:

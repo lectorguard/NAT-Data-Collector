@@ -5,7 +5,7 @@
 #include "CustomCollections/Log.h"
 #include "SharedHelpers.h"
 
-shared::ServerResponse TCPTask::ServerTransaction(shared::ServerRequest request, std::string_view server_addr, uint16_t server_port)
+shared::ServerResponse TCPTask::ServerTransaction(shared::RequestClient&& request, std::string server_addr, uint16_t server_port)
 {
 	using asio_tcp = asio::ip::tcp;
 	using namespace shared;
@@ -28,7 +28,6 @@ shared::ServerResponse TCPTask::ServerTransaction(shared::ServerRequest request,
 		std::string toSend = request.SerializeObjectString(std::back_inserter(jser_error));
 		response = shared::helper::HandleJserError(jser_error, "Serialize Server Request during Transaction Attempt");
 		if (!response) break;
-
 
 		std::stringstream ss;
 		ss << std::setw(5) << std::setfill('0') << toSend.size();
