@@ -24,7 +24,12 @@ source_group(TREE "${shared_data_path}" PREFIX "Shared" FILES ${SHARED_FILES})
 
 add_library(native-activity SHARED ${ALL_FILES} ${SHARED_FILES})
 
-target_include_directories(native-activity PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src/ ${shared_data_path} ${imgui_source_path})
+target_include_directories(native-activity PRIVATE 
+	${CMAKE_CURRENT_SOURCE_DIR}/src/ 
+	${shared_data_path}
+	${imgui_source_path}
+	${lib_zstd_include_path}
+	)
 target_link_libraries(native-activity
     android
     native_app_glue
@@ -36,4 +41,5 @@ target_link_libraries(native-activity
     nlohmann_json
     JSerializerLib
     asio
-    imgui)
+    imgui
+	libzstd_shared)

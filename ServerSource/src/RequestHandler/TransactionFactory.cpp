@@ -1,7 +1,7 @@
 #include "TransactionFactory.h"
 #include "SharedHelpers.h"
 
-const shared::ServerResponse::Helper TransactionFactory::Handle(const std::string& request)
+const shared::ServerResponse::Helper TransactionFactory::Handle(nlohmann::json request)
 {
 	using namespace shared;
 	std::vector<jser::JSerError> errors;

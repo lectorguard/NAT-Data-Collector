@@ -9,7 +9,7 @@ struct TransactionFactory
 {
 public:
 
-	static const shared::ServerResponse::Helper Handle(const std::string& request);
+	static const shared::ServerResponse::Helper Handle(nlohmann::json request);
 
 private:
 	using RequestMap = std::unordered_map<shared::RequestType, std::function<const shared::ServerResponse::Helper(nlohmann::json, nlohmann::json)>>;

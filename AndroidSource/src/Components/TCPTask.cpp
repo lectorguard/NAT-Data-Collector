@@ -4,6 +4,7 @@
 #include "Utilities/NetworkHelpers.h"
 #include "CustomCollections/Log.h"
 #include "SharedHelpers.h"
+#include "Compression.h"
 
 shared::ServerResponse TCPTask::ServerTransaction(shared::ServerRequest&& request, std::string server_addr, uint16_t server_port)
 {
@@ -25,34 +26,41 @@ shared::ServerResponse TCPTask::ServerTransaction(shared::ServerRequest&& reques
 
 		// Serialize Request to String
 		std::vector<jser::JSerError> jser_error;
-		std::string toSend = request.SerializeObjectString(std::back_inserter(jser_error));
+		nlohmann::json jsonToSend = request.SerializeObjectJson(std::back_inserter(jser_error));
 		response = shared::helper::HandleJserError(jser_error, "Serialize Server Request during Transaction Attempt");
 		if (!response) break;
 
+		// Compress
+		const std::vector<uint8_t> data_compressed = shared::compressZstd(shared::JsonToMsgPack(jsonToSend));
+
+		// Prepare message length
 		std::stringstream ss;
-		ss << std::setw(5) << std::setfill('0') << toSend.size();
+		ss << std::setw(5) << std::setfill('0') << data_compressed.size();
 		std::string buffer_len = ss.str();
 
+		// Write message length
 		asio::write(socket, asio::buffer(buffer_len), asio_error);
 		response = shared::helper::HandleAsioError(asio_error, "Write Server Message length");
 		if (!response) break;
 
-		// Send Request to Server
-		//Log::Info( "Send Info : %s", toSend.c_str());
-		asio::write(socket, asio::buffer(toSend), asio_error);
+		// Write actual data
+		asio::write(socket, asio::buffer(data_compressed), asio_error);
 		response = shared::helper::HandleAsioError(asio_error, "Write Server Transaction Request");
 		if (!response) break;
 
 		// Receive Answer from Server
-		char buf[BUFFER_SIZE];
+		std::vector<uint8_t> buf;
+		buf.reserve(BUFFER_SIZE);
 		std::size_t len = socket.read_some(asio::buffer(buf), asio_error);
 		response = shared::helper::HandleAsioError(asio_error, "Read Answer from Server Request");
 		if (!response) break;
-		//Log::Warning( "Server answer : %s ", buf);
+		
+		// Decompress
+		nlohmann::json decompressed_answer = shared::MsgPackToJson(shared::decompressZstd(buf));
 
 		// Deserialize Server Answer
 		ServerResponse server_answer;
-		server_answer.DeserializeObject(std::string{ buf, len }, std::back_inserter(jser_error));
+		server_answer.DeserializeObject(decompressed_answer, std::back_inserter(jser_error));
 		response = shared::helper::HandleJserError(jser_error, "Deserialize Server Answer during Transaction");
 		if (!response) break;
 

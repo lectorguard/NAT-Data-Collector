@@ -20,8 +20,6 @@ set(ZSTD_BUILD_TESTS OFF)
 set(ZSTD_BUILD_CONTRIB OFF)
 set(ZSTD_LEGACY_SUPPORT ON)
 set(lib_zstd_include_path ${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty/zstd/lib)
-# Remove the file during the build process
-file(REMOVE "ThirdParty/zstd/lib/decompress/huf_decompress_amd64.S")
 add_subdirectory(ThirdParty/zstd/build/cmake)
 
 

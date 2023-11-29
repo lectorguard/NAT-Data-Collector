@@ -6,6 +6,7 @@
 #include "asio/use_awaitable.hpp"
 #include <functional>
 #include "RequestHandler/TransactionFactory.h"
+#include "Compression.h"
 
 namespace TCPSessionHandler
 {
@@ -38,15 +39,21 @@ namespace TCPSessionHandler
 			// Init
  			asio::error_code error;
 			
+			// Read message length
 			char len_buffer[5];
 			std::size_t len = co_await async_read(s, asio::buffer(len_buffer), asio::transfer_exactly(5), asio::use_awaitable);
 			int next_msg_len = std::stoi(std::string(len_buffer, len));
 
-			char read_buffer[BUFFER_SIZE];
-			len = co_await async_read(s, asio::buffer(read_buffer), asio::transfer_exactly(next_msg_len), asio::use_awaitable);
+			// Read actual data
+			std::vector<uint8_t> buf;
+			buf.reserve(BUFFER_SIZE);
+			len = co_await async_read(s, asio::buffer(buf), asio::transfer_exactly(next_msg_len), asio::use_awaitable);
 			
+			// Decompress
+			nlohmann::json decompressed_answer = shared::MsgPackToJson(shared::decompressZstd(buf));
+
 			// Handle transaction
-			shared::ServerResponse::Helper response = TransactionFactory::Handle(std::string(read_buffer, len));
+			shared::ServerResponse::Helper response = TransactionFactory::Handle(decompressed_answer);
 			std::vector<jser::JSerError> jser_errors;
 			std::string result_buffer = response.SerializeObjectString(std::back_inserter(jser_errors));
 			if (jser_errors.size() > 0)
