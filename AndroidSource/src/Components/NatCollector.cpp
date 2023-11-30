@@ -144,6 +144,7 @@ void NatCollector::Update(Application* app)
 				{
 					// Set client meta data
 					client_meta_data.nat_type = GetMostLikelyNatType(identified_nat_types);
+					identified_nat_types.clear();
 					Log::Info("Identified NAT type %s", shared::nat_to_string.at(client_meta_data.nat_type).c_str());
 #if RANDOM_SYM_NAT_REQUIRED
 					NatTypeIdentifiedEvent.Publish(client_meta_data.nat_type);
@@ -156,6 +157,7 @@ void NatCollector::Update(Application* app)
 					{
 						Log::Warning("Identified NAT type is not eligible for network data collection.");
 						Log::Warning("Abort ...");
+						// Must be idle, user is asked to restart process
 						current = NatCollectionSteps::Idle;
 					}
 #else
@@ -192,7 +194,7 @@ void NatCollector::Update(Application* app)
 				if (sample->address_vector.empty())
 				{
 					Log::Error("Failed to get any ports");
-					current = NatCollectionSteps::Error;
+					current = NatCollectionSteps::StartWait;
 					break;
 				}
 				collected_nat_data = sample->address_vector;
@@ -202,7 +204,7 @@ void NatCollector::Update(Application* app)
 			else
 			{
 				Log::HandleResponse(std::get<shared::ServerResponse>(*res), "Collect NAT Samples Server Response");
-				current = NatCollectionSteps::Error;
+				current = NatCollectionSteps::StartWait;
 				break;
 			}
 		}
@@ -234,7 +236,8 @@ void NatCollector::Update(Application* app)
 			}
 			else
 			{
-				current = NatCollectionSteps::Error;
+				// In error case, we try again later
+				current = NatCollectionSteps::StartWait;
 				break;
 			}
 		}
@@ -252,7 +255,8 @@ void NatCollector::Update(Application* app)
 		if (wait_timer.HasExpired())
 		{
 			wait_timer.SetActive(false);
-			current = NatCollectionSteps::StartCollectPorts;
+			Log::Info("Waiting finished");
+			current = NatCollectionSteps::StartNATInfo;
 		}
 		break;
 	}
