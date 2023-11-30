@@ -20,12 +20,15 @@ void UserWindow::Draw(class Application* app)
 	ImGui::SetCursorPosX(io.DisplaySize.x / 2.0f - ImGui::CalcTextSize(header.c_str()).x / 2.0f);
 	ImGui::Text("%s", header.c_str());
 
+	ImGui::PushFont(Renderer::small_font);
+	const std::string version = APP_VERSION;
+	ImGui::SetCursorPosX(io.DisplaySize.x / 2.0f - ImGui::CalcTextSize(version.c_str()).x / 2.0f);
+	ImGui::Text("%s", version.c_str());
+	ImGui::PopFont();
+
 	// Font change
 	ImGui::PopFont();
 	ImGui::PushFont(Renderer::medium_font);
-
-
-	ImGui::Dummy(ImVec2(0, Renderer::CentimeterToPixel(0.1f)));
 
 	ImGui::Columns(2, "Pairs", false);
 	ImGui::SetColumnWidth(0, settings.LeftColumnWidth * io.DisplaySize.x);
