@@ -31,15 +31,11 @@ shared::ServerResponse TCPTask::ServerTransaction(shared::ServerRequest&& reques
 		if (!response) break;
 
 		// Compress
-		const std::vector<uint8_t> data_compressed = shared::compressZstd(shared::JsonToMsgPack(jsonToSend));
-
-		// Prepare message length
-		std::stringstream ss;
-		ss << std::setw(5) << std::setfill('0') << data_compressed.size();
-		std::string buffer_len = ss.str();
+		const std::vector<uint8_t> data_compressed = shared::compressZstd(nlohmann::json::to_msgpack(jsonToSend));
 
 		// Write message length
-		asio::write(socket, asio::buffer(buffer_len), asio_error);
+		const std::string msg_length = shared::encodeMsgLength(data_compressed.size());
+		asio::write(socket, asio::buffer(msg_length), asio_error);
 		response = shared::helper::HandleAsioError(asio_error, "Write Server Message length");
 		if (!response) break;
 
@@ -48,15 +44,22 @@ shared::ServerResponse TCPTask::ServerTransaction(shared::ServerRequest&& reques
 		response = shared::helper::HandleAsioError(asio_error, "Write Server Transaction Request");
 		if (!response) break;
 
+		// Read Server Message Length
+		char len_buffer[5] = { 0 };
+		std::size_t len = asio::read(socket, asio::buffer(len_buffer), asio_error);
+		response = shared::helper::HandleAsioError(asio_error, "Read length of server answer");
+		if (!response) break;
+		uint32_t next_msg_len = std::stoi(std::string(len_buffer, len));
+
 		// Receive Answer from Server
 		std::vector<uint8_t> buf;
-		buf.reserve(BUFFER_SIZE);
-		std::size_t len = socket.read_some(asio::buffer(buf), asio_error);
+		buf.resize(next_msg_len);
+		asio::read(socket, asio::buffer(buf), asio_error);
 		response = shared::helper::HandleAsioError(asio_error, "Read Answer from Server Request");
 		if (!response) break;
 		
 		// Decompress
-		nlohmann::json decompressed_answer = shared::MsgPackToJson(shared::decompressZstd(buf));
+		nlohmann::json decompressed_answer = nlohmann::json::from_msgpack(shared::decompressZstd(buf));
 
 		// Deserialize Server Answer
 		ServerResponse server_answer;

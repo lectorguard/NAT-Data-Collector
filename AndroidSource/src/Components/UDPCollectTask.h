@@ -7,7 +7,7 @@
 
 class UDPCollectTask
 {
-	using AddressBuffer = std::array<char, 1024>;
+	using AddressBuffer = std::array<uint8_t, 1024>;
 	using SharedEndpoint = std::shared_ptr<asio::ip::udp::endpoint>;
 public:
 	struct CollectInfo

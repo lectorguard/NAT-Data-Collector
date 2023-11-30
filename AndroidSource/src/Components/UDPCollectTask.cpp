@@ -144,7 +144,7 @@ void UDPCollectTask::send_request(Socket& local_socket, asio::io_service& io_ser
 
 	shared::Address address{ local_socket.index, shared::helper::CreateTimeStampOnlyMS() };
 	std::vector<jser::JSerError> jser_errors;
-	std::string serialized_address = address.SerializeObjectString(std::back_inserter(jser_errors));
+	const nlohmann::json address_json = address.SerializeObjectJson(std::back_inserter(jser_errors));
 	if (jser_errors.size() > 0)
 	{
 		auto error_string_list = shared::helper::JserErrorToString(jser_errors);
@@ -155,7 +155,7 @@ void UDPCollectTask::send_request(Socket& local_socket, asio::io_service& io_ser
 		return;
 	}
 	// create heap object
-	auto shared_serialized_address = std::make_shared<std::string>(serialized_address);
+	auto shared_serialized_address = std::make_shared<std::vector<uint8_t>>(nlohmann::json::to_msgpack(address_json));
 
 	local_socket.socket->async_send_to(asio::buffer(*shared_serialized_address), *remote_endpoint,
 		[this,&local_socket, shared_serialized_address, &io_service](const std::error_code& ec, std::size_t bytesTransferred)
@@ -218,11 +218,10 @@ void UDPCollectTask::handle_receive(std::shared_ptr<AddressBuffer> buffer, std::
 		return;
 	}
 
-
-	std::string received(buffer->data(), len);
+	nlohmann::json json_buffer = nlohmann::json::from_msgpack(buffer->begin(), buffer->begin() + len);
 	shared::Address address{};
 	std::vector<jser::JSerError> jser_errors;
-	address.DeserializeObject(received, std::back_inserter(jser_errors));
+	address.DeserializeObject(json_buffer, std::back_inserter(jser_errors));
 	if (jser_errors.size() > 0)
 	{
 		auto error_string_list = shared::helper::JserErrorToString(jser_errors);

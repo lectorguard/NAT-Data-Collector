@@ -1,6 +1,6 @@
 #include "AddressRequest.h"
-#include "Utils/ServerUtils.h"
 #include "SharedHelpers.h"
+#include "Data/Address.h"
 
 
 void UDP_Adresss_Echo_Server::StartService(uint16_t port)
@@ -40,10 +40,10 @@ void UDP_Adresss_Echo_Server::handle_receive(const std::error_code& error, std::
 			break;
 		}
 
-		std::string received{ buffer->data(), n };
+		nlohmann::json json_buffer = nlohmann::json::from_msgpack(buffer->begin(), buffer->begin() + n);
 		shared::Address address{};
 		std::vector<jser::JSerError> jser_errors;
-		address.DeserializeObject(received, std::back_inserter(jser_errors));
+		address.DeserializeObject(json_buffer, std::back_inserter(jser_errors));
 		if (jser_errors.size() > 0)
 		{
 			std::cout << "UDP address server failed to serialize single request (address)" << std::endl;
@@ -54,27 +54,32 @@ void UDP_Adresss_Echo_Server::handle_receive(const std::error_code& error, std::
 			break;
 		}
 
-		if (auto sendMsg = ServerUtils::CreateJsonFromEndpoint(*remote_endpoint, address))
+		// Serialize Address answer
+		shared::Address answer{ remote_endpoint->address().to_string(), remote_endpoint->port(), address.rtt_ms, address.index };
+		std::vector<jser::JSerError> errors;
+		const nlohmann::json answer_json = answer.SerializeObjectJson(std::back_inserter(errors));
+		if (errors.size() > 0)
 		{
-			_socket.async_send_to(asio::buffer(*sendMsg), *remote_endpoint,
-				[this, sendMsg](const std::error_code& ec, std::size_t bytesTransferred)
-				{
-					handle_send(ec, bytesTransferred, sendMsg);
-				});
+			auto resp = shared::helper::HandleJserError(jser_errors, "Serialize address request answer failed !");
+			for (auto m : resp.messages) std::cout << "Jser error : " << m << std::endl;
 			break;
 		}
-		else
-		{
-			std::cout << "Error creating JSON from Endpoint (UDP Address Echo Server) " << std::endl;
-			break;
-		}
+
+		// Send to client
+		auto compressed_answer = std::make_shared<std::vector<uint8_t>>(nlohmann::json::to_msgpack(answer_json));
+		_socket.async_send_to(asio::buffer(*compressed_answer), *remote_endpoint,
+			[this, compressed_answer](const std::error_code& ec, std::size_t bytesTransferred)
+			{
+				handle_send(ec, bytesTransferred, compressed_answer);
+			});
+		break;
 	}
 	buffer.reset();
 	remote_endpoint.reset();
 	start_receive();
 }
 
-void UDP_Adresss_Echo_Server::handle_send(const std::error_code& ec, std::size_t byteTransferred, std::shared_ptr<std::string> msg)
+void UDP_Adresss_Echo_Server::handle_send(const std::error_code& ec, std::size_t byteTransferred, std::shared_ptr<std::vector<uint8_t>> msg)
 {
 	//std::cout << "Replied request : " << *msg << std::endl;
 }
