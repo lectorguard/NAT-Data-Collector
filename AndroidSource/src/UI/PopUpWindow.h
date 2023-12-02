@@ -3,6 +3,7 @@
 #include "imgui.h"
 #include <vector>
 #include <string>
+#include "MainScreen.h"
 
 class PopUpWindow
 {

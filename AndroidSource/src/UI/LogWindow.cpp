@@ -5,10 +5,12 @@
 #include "Components/NatCollector.h"
 #include "Data/Address.h"
 #include "string"
+#include "StyleConstants.h"
 
 void LogWindow::Draw(Application* app)
 {
 	ImGui::PushFont(Renderer::small_font);
+	ImGui::PushStyleVar(ImGuiStyleVar_ScrollbarSize, Renderer::CentimeterToPixel(StyleConstants::ScrollbarSizeCM));
 	ImGui::Begin("BotWindow", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_AlwaysHorizontalScrollbar | ImGuiWindowFlags_NoTitleBar);
 	for (auto info : Log::GetLog())
 	{
@@ -36,4 +38,5 @@ void LogWindow::Draw(Application* app)
 
 	ImGui::End();
 	ImGui::PopFont(); //small font
+	ImGui::PopStyleVar();
 }

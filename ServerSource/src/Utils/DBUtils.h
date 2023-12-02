@@ -136,6 +136,11 @@ namespace mongoUtils
 	{
 		using namespace shared;
 
+		if (!cursor)
+		{
+			return ServerResponse::Warning({ "Document Cursor is invalid or empty" });
+		}
+
 		bson_error_t error;
 		if (mongoc_cursor_error(cursor, &error))
 		{

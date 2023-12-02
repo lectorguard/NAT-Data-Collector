@@ -52,40 +52,51 @@ namespace shared
 		{
 			ResponseType resp_type{ ResponseType::OK };
 			std::vector<std::string> messages{};
-			std::unique_ptr<JSerializable> answer = nullptr;
+			nlohmann::json answer;
 			
 			Helper() {};
-			Helper(ResponseType resp_type, std::vector<std::string> messages, std::unique_ptr<JSerializable>&& answer) :
+			Helper(ResponseType resp_type, std::vector<std::string> messages, nlohmann::json answer) :
 				resp_type(resp_type),
 				messages(messages),
-				answer(std::move(answer)) {};
-
-			static Helper Create(ServerResponse s, std::unique_ptr<JSerializable>&& answer = nullptr)
-			{
-				return Helper(s.resp_type, s.messages, std::move(answer));
-			}
+				answer(answer) {};
 
 			jser::JserChunkAppender AddItem() override
 			{
 				return JSerializable::AddItem().Append(JSER_ADD(SerializeManagerType, resp_type, messages, answer));
+			}
+
+			operator bool() const
+			{
+				return resp_type == ResponseType::OK || resp_type == ResponseType::ANSWER;
 			}
 		};
 
 
 		ResponseType resp_type{ ResponseType::OK };
 		std::vector<std::string> messages{};
-		nlohmann::json answer;
+		std::unique_ptr<JSerializable> answer = nullptr;
 		
 		ServerResponse() {};
-		ServerResponse(ResponseType resp_type, std::vector<std::string> messages, nlohmann::json answer) :
+		ServerResponse(ResponseType resp_type, std::vector<std::string> messages, std::unique_ptr<JSerializable>&& answer) :
 			resp_type(resp_type),
 			messages(messages),
-			answer(answer)
+			answer(std::move(answer))
 		{}
+
+		// answers are not transfered only basic response
+		Helper ToSimpleHelper()
+		{
+			return Helper(resp_type, messages, nullptr);
+		}
 
 		jser::JserChunkAppender AddItem() override
 		{
 			return JSerializable::AddItem().Append(JSER_ADD(SerializeManagerType, resp_type, messages, answer));
+		}
+
+		static ServerResponse Answer(std::unique_ptr<JSerializable>&& reply)
+		{
+			return ServerResponse(ResponseType::ANSWER, {}, std::move(reply));
 		}
 
 		static ServerResponse OK(const std::string& msg = "")
@@ -105,7 +116,7 @@ namespace shared
 
 		operator bool() const 
 		{
-			return resp_type == ResponseType::OK;
+			return resp_type == ResponseType::OK || resp_type == ResponseType::ANSWER;
 		}
 
 		const std::string toString()

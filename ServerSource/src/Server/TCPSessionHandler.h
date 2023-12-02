@@ -53,7 +53,7 @@ namespace TCPSessionHandler
 			nlohmann::json decompressed_answer = nlohmann::json::from_msgpack(shared::decompressZstd(buf));
 
 			// Handle transaction
-			shared::ServerResponse::Helper response = TransactionFactory::Handle(decompressed_answer);
+			shared::ServerResponse response = TransactionFactory::Handle(decompressed_answer);
 			std::vector<jser::JSerError> jser_errors;
 			const nlohmann::json response_json = response.SerializeObjectJson(std::back_inserter(jser_errors));
 			if (jser_errors.size() > 0)

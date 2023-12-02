@@ -4,7 +4,7 @@
 #include "RequestFactory.h"
 #include "SharedProtocol.h"
 #include "SharedHelpers.h"
-#include "Data/Address.h"
+#include "Data/ScoreboardData.h"
 
 namespace shared
 {

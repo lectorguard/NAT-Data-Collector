@@ -28,9 +28,6 @@ public:
 
 	struct Settings
 	{
-		const float LeftColumnWidth = 0.33f;
-		const float ScrollbarSizeCM = 0.45f;
-
 		const float UserWinSize = 0.6f;
 		const float TabWinSize = 0.05f;
 		const float BotWinSize = 0.35f;
@@ -43,21 +40,11 @@ public:
 	UserWindow user_window;
 	LogWindow log_window;
 	ScoreboardWindow scoreboard_window;
-	PopUpWindow pop_up_window;
-	WrongNatTypeWindow wrong_nat_type_window;
 
-
-	void Activate(class Application* app);
-	void Deactivate(class Application* app) {};
 	void Draw(Application* app);
 
 private:
-	void OpenWrongNatWindow(shared::NATType ident_nat);
-	void CloseWrongNatWindow(Application* app);
-	void ClosePopUpAndStartApp(Application* app);
 	ImVec4 log_bc;
 	ImVec4 scoreboard_bc;
 	ImVec4 clipboard_bc;
-	bool showPopup = true;
-	bool wrong_nat_type = false;
 };

@@ -6,12 +6,12 @@
 #include "SharedHelpers.h"
 #include "Compression.h"
 
-shared::ServerResponse TCPTask::ServerTransaction(shared::ServerRequest&& request, std::string server_addr, uint16_t server_port)
+shared::ServerResponse::Helper TCPTask::ServerTransaction(shared::ServerRequest&& request, std::string server_addr, uint16_t server_port)
 {
 	using asio_tcp = asio::ip::tcp;
 	using namespace shared;
 
-	ServerResponse response = ServerResponse::OK();
+	ServerResponse::Helper response = ServerResponse::OK().ToSimpleHelper();
 	asio::io_context io_context;
 	asio_tcp::resolver resolver{ io_context };
 	asio_tcp::socket socket{ io_context };
@@ -21,13 +21,13 @@ shared::ServerResponse TCPTask::ServerTransaction(shared::ServerRequest&& reques
 
 		// Connect to Server
 		asio::connect(socket, resolver.resolve(server_addr, std::to_string(server_port)), asio_error);
-		response = shared::helper::HandleAsioError(asio_error, "Connect to Server for Transaction");
+		response = shared::helper::HandleAsioError(asio_error, "Connect to Server for Transaction").ToSimpleHelper();
 		if (!response) break;
 
 		// Serialize Request to String
 		std::vector<jser::JSerError> jser_error;
 		nlohmann::json jsonToSend = request.SerializeObjectJson(std::back_inserter(jser_error));
-		response = shared::helper::HandleJserError(jser_error, "Serialize Server Request during Transaction Attempt");
+		response = shared::helper::HandleJserError(jser_error, "Serialize Server Request during Transaction Attempt").ToSimpleHelper();
 		if (!response) break;
 
 		// Compress
@@ -36,18 +36,18 @@ shared::ServerResponse TCPTask::ServerTransaction(shared::ServerRequest&& reques
 		// Write message length
 		const std::string msg_length = shared::encodeMsgLength(data_compressed.size());
 		asio::write(socket, asio::buffer(msg_length), asio_error);
-		response = shared::helper::HandleAsioError(asio_error, "Write Server Message length");
+		response = shared::helper::HandleAsioError(asio_error, "Write Server Message length").ToSimpleHelper();
 		if (!response) break;
 
 		// Write actual data
 		asio::write(socket, asio::buffer(data_compressed), asio_error);
-		response = shared::helper::HandleAsioError(asio_error, "Write Server Transaction Request");
+		response = shared::helper::HandleAsioError(asio_error, "Write Server Transaction Request").ToSimpleHelper();
 		if (!response) break;
 
 		// Read Server Message Length
 		char len_buffer[5] = { 0 };
 		std::size_t len = asio::read(socket, asio::buffer(len_buffer), asio_error);
-		response = shared::helper::HandleAsioError(asio_error, "Read length of server answer");
+		response = shared::helper::HandleAsioError(asio_error, "Read length of server answer").ToSimpleHelper();
 		if (!response) break;
 		uint32_t next_msg_len = std::stoi(std::string(len_buffer, len));
 
@@ -55,20 +55,20 @@ shared::ServerResponse TCPTask::ServerTransaction(shared::ServerRequest&& reques
 		std::vector<uint8_t> buf;
 		buf.resize(next_msg_len);
 		asio::read(socket, asio::buffer(buf), asio_error);
-		response = shared::helper::HandleAsioError(asio_error, "Read Answer from Server Request");
+		response = shared::helper::HandleAsioError(asio_error, "Read Answer from Server Request").ToSimpleHelper();
 		if (!response) break;
 		
 		// Decompress
 		nlohmann::json decompressed_answer = nlohmann::json::from_msgpack(shared::decompressZstd(buf));
 
 		// Deserialize Server Answer
-		ServerResponse server_answer;
+		ServerResponse::Helper server_answer;
 		server_answer.DeserializeObject(decompressed_answer, std::back_inserter(jser_error));
-		response = shared::helper::HandleJserError(jser_error, "Deserialize Server Answer during Transaction");
+		response = shared::helper::HandleJserError(jser_error, "Deserialize Server Answer during Transaction").ToSimpleHelper();
 		if (!response) break;
 
 		response = server_answer;
-		break;
+		break; 
 	}
 	asio::error_code toIgnore;
 	utilities::ShutdownTCPSocket(socket, toIgnore);

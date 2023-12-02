@@ -9,6 +9,8 @@ public:
 	struct Information : public jser::JSerializable
 	{
 		std::string username{};
+		std::string version_update{};
+		std::string information_identifier{};
 		bool show_score = true;
 		bool ignore_pop_up = false;
 		Information() {};
@@ -19,7 +21,7 @@ public:
 
 		jser::JserChunkAppender AddItem() override
 		{
-			return JSerializable::AddItem().Append(JSER_ADD(SerializeManagerType, username, show_score, ignore_pop_up));
+			return JSerializable::AddItem().Append(JSER_ADD(SerializeManagerType, username, show_score, ignore_pop_up, version_update, information_identifier));
 		}
 	};
 

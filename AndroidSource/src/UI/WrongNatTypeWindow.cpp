@@ -16,6 +16,10 @@ void WrongNatTypeWindow::Draw(class Application* app, std::function<void()> onCl
 
 
 	ImGui::PushFont(Renderer::medium_font);
+
+	ImGuiIO& io = ImGui::GetIO();
+	ImGui::SetNextWindowSize(ImVec2(io.DisplaySize.x * 0.8, io.DisplaySize.y * 0.5));
+	ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x * 0.1, io.DisplaySize.y * 0.25));
 	ImGui::Begin("##Wrong NAT pop up", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoScrollbar);
 
 	// MAIN HEADER

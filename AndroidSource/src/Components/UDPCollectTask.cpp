@@ -127,7 +127,7 @@ shared::Result<shared::AddressVector> UDPCollectTask::start_task_internal(std::f
 	}
 	else
 	{
-		return collectTask.stored_response;
+		return std::move(collectTask.stored_response);
 	}
 }
 

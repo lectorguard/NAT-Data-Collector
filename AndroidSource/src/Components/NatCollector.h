@@ -3,6 +3,7 @@
 #include "SharedProtocol.h"
 #include "Data/Address.h"
 #include "Data/IPMetaData.h"
+#include "Data/WindowData.h"
 #include <future>
 #include "CustomCollections/SimpleTimer.h"
 #include "UDPCollectTask.h"
@@ -11,10 +12,16 @@
 
 
 
+
 enum class NatCollectionSteps : uint16_t
 {
 	Idle = 0,
 	Start,
+	StartVersionUpdate,
+	UpdateVersionUpdate,
+	StartInformationUpdate,
+	UpdateInformationUpdate,
+	WaitForDialogsToClose,
 	StartReadConnectType,
 	StartIPInfo,
 	UpdateIPInfo,
@@ -34,7 +41,7 @@ class NatCollector
 	using IPInfoTask = std::future<shared::Result<std::string>>;
 	using NATIdentTask = std::future<shared::Result<shared::AddressVector>>;
 	using NATCollectTask = std::future<shared::Result<shared::AddressVector>>;
-	using TransactionTask = std::future<shared::ServerResponse>;
+	using TransactionTask = std::future<shared::ServerResponse::Helper>;
 
 public:
 	const UDPCollectTask::NatTypeInfo natType_config
@@ -57,17 +64,13 @@ public:
 	void Update(class Application* app);
 
 	void Activate(class Application* app);
-	void OnStart(struct android_app* state);
+	void OnStart(Application* app);
 	void Deactivate(class Application* app);
-	void StartStateMachine() { current = NatCollectionSteps::Start; };
-	shared::ServerResponse RecalculateNAT();
 
 	shared::ClientMetaData client_meta_data{};
 	shared::ConnectionType client_connect_type = shared::ConnectionType::NOT_CONNECTED;
-
-	Event<shared::NATType> NatTypeIdentifiedEvent;
 private:
-	bool CheckClientRelevantAndInform();
+	void OnUserCloseWrongNatWindow(bool recalcNAT);
 
 
 
@@ -81,7 +84,9 @@ private:
 	IPInfoTask ip_info_task;
 	NATIdentTask nat_ident_task;
 	NATCollectTask nat_collect_task;
-	TransactionTask transaction_task;
+	TransactionTask upload_nat_sample;
+	TransactionTask version_update;
+	TransactionTask information_update;
 
 	// Data
 	std::string time_stamp;

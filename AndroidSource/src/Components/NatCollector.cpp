@@ -4,6 +4,7 @@
 #include <chrono>
 #include "SharedProtocol.h"
 #include "Data/Address.h"
+#include "Data/WindowData.h"
 #include "RequestFactories/RequestFactoryHelper.h"
 #include <variant>
 #include "HTTPTask.h"
@@ -12,30 +13,52 @@
 #include "Utilities/NetworkHelpers.h"
 #include "ctime"
 #include "CustomCollections/Log.h"
+#include "UserData.h"
 
 
- void NatCollector::Activate(Application* app)
- {
- 	app->UpdateEvent.Subscribe([this](Application* app) {Update(app); });
-	app->AndroidStartEvent.Subscribe([this](struct android_app* state) {OnStart(state); });
- }
+void NatCollector::Activate(Application* app)
+{
+	app->UpdateEvent.Subscribe([this](Application* app) {Update(app); });
+	app->AndroidStartEvent.Subscribe([this](Application* app) {OnStart(app); });
+	app->_components.Get<WindowManager>().OnNatWindowClosed.Subscribe([this](bool b) {OnUserCloseWrongNatWindow(b); });
+}
 
- void NatCollector::OnStart(android_app* state)
- {
-	 Log::Info("Start reading device android id");
-	 if (auto id = utilities::GetAndroidID(state))
-	 {
-		 client_meta_data.android_id = *id;
-	 }
-	 else
-	 {
-		 client_meta_data.android_id = "Not Identified";
-		 Log::Error("Failed to get android id");
-	 }
- }
+void NatCollector::OnStart(Application* app)
+{
+	Log::Info("Start reading device android id");
+	if (auto id = utilities::GetAndroidID(app->android_state))
+	{
+		client_meta_data.android_id = *id;
+	}
+	else
+	{
+		client_meta_data.android_id = "Not Identified";
+		Log::Error("Failed to get android id");
+	}
+	WindowManager& win_manager = app->_components.Get<WindowManager>();
+	win_manager.PushWindow(WindowStates::PopUp);
+	current = NatCollectionSteps::Start;
+}
+
+void NatCollector::OnUserCloseWrongNatWindow(bool recalcNAT)
+{
+	if (recalcNAT)
+	{
+		if (current == NatCollectionSteps::Idle)
+		{
+			current = NatCollectionSteps::StartNATInfo;
+		}
+		else
+		{
+			Log::Warning("Failed to recalculate NAT");
+		}
+	}
+}
 
 void NatCollector::Update(Application* app)
 {
+	WindowManager& win_manager = app->_components.Get<WindowManager>();
+
 	switch (current)
 	{
 	case NatCollectionSteps::Idle:
@@ -44,7 +67,83 @@ void NatCollector::Update(Application* app)
 	}
 	case NatCollectionSteps::Start:
 	{
-		current = NatCollectionSteps::StartReadConnectType;
+		if (win_manager.GetWindow() == WindowStates::Idle)
+		{
+			current = NatCollectionSteps::StartVersionUpdate;
+		}
+		break;
+	}
+	case NatCollectionSteps::StartVersionUpdate:
+	{
+		using namespace shared;
+		using Factory = RequestFactory<RequestType::GET_VERSION_DATA>;
+		Log::Info("Started check version update");
+
+		auto request = Factory::Create(MONGO_DB_NAME, MONGO_VERSION_COLL_NAME, APP_VERSION);
+		version_update = std::async(TCPTask::ServerTransaction, std::move(request), SERVER_IP, SERVER_TRANSACTION_TCP_PORT);
+		current = NatCollectionSteps::UpdateVersionUpdate;
+		break;
+	}
+	case NatCollectionSteps::UpdateVersionUpdate:
+	{
+		if (auto result_ready = utilities::TryGetFuture<shared::ServerResponse::Helper>(version_update))
+		{
+			UserData::Information& user_info = app->_components.Get<UserData>().info;
+			std::visit(shared::helper::Overloaded
+				{
+					[&win_manager, user_info](shared::VersionUpdate vu) 
+					{
+						win_manager.version_update_info = vu;
+						win_manager.PushWindow(WindowStates::VersionUpdateWindow);
+					},
+					[](shared::ServerResponse resp) 
+					{
+						Log::HandleResponse(resp, "Check new version available");
+					}
+				}, utilities::TryGetObjectFromResponse<shared::VersionUpdate>(*result_ready));
+			current = NatCollectionSteps::StartInformationUpdate;
+		}
+		break;
+	}
+	case NatCollectionSteps::StartInformationUpdate:
+	{
+		using namespace shared;
+		using Factory = RequestFactory<RequestType::GET_INFORMATION_DATA>;
+		Log::Info("Started check information update");
+
+		UserData::Information& info = app->_components.Get<UserData>().info;
+
+		auto request = Factory::Create(MONGO_DB_NAME, MONGO_INFORMATION_COLL_NAME, info.information_identifier);
+		information_update = std::async(TCPTask::ServerTransaction, std::move(request), SERVER_IP, SERVER_TRANSACTION_TCP_PORT);
+		current = NatCollectionSteps::UpdateInformationUpdate;
+		break;
+	}
+	case NatCollectionSteps::UpdateInformationUpdate:
+	{
+		if (auto result_ready = utilities::TryGetFuture<shared::ServerResponse::Helper>(information_update))
+		{
+			std::visit(shared::helper::Overloaded
+				{
+					[&win_manager](shared::InformationUpdate iu)
+					{
+						win_manager.information_update_info = iu;
+						win_manager.PushWindow(WindowStates::InformationUpdateWindow);
+					},
+					[](shared::ServerResponse resp)
+					{
+						Log::HandleResponse(resp, "New information availability check");
+					}
+				}, utilities::TryGetObjectFromResponse<shared::InformationUpdate>(*result_ready));
+			current = NatCollectionSteps::WaitForDialogsToClose;
+		}
+		break;
+	}
+	case NatCollectionSteps::WaitForDialogsToClose:
+	{
+		if (win_manager.GetWindow() == WindowStates::Idle)
+		{
+			current = NatCollectionSteps::StartReadConnectType;
+		}
 		break;
 	}
 	case NatCollectionSteps::StartReadConnectType:
@@ -147,7 +246,6 @@ void NatCollector::Update(Application* app)
 					identified_nat_types.clear();
 					Log::Info("Identified NAT type %s", shared::nat_to_string.at(client_meta_data.nat_type).c_str());
 #if RANDOM_SYM_NAT_REQUIRED
-					NatTypeIdentifiedEvent.Publish(client_meta_data.nat_type);
 					if (client_meta_data.nat_type == shared::NATType::RANDOM_SYM)
 					{
 						// correct nat type continue
@@ -157,6 +255,7 @@ void NatCollector::Update(Application* app)
 					{
 						Log::Warning("Identified NAT type is not eligible for network data collection.");
 						Log::Warning("Abort ...");
+						win_manager.PushWindow(WindowStates::NatInfoWindow);
 						// Must be idle, user is asked to restart process
 						current = NatCollectionSteps::Idle;
 					}
@@ -220,13 +319,13 @@ void NatCollector::Update(Application* app)
 		NATSample sampleToInsert{ client_meta_data, time_stamp, collect_config.time_between_requests_ms, client_connect_type, collected_nat_data };
 		auto request = Factory::Create(sampleToInsert, MONGO_DB_NAME, MONGO_NAT_SAMPLES_COLL_NAME);
 
-		transaction_task = std::async(TCPTask::ServerTransaction,std::move(request), SERVER_IP, SERVER_TRANSACTION_TCP_PORT);
+		upload_nat_sample = std::async(TCPTask::ServerTransaction,std::move(request), SERVER_IP, SERVER_TRANSACTION_TCP_PORT);
 		current = NatCollectionSteps::UpdateUploadDB;
 		break;
 	}
 	case NatCollectionSteps::UpdateUploadDB:
 	{
-		if (auto res = utilities::TryGetFuture<shared::ServerResponse>(transaction_task))
+		if (auto res = utilities::TryGetFuture<shared::ServerResponse::Helper>(upload_nat_sample))
 		{
 			Log::HandleResponse(*res, "Insert NAT sample to DB");
 			if (*res)
@@ -266,6 +365,7 @@ void NatCollector::Update(Application* app)
 		break;
 	}
 }
+
 
 shared::NATType NatCollector::IdentifyNatType(std::vector<shared::Address> two_addresses)
 {
@@ -317,56 +417,6 @@ shared::NATType NatCollector::GetMostLikelyNatType(const std::vector<shared::NAT
 	}
 	return std::max_element(helper_map.begin(), helper_map.end())->first;
 }
-
-
-bool NatCollector::CheckClientRelevantAndInform()
-{
-	// We are only interested in Random Nat Type
-	Log::Warning("Thank you for downloading the app");
-	Log::Warning("This project collects data of mobile network providers using RANDOM SYMMETRIC NAT");
-	if (client_meta_data.nat_type != shared::NATType::RANDOM_SYM)
-	{
-		
-		if (client_connect_type == shared::ConnectionType::WIFI)
-		{
-			Log::Warning("You are currently connected to WIFI. Please disable WIFI and enable your mobile data to participate.");
-			Log::Warning("After that restart the app. Thank you.");
-		}
-		else
-		{
-			Log::Warning("It seems like your mobile network provider is NOT using RANDOM SYMMETRIC NAT");
-			Log::Warning("No data will be collected.");
-			Log::Warning("If you plan to change your mobile provider soon, please come back and try again.");
-			Log::Warning("Otherwise feel free to delete this app.");
-		}
-		return false;
-	}
-	else
-	{
-		Log::Warning("Luckily your mobile provider is using RANDOM SYMMETRIC NAT :)");
-		Log::Warning("This app starts now to collect some data of your mobile provider.");
-		Log::Warning("Every 5-10 minutes a sample is generated and uploaded to the database.");
-		Log::Warning("Please keep this app open, while the data for each sample is collected.");
-		Log::Warning("The user who uploads the most samples in the next few months, wins a crate of tasty beer.");
-		Log::Warning("Check out the scoreboard to see your ranking.");
-		return true;
-	}
-}
-
-shared::ServerResponse NatCollector::RecalculateNAT()
-{
-	if (current == NatCollectionSteps::Idle)
-	{
-		identified_nat_types.clear();
-		current = NatCollectionSteps::StartNATInfo;
-		return shared::ServerResponse::OK();
-	}
-	else
-	{
-		return shared::ServerResponse::Error({ "NAT can not be recalculated, state machine is busy." });
-	}
-}
-
 
 
 void NatCollector::Deactivate(Application* app)

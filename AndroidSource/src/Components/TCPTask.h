@@ -21,6 +21,6 @@
 class TCPTask
 {
 public:
-	static shared::ServerResponse ServerTransaction(shared::ServerRequest&& request, std::string server_addr, uint16_t server_port);
+	static shared::ServerResponse::Helper ServerTransaction(shared::ServerRequest&& request, std::string server_addr, uint16_t server_port);
 };
 

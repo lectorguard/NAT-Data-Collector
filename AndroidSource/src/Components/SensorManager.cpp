@@ -5,14 +5,14 @@
 
 void SensorManager::Activate(class Application* app)
 {
-	app->AndroidStartEvent.Subscribe([this](struct android_app* state) {OnAppStart(state); });
+	app->AndroidStartEvent.Subscribe([this](Application* app) {OnAppStart(app); });
 	app->AndroidCommandEvent.Subscribe([this](struct android_app* state, int32_t cmd) { OnAndroidEvent(state, cmd); });
 }
 
-void SensorManager::OnAppStart(struct android_app* state)
+void SensorManager::OnAppStart(Application* app)
 {
 #if __ANDROID_API__ >= 26
-	_sensorManager = ASensorManager_getInstanceForPackage(GetPackageName(state));
+	_sensorManager = ASensorManager_getInstanceForPackage(GetPackageName(app->android_state));
 #else
 	_sensorManager = ASensorManager_getInstance();
 #endif
@@ -21,7 +21,7 @@ void SensorManager::OnAppStart(struct android_app* state)
 		ASENSOR_TYPE_ACCELEROMETER);
 	_sensorEventQueue = ASensorManager_createEventQueue(
 		_sensorManager,
-		state->looper, LOOPER_ID_USER,
+		app->android_state->looper, LOOPER_ID_USER,
 		nullptr, nullptr);
 }
 

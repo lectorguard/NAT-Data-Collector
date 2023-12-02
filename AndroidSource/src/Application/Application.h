@@ -7,7 +7,7 @@
 #include "Components/NatCollector.h"
 #include "Components/Scoreboard.h"
 #include "Components/UserData.h"
-#include "UI/MainScreen.h"
+#include "Components/WindowManager.h"
 #include "android/log.h"
 
 
@@ -16,7 +16,7 @@
 
 class Application
 {
-	using ComponentsType = ComponentManager<SensorManager, Renderer, InputManager, NatCollector, MainScreen, Scoreboard, UserData>;
+	using ComponentsType = ComponentManager<SensorManager, Renderer, InputManager, NatCollector, WindowManager, Scoreboard, UserData>;
 
 public:
 	Application() {};
@@ -26,7 +26,7 @@ public:
 	void run(struct android_app* state);
 
 	// Triggered after Activation, when app is starting
-	Event<struct android_app*> AndroidStartEvent{};
+	Event<Application*> AndroidStartEvent{};
 	// Triggered, when android triggers command event
 	Event<struct android_app*, int32_t> AndroidCommandEvent{};
 	// Triggered on shutdown

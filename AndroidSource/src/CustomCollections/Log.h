@@ -54,11 +54,17 @@ public:
 		Log_Internal(helper);
 	}
 
+	static void HandleResponse(const shared::ServerResponse::Helper& resp, const std::string& context)
+	{
+		return HandleResponse(shared::ServerResponse(resp.resp_type, resp.messages, nullptr), context);
+	}
+
 	static void HandleResponse(const shared::ServerResponse& resp, const std::string& context)
 	{
 		switch (resp.resp_type)
 		{
 		case shared::ResponseType::OK:
+		case shared::ResponseType::ANSWER:
 		{
 			if (!context.empty())
 			{

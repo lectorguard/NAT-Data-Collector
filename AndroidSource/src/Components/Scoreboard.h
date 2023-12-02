@@ -1,8 +1,7 @@
 #pragma once
 
 #include "SharedProtocol.h"
-#include "Data/Address.h"
-#include "Data/IPMetaData.h"
+#include "Data/ScoreboardData.h"
 #include <future>
 #include "CustomCollections/SimpleTimer.h"
 #include "UDPCollectTask.h"
@@ -32,5 +31,5 @@ public:
 private:
 	// State
 	ScoreboardSteps current = ScoreboardSteps::Idle;
-	std::future<shared::ServerResponse> scoreboard_transaction;
+	std::future<shared::ServerResponse::Helper> scoreboard_transaction;
 };

@@ -33,20 +33,20 @@ namespace utilities
 	}
 
 	template<typename T>
-	inline std::variant<shared::ServerResponse, T> TryGetObjectFromResponse(const shared::ServerResponse& response)
+	inline std::variant<shared::ServerResponse, T> TryGetObjectFromResponse(const shared::ServerResponse::Helper& response)
 	{
-		if (!response)
+		if (response.resp_type == shared::ResponseType::ANSWER)
 		{
-			return response;
+			T toDeserialize;
+			std::vector<jser::JSerError> jser_errors;
+			toDeserialize.DeserializeObject(response.answer, std::back_inserter(jser_errors));
+			if (jser_errors.size() > 0)
+			{
+				return shared::helper::HandleJserError(jser_errors, "TryGetObjectFromResponse : Error during deserialization of server response");
+			}
+			return toDeserialize;
 		}
-		T toDeserialize;
-		std::vector<jser::JSerError> jser_errors;
-		toDeserialize.DeserializeObject(response.answer, std::back_inserter(jser_errors));
-		if (jser_errors.size() > 0)
-		{
-			return shared::helper::HandleJserError(jser_errors, "TryGetObjectFromResponse : Error during deserialization of server response");
-		}
-		return toDeserialize;
+		return shared::ServerResponse(response.resp_type, response.messages, nullptr);
 	}
 
 	inline std::optional<std::string> GetAndroidID(struct android_app* native_app)

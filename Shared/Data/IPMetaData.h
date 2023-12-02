@@ -35,4 +35,31 @@ namespace shared
 				.Append(JSER_ADD(SerializeManagerType, city, zip, lat, lon, timezone, isp, org, as, query));
 		}
 	};
+
+	struct ClientMetaData : public jser::JSerializable
+	{
+		std::string isp;
+		std::string country;
+		std::string region;
+		std::string city;
+		std::string timezone;
+		std::string android_id;
+		NATType nat_type;
+
+		ClientMetaData() {}
+		ClientMetaData(std::string isp, std::string country, std::string region, std::string city, std::string timezone, NATType nat_type, std::string android_id) :
+			isp(isp),
+			country(country),
+			region(region),
+			city(city),
+			timezone(timezone),
+			android_id(android_id),
+			nat_type(nat_type)
+		{};
+
+		jser::JserChunkAppender AddItem() override
+		{
+			return JSerializable::AddItem().Append(JSER_ADD(SerializeManagerType, isp, country, region, city, timezone, nat_type, android_id));
+		}
+	};
 }

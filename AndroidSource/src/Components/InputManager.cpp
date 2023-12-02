@@ -7,7 +7,7 @@
 
 void InputManager::Activate(Application* app)
 {
-	app->AndroidStartEvent.Subscribe([this](struct android_app* state) {OnAppStart(state); });
+	app->AndroidStartEvent.Subscribe([this](Application* app) {OnAppStart(app); });
 	app->DrawEvent.Subscribe([this](Application* app) {UpdateSoftKeyboard(app); });
 }
 
@@ -29,9 +29,9 @@ int32_t InputManager::HandleInput(struct android_app* state, AInputEvent* ev)
 	return ImGui_ImplAndroid_HandleInputEvent(ev);
 }
 
-void InputManager::OnAppStart(struct android_app* state)
+void InputManager::OnAppStart(Application* state)
 {
-	state->onInputEvent = &InputManager::HandleInput;
+	state->android_state->onInputEvent = &InputManager::HandleInput;
 }
 
 void InputManager::UpdateSoftKeyboard(Application* app)

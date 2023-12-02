@@ -22,6 +22,7 @@
 		 auto response = user_data.ValidateUsername();
 		 if (response)
 		 {
+			 user_data.WriteToDisc();
 			 current = ScoreboardSteps::StartRequestScores;
 		 }
 		 else
@@ -60,7 +61,7 @@ void Scoreboard::Update(Application* app)
 	}
 	case ScoreboardSteps::UpdateRequestScores:
 	{
-		if (auto result_ready = utilities::TryGetFuture<shared::ServerResponse>(scoreboard_transaction))
+		if (auto result_ready = utilities::TryGetFuture<shared::ServerResponse::Helper>(scoreboard_transaction))
 		{
 			std::visit(shared::helper::Overloaded
 				{

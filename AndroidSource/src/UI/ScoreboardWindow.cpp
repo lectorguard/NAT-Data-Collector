@@ -5,18 +5,18 @@
 #include "Components/NatCollector.h"
 #include "Data/Address.h"
 #include "string"
+#include "StyleConstants.h"
 
 
 void ScoreboardWindow::Draw(Application* app)
 {
 	ImGuiIO& io = ImGui::GetIO();
-	const MainScreen::Settings settings = app->_components.Get<MainScreen>().settings;
-	
 
 	const uint16_t placementWidth = Renderer::medium_font->FontSize * 2.5;
-	const float scrollbarPixel = Renderer::CentimeterToPixel(settings.ScrollbarSizeCM);
+	const float scrollbarPixel = Renderer::CentimeterToPixel(StyleConstants::ScrollbarSizeCM);
 	ImGui::PushFont(Renderer::medium_font);
 
+	ImGui::PushStyleVar(ImGuiStyleVar_ScrollbarSize, Renderer::CentimeterToPixel(StyleConstants::ScrollbarSizeCM));
 	ImGui::Begin("ScoreboardWindow", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_AlwaysHorizontalScrollbar | ImGuiWindowFlags_NoTitleBar);
 	shared::Scores& scores = app->_components.Get<Scoreboard>().scores;
 	ImGui::Columns(3, "Triples", false);
@@ -61,4 +61,5 @@ void ScoreboardWindow::Draw(Application* app)
 	ImGui::Columns(1);
 	ImGui::End();
 	ImGui::PopFont();
+	ImGui::PopStyleVar();
 }

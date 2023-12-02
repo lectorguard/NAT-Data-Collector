@@ -7,13 +7,14 @@
 #include "SharedProtocol.h"
 #include "SharedHelpers.h"
 #include "Data/Address.h"
+#include "Data/WindowData.h"
 
 inline static std::mutex mongoWriteMutex{};
 
 template<>
 struct RequestHandler<shared::RequestType::INSERT_MONGO>
 {
-	static const shared::ServerResponse::Helper Handle(nlohmann::json req_data, nlohmann::json req_meta_data)
+	static const shared::ServerResponse Handle(nlohmann::json req_data, nlohmann::json req_meta_data)
 	{
 		using namespace shared;
 
@@ -22,22 +23,96 @@ struct RequestHandler<shared::RequestType::INSERT_MONGO>
 		meta_data.DeserializeObject(req_meta_data, std::back_inserter(jser_errors));
 		if (jser_errors.size() > 0)
 		{
-			auto r = shared::helper::HandleJserError(jser_errors, "Deserialize Meta Data for Insert Mongo Request");
-			return ServerResponse::Helper::Create(r);
+			return shared::helper::HandleJserError(jser_errors, "Deserialize Meta Data for Insert Mongo Request");
 		}
 
 		// Data races are possible when same user writes to same document/collection
 		std::scoped_lock lock{ mongoWriteMutex };
-		auto r = mongoUtils::InsertElementToCollection(req_data.dump(), meta_data.db_name, meta_data.coll_name);
-		return ServerResponse::Helper::Create(r);
+		return mongoUtils::InsertElementToCollection(req_data.dump(), meta_data.db_name, meta_data.coll_name);
 	}
 };
+
+template<>
+struct RequestHandler<shared::RequestType::GET_VERSION_DATA>
+{
+	static const shared::ServerResponse Handle(nlohmann::json req_data, nlohmann::json req_meta_data)
+	{
+		using namespace shared;
+
+		std::vector<jser::JSerError> jser_errors;
+		RequestFactory<RequestType::GET_VERSION_DATA>::Meta meta_data;
+		meta_data.DeserializeObject(req_meta_data, std::back_inserter(jser_errors));
+		if (jser_errors.size() > 0)
+		{
+			return shared::helper::HandleJserError(jser_errors, "Deserialize Meta Data for Insert Mongo Request");
+		}
+
+		// Data races are possible when same user writes to same document/collection
+		return mongoUtils::FindElementsInCollection("{}", meta_data.db_name, meta_data.coll_name, 
+			[old_version = meta_data.current_version](mongoc_cursor_t* cursor, int64_t length)
+			{
+				if (length == 0) return ServerResponse::OK();
+				else return std::visit(shared::helper::Overloaded
+					{
+						[old_version](std::vector<shared::VersionUpdate> vu)
+						{
+							// Check if latest version is newer then current version
+							if (vu[0].latest_version.compare(old_version) > 0)
+							{
+								return ServerResponse::Answer(std::make_unique<shared::VersionUpdate>(vu[0]));
+							}
+							else return ServerResponse::OK();
+						},
+						[](ServerResponse resp) { return resp; }
+
+					}, mongoUtils::CursorToJserVector<shared::VersionUpdate>(cursor));
+			});
+	}
+};
+
+template<>
+struct RequestHandler<shared::RequestType::GET_INFORMATION_DATA>
+{
+	static const shared::ServerResponse Handle(nlohmann::json req_data, nlohmann::json req_meta_data)
+	{
+		using namespace shared;
+
+		std::vector<jser::JSerError> jser_errors;
+		RequestFactory<RequestType::GET_INFORMATION_DATA>::Meta meta_data;
+		meta_data.DeserializeObject(req_meta_data, std::back_inserter(jser_errors));
+		if (jser_errors.size() > 0)
+		{
+			return shared::helper::HandleJserError(jser_errors, "Deserialize Meta Data for Insert Mongo Request");
+		}
+
+		// Data races are possible when same user writes to same document/collection
+		return mongoUtils::FindElementsInCollection("{}", meta_data.db_name, meta_data.coll_name,
+			[passed_ident = meta_data.identifier](mongoc_cursor_t* cursor, int64_t length)
+			{
+				if (length == 0) return ServerResponse::OK();
+				else return std::visit(shared::helper::Overloaded
+					{
+						[passed_ident](std::vector<shared::InformationUpdate> iu)
+						{
+							// If identifier does match, message was never sent before -> send message
+							if (iu[0].identifier.compare(passed_ident) != 0)
+							{
+								return ServerResponse::Answer(std::make_unique<shared::InformationUpdate>(iu[0]));
+							}
+							else return ServerResponse::OK();
+						},
+						[](ServerResponse resp) { return resp; }
+					}, mongoUtils::CursorToJserVector<shared::InformationUpdate>(cursor));
+			});
+	}
+};
+
 
 
 template<>
 struct RequestHandler<shared::RequestType::GET_SCORES>
 {
-	static const shared::ServerResponse::Helper Handle(nlohmann::json req_data, nlohmann::json req_meta_data)
+	static const shared::ServerResponse Handle(nlohmann::json req_data, nlohmann::json req_meta_data)
 	{
 		using namespace shared;
 		std::vector<jser::JSerError> jser_errors;
@@ -45,8 +120,7 @@ struct RequestHandler<shared::RequestType::GET_SCORES>
 		meta_data.DeserializeObject(req_meta_data, std::back_inserter(jser_errors));
 		if (jser_errors.size() > 0)
 		{
-			auto r = shared::helper::HandleJserError(jser_errors, "Deserialize Meta Data for Get Scores Request");
-			return ServerResponse::Helper::Create(r);
+			return shared::helper::HandleJserError(jser_errors, "Deserialize Meta Data for Get Scores Request");
 		}
 
 		// Mongo Update Parameter
@@ -99,8 +173,10 @@ struct RequestHandler<shared::RequestType::GET_SCORES>
 				if (!result)
 					break;
 			}
+			result = ServerResponse::Answer(std::make_unique<Scores>(all_scores));
 			break;
 		}
-		return ServerResponse::Helper::Create(result, std::make_unique<Scores>(all_scores));
+		return result;
 	}
+
 };

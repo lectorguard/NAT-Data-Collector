@@ -11,7 +11,7 @@ public:
 	void Activate(class Application* app);
 	void Deactivate(class Application* app) {};
 
-	void OnAppStart(struct android_app* state);
+	void OnAppStart(Application* app);
 
 	void OnAndroidEvent(struct android_app* app, int32_t cmd);
 	void ProcessSensorData(int ident);

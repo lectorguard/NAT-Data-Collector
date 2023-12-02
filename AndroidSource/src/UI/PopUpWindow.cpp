@@ -6,11 +6,17 @@
 #include "Data/Address.h"
 #include "misc/cpp/imgui_stdlib.h"
 #include "string"
+#include "StyleConstants.h"
 
 
 void PopUpWindow::Draw(class Application* app, std::function<void(bool)> onClose)
 {
+	ImGuiIO& io = ImGui::GetIO();
+	
 	ImGui::PushFont(Renderer::large_font);
+	ImGui::PushStyleVar(ImGuiStyleVar_ScrollbarSize, Renderer::CentimeterToPixel(StyleConstants::ScrollbarSizeCM));
+	ImGui::SetNextWindowSize(ImVec2(io.DisplaySize.x, io.DisplaySize.y));
+	ImGui::SetNextWindowPos(ImVec2(0, 0));
 	ImGui::Begin("##Welcom Popup", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse );
 	
 	// MAIN HEADER
@@ -111,5 +117,6 @@ void PopUpWindow::Draw(class Application* app, std::function<void(bool)> onClose
 	}
 	ImGui::Dummy(ImVec2(0, Renderer::CentimeterToPixel(0.2f)));
 	ImGui::PopFont();
+	ImGui::PopStyleVar();
 	ImGui::End();
 }

@@ -1,6 +1,7 @@
 #pragma once
 #include "JSerializer.h"
 #include "SharedProtocol.h"
+#include "IPMetaData.h"
 #include <vector>
 
 namespace shared
@@ -41,70 +42,6 @@ namespace shared
 			return JSerializable::AddItem().Append(JSER_ADD(SerializeManagerType, address_vector));
 		}
 	};
-
-	struct ClientMetaData : public jser::JSerializable
-	{
-		std::string isp;
-		std::string country;
-		std::string region;
-		std::string city;
-		std::string timezone;
-		std::string android_id;
-		NATType nat_type;
-
-		ClientMetaData() {}
-		ClientMetaData(std::string isp, std::string country, std::string region, std::string city, std::string timezone, NATType nat_type, std::string android_id) :
-			isp(isp),
-			country(country),
-			region(region),
-			city(city),
-			timezone(timezone),
-			android_id(android_id),
-			nat_type(nat_type)
-		{};
-
-		jser::JserChunkAppender AddItem() override
-		{
-			return JSerializable::AddItem().Append(JSER_ADD(SerializeManagerType, isp, country, region, city, timezone, nat_type, android_id));
-		}
-	};
-
-	struct ClientID : public jser::JSerializable
-	{
-		std::string android_id{};
-		std::string username{};
-		bool show_score = true;
-		uint32_t uploaded_samples = 0;
-
-		ClientID() {};
-		ClientID(std::string android_id, std::string username, bool show_score, uint32_t uploaded_samples) :
-			android_id(android_id),
-			username(username),
-			show_score(show_score),
-			uploaded_samples(uploaded_samples)
-		{};
-
-		jser::JserChunkAppender AddItem() override
-		{
-			return JSerializable::AddItem().Append(JSER_ADD(SerializeManagerType, android_id, username, show_score, uploaded_samples));
-		}
-	};
-
-	struct Scores : public jser::JSerializable
-	{
-		std::vector<ClientID> scores{};
-
-		Scores() {};
-		Scores(std::vector<ClientID> scores) :
-			scores(scores)
-		{};
-
-		jser::JserChunkAppender AddItem() override
-		{
-			return JSerializable::AddItem().Append(JSER_ADD(SerializeManagerType, scores));
-		}
-	};
-
 
 	struct NATSample : public jser::JSerializable
 	{

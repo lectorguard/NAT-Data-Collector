@@ -16,7 +16,7 @@ void UserData::Activate(class Application* app)
 
 	std::visit(shared::helper::Overloaded
 		{
-			[this](Information user_info) { info = user_info; },
+			[this](Information user_info) { info = user_info; Log::Info("Read user data from disc"); },
 			[](shared::ServerResponse resp) { Log::HandleResponse(resp, "Read User Data from Disc"); }
 		}, ReadFromDisc());
 }
@@ -49,16 +49,14 @@ std::variant<UserData::Information, shared::ServerResponse> UserData::ReadFromDi
 		long fsize = ftell(appConfigFile);
 		fseek(appConfigFile, 0, SEEK_SET);
 		//malloc
-		char* string = (char*)malloc(fsize + 1);
-		fread(string, fsize, 1, appConfigFile);
+		std::vector<uint8_t> buffer(fsize);
+		fread(buffer.data(), fsize, 1, appConfigFile);
 		fclose(appConfigFile);
 
-		std::string file_data(string, fsize + 1);
+		std::string file_data(buffer.begin(), buffer.end());
 		std::vector<jser::JSerError> jser_errors;
 		UserData::Information user_info;
 		user_info.DeserializeObject(file_data, std::back_inserter(jser_errors));
-		//free
-		free(string);
 
 		if (jser_errors.size() > 0)
 		{
@@ -76,6 +74,7 @@ std::variant<UserData::Information, shared::ServerResponse> UserData::ReadFromDi
 
 shared::ServerResponse UserData::WriteToDisc()
 {
+	Log::Info("Write User Data to Disc");
 	// Deserialize user data
 	std::vector<jser::JSerError> jser_errors;
 	const std::string user_info = info.SerializeObjectString(std::back_inserter(jser_errors));

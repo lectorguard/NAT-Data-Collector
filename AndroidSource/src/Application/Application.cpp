@@ -15,7 +15,7 @@ void Application::run(struct android_app* state)
 	state->userData = this;
 	state->onAppCmd = AndroidHandleCommands;
 	_components.ForEach([&](auto&& elem) { elem.Activate(this); });
-	AndroidStartEvent.Publish(state);
+	AndroidStartEvent.Publish(this);
 
 	while (true) {
 		// Read all pending events.

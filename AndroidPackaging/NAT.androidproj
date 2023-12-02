@@ -88,6 +88,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\bin\Android\AndroidSource\native-activity.vcxproj" />
+    <ProjectReference Include="..\bin\Android\ThirdParty\zstd\build\cmake\lib\libzstd_shared.vcxproj" />
   </ItemGroup>
   <Import Project="$(AndroidTargetsPath)\Android.targets" />
   <ImportGroup Label="ExtensionTargets" />

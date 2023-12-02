@@ -118,12 +118,22 @@ db.test.find() // shows content of test collection
 	* Search for `server-app`, if not found try click `refresh` button on the right
 	* Delete all `server-app` entries and repeat from above
 
-# TODO
+## Notify users about new version
 
-* android app aufräumen // Doing
-* Consistantly handle errors  (Use Variant<Error or Actual Type>) // TODO
-* Logik schreiben um ports zu generieren und zu speichern
-* Tool bauen um daten zu überprüfen //vllt telegram bot
-* Sich gedanken über speicher format machen und wie die informationen zu bekommen sind (Standort, provider, ...) //see https://www.infobyip.com/
+* Connect to mongo db via mongosh
+* Drop old entries (only first one is used) `db.VersionUpdate.drop()`
+* Add new entry
+```
+db.VersionUpdate.insertOne({"download_link":"https://github.com/lectorguard/NAT-Data-Collector/releases","latest_version":"v0.0.2","version_details":"A new version of the NAT Collector is available. Please copy the link below, delete this version and download the new version. You progress in the scoreboard will be maintained. :) Thank you.","version_header":"New Version 0.0.2"})
+```
+
+## Notify user about new general informationen
+
+* Connect to mongo db via mongosh
+* Drop old entries (only first one is used) `db.InformationUpdate.drop()`
+* Add new entry
+```
+db.InformationUpdate.insertOne({"identifier":"test","information_details":"There are very important information available.","information_header":"New Information"})
+```
 
 
