@@ -61,13 +61,14 @@ bool UserGuidance::Update(class Application* app, shared::ClientMetaData& client
 		if (auto id = utilities::GetAndroidID(app->android_state))
 		{
 			client_meta_data.android_id = *id;
+			current = UserGuidanceStep::StartMainPopUp;
 		}
 		else
 		{
 			client_meta_data.android_id = "Not Identified";
 			Log::Error("Failed to retrieve android id");
+			current = UserGuidanceStep::Idle;
 		}
-		current = UserGuidanceStep::StartMainPopUp;
 		break;
 	}
 	case UserGuidanceStep::StartMainPopUp:
