@@ -104,6 +104,11 @@ namespace shared
 			return ServerResponse(ResponseType::OK, msg.empty() ? std::vector<std::string>() : std::vector<std::string>{msg}, nullptr);
 		}
 
+		static ServerResponse OK(const std::vector<std::string>& info_messages)
+		{
+			return ServerResponse(ResponseType::OK, info_messages, nullptr);
+		}
+
 		static ServerResponse Warning(const std::vector<std::string>& warning_messages)
 		{
 			return ServerResponse(ResponseType::WARNING, warning_messages, nullptr );

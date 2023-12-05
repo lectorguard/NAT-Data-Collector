@@ -54,6 +54,15 @@ public:
 		Log_Internal(helper);
 	}
 
+	static void HandleResponse(const std::vector<shared::ServerResponse>& resp)
+	{
+		for (const shared::ServerResponse& m : resp)
+		{
+			HandleResponse(m, "");
+		}
+	}
+
+
 	static void HandleResponse(const shared::ServerResponse::Helper& resp, const std::string& context)
 	{
 		return HandleResponse(shared::ServerResponse(resp.resp_type, resp.messages, nullptr), context);
@@ -69,6 +78,10 @@ public:
 			if (!context.empty())
 			{
 				Info("%s : OK", context.c_str());
+			}
+			for (const auto& msg : resp.messages)
+			{
+				Info("%s", msg.c_str());
 			}
 			break;
 		}
