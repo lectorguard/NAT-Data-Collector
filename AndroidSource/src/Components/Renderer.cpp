@@ -36,6 +36,11 @@ void Renderer::OnAndroidEvent(struct android_app* app, int32_t cmd)
 		_animating = 0;
 		break;
 	}
+	case APP_CMD_GAINED_FOCUS:
+	{
+		_animating = 1;
+		break;
+	}
 	default:
 		break;
 	}

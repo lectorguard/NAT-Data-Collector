@@ -32,18 +32,9 @@ class CollectSamples
 	using TransactionTask = std::future<shared::ServerResponse::Helper>;
 
 public:
-	const UDPCollectTask::CollectInfo collect_config
-	{
-		/* remote address */				SERVER_IP,
-		/* remote port */					SERVER_NAT_UDP_PORT_1,
-		/* local port */					0,
-		/* amount of ports */				NAT_COLLECT_PORTS_PER_SAMPLE,
-		/* time between requests in ms */	NAT_COLLECT_REQUEST_DELAY_MS
-	};
-
 	void Activate(class Application* app);
 	bool Start();
-	bool Update(class Application* app, shared::ConnectionType& connect_type, shared::ClientMetaData& client_meta_data);
+	bool Update(class Application* app, std::atomic<shared::ConnectionType>& connect_type, shared::ClientMetaData& client_meta_data);
 private:
 	// State
 	CollectSamplesStep current = CollectSamplesStep::Idle;

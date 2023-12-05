@@ -92,7 +92,7 @@ void UserWindow::Draw(class Application* app)
 
 		ImGui::Text("Connection"); ImGui::NextColumn();
 		ImGui::PushItemWidth(io.DisplaySize.x * (1.0f - StyleConstants::LeftColumnWidth));
-		const std::string connection_type = shared::connect_type_to_string.at(nat_collector.client_connect_type);
+		const std::string connection_type = shared::connect_type_to_string.at(nat_collector.connect_reader.Get());
 		ImGui::Text("%s", connection_type.c_str()); ImGui::NextColumn();
 
 		ImGui::Dummy(ImVec2(0, Renderer::CentimeterToPixel(0.1f)));

@@ -25,7 +25,6 @@ enum class UserGuidanceStep : uint16_t
 	StartInformationUpdate,
 	UpdateInformationUpdate,
 	WaitForDialogsToClose,
-	StartReadConnectType,
 	StartIPInfo,
 	UpdateIPInfo,
 	StartNATInfo,
@@ -42,7 +41,7 @@ class UserGuidance
 public:
 	void Activate(class Application* app);
 	bool Start();
-	bool Update(class Application* app, shared::ConnectionType& conn_type, shared::ClientMetaData& client_meta_data);
+	bool Update(class Application* app, shared::ClientMetaData& client_meta_data);
 	
 private:
 	// State

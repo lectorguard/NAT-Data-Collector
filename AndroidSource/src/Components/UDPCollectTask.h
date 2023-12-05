@@ -4,6 +4,7 @@
 #include "asio.hpp"
 #include "chrono"
 #include <queue>
+#include "atomic"
 
 class UDPCollectTask
 {
@@ -17,6 +18,7 @@ public:
 		uint16_t local_port;
 		uint16_t amount_ports;
 		uint16_t time_between_requests_ms;
+		std::atomic<shared::ConnectionType>& conn_type;
 	};
 
 	struct NatTypeInfo

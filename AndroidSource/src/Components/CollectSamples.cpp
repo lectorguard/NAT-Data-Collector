@@ -31,7 +31,7 @@ bool CollectSamples::Start()
 }
 
 
-bool CollectSamples::Update(class Application* app, shared::ConnectionType& connect_type, shared::ClientMetaData& client_meta_data)
+bool CollectSamples::Update(class Application* app, std::atomic<shared::ConnectionType>& connect_type, shared::ClientMetaData& client_meta_data)
 {
 	switch (current)
 	{
@@ -83,6 +83,15 @@ bool CollectSamples::Update(class Application* app, shared::ConnectionType& conn
 	{
 		Log::Info( "Started collecting Ports");
 		//Start Collecting
+		const UDPCollectTask::CollectInfo collect_config
+		{
+			/* remote address */				SERVER_IP,
+			/* remote port */					SERVER_NAT_UDP_PORT_1,
+			/* local port */					0,
+			/* amount of ports */				NAT_COLLECT_PORTS_PER_SAMPLE,
+			/* time between requests in ms */	NAT_COLLECT_REQUEST_DELAY_MS,
+			connect_type
+		};
 		nat_collect_task = std::async(UDPCollectTask::StartCollectTask, collect_config);
 		// Create Timestamp
 		time_stamp = shared::helper::CreateTimeStampNow();
@@ -125,7 +134,7 @@ bool CollectSamples::Update(class Application* app, shared::ConnectionType& conn
 		using Factory = RequestFactory<RequestType::INSERT_MONGO>;
 
 		// Create Object
-		NATSample sampleToInsert{ client_meta_data, time_stamp, collect_config.time_between_requests_ms, connect_type, collected_nat_data };
+		NATSample sampleToInsert{ client_meta_data, time_stamp, NAT_COLLECT_REQUEST_DELAY_MS, connect_type, collected_nat_data };
 		auto request = Factory::Create(sampleToInsert, MONGO_DB_NAME, MONGO_NAT_SAMPLES_COLL_NAME);
 
 		upload_nat_sample = std::async(TCPTask::ServerTransaction,std::move(request), SERVER_IP, SERVER_TRANSACTION_TCP_PORT);

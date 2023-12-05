@@ -2,11 +2,13 @@
 
 #include "UserGuidance.h"
 #include "CollectSamples.h"
+#include "ConnectionReader.h"
 
 
 enum class NatCollectorSteps : uint16_t
 {
 	Idle = 0,
+	StartConnectionReader,
 	StartUserGuidance,
 	UpdateUserGuidance,
 	StartNatCollector,
@@ -23,9 +25,8 @@ public:
 	
 	// global data
 	shared::ClientMetaData client_meta_data{};
-	shared::ConnectionType client_connect_type = shared::ConnectionType::NOT_CONNECTED;
+	ConnectionReader connect_reader;
 private:
-
 	UserGuidance user_guidance;
 	CollectSamples collect_samples;
 

@@ -26,7 +26,7 @@
 	 Log::Info("Amount of Ports    :  %d", collect_info.amount_ports);
 	 Log::Info("Request Delta Time :  %d ms", collect_info.time_between_requests_ms);
 
-	 return start_task_internal([collect_info](asio::io_service& io) { return UDPCollectTask(collect_info, io); });
+	 return start_task_internal([&collect_info](asio::io_service& io) { return UDPCollectTask(collect_info, io); });
  }
 
  shared::Result<shared::AddressVector> UDPCollectTask::StartNatTypeTask(const NatTypeInfo& collect_info)
@@ -48,13 +48,15 @@
 	if (info.local_port == 0)
 	{
 		// Each socket binds new port
-		createSocket = [&io_service]() {return std::make_shared<asio::ip::udp::socket>(io_service, asio::ip::udp::endpoint{ asio::ip::udp::v4(), 0 }); };
+		createSocket = 
+			[&io_service]() {return std::make_shared<asio::ip::udp::socket>(io_service, asio::ip::udp::endpoint{ asio::ip::udp::v4(), 0 }); };
 		bUsesSingleSocket = false;
 	}
 	else
 	{
 		// Single socket, single port
-		auto shared_local_socket = std::make_shared<asio::ip::udp::socket>(io_service, asio::ip::udp::endpoint{ asio::ip::udp::v4(), info.local_port });
+		auto shared_local_socket = 
+			std::make_shared<asio::ip::udp::socket>(io_service, asio::ip::udp::endpoint{ asio::ip::udp::v4(), info.local_port });
 		createSocket = [shared_local_socket]() {return shared_local_socket; };
 		bUsesSingleSocket = true;
 	}
@@ -67,8 +69,20 @@
 										asio::system_timer(io_service)
 			});
 		socket_list[index].timer.expires_from_now(std::chrono::milliseconds(index * info.time_between_requests_ms));
-		socket_list[index].timer.async_wait([this, info, &sock = socket_list[index], &io_service](auto error)
+		socket_list[index].timer.async_wait([this, &info, &sock = socket_list[index], &io_service](auto error)
 			{
+#if RANDOM_SYM_NAT_REQUIRED
+				// Check if user connects to wifi during collection step
+				const shared::ConnectionType ct = info.conn_type.load();
+				if (ct == shared::ConnectionType::WIFI || ct == shared::ConnectionType::NOT_CONNECTED)
+				{
+					Log::Info("Abort Collecting Ports, entered WIFI or Disconnect");
+					stored_response = shared::ServerResponse::OK();
+					io_service.stop();
+					return; 
+				}
+#endif
+
 				auto remote_endpoint = std::make_shared<asio::ip::udp::endpoint>(asio::ip::make_address(info.remote_address), info.remote_port);
 				send_request(sock, io_service, remote_endpoint, error);
 			});

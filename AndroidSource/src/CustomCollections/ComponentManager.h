@@ -10,7 +10,7 @@ struct ComponentManager
 
 	ComponentManager()
 	{
-		_components = { std::make_unique<Args>(Args())... };
+		_components = { std::make_unique<Args>()... };
 	}
 
 	template<typename T>

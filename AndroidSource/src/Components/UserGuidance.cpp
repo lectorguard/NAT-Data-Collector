@@ -40,7 +40,7 @@ bool UserGuidance::Start()
 	return false;
 }
 
-bool UserGuidance::Update(class Application* app, shared::ConnectionType& conn_type, shared::ClientMetaData& client_meta_data)
+bool UserGuidance::Update(class Application* app, shared::ClientMetaData& client_meta_data)
 {
 	WindowManager& win_manager = app->_components.Get<WindowManager>();
 
@@ -147,22 +147,7 @@ bool UserGuidance::Update(class Application* app, shared::ConnectionType& conn_t
 	{
 		if (win_manager.GetWindow() == WindowStates::Idle)
 		{
-			current = UserGuidanceStep::StartReadConnectType;
-		}
-		break;
-	}
-	case UserGuidanceStep::StartReadConnectType:
-	{
-		Log::Info("Read Connection Type");
-		conn_type = utilities::GetConnectionType(app->android_state);
-		if (conn_type != shared::ConnectionType::NOT_CONNECTED)
-		{
 			current = UserGuidanceStep::StartIPInfo;
-		}
-		else
-		{
-			Log::Warning("Device is not connected. Please establish a connection with your mobile provider and restart app.");
-			current = UserGuidanceStep::Idle;
 		}
 		break;
 	}

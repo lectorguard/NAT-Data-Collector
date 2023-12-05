@@ -18,9 +18,14 @@
 {
 	 if (current == ScoreboardSteps::Idle)
 	 {
+		 auto& nat_collector = app->_components.Get<NatCollector>();
 		 auto user_data = app->_components.Get<UserData>();
 		 auto response = user_data.ValidateUsername();
-		 if (response)
+		 if (nat_collector.client_meta_data.android_id.empty())
+		 {
+			 Log::Warning("Invalid android id, can not retrieve scoreboard");
+		 }
+		 else if(response)
 		 {
 			 user_data.WriteToDisc();
 			 current = ScoreboardSteps::StartRequestScores;

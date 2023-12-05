@@ -23,7 +23,7 @@ void NatCollector::Activate(Application* app)
 	collect_samples.Activate(app);
 
 	// Start the app 
-	current = NatCollectorSteps::StartUserGuidance;
+	current = NatCollectorSteps::StartConnectionReader;
 }
 
 void NatCollector::Update(Application* app)
@@ -32,6 +32,19 @@ void NatCollector::Update(Application* app)
 	{
 	case NatCollectorSteps::Idle:
 		break;
+	case NatCollectorSteps::StartConnectionReader:
+	{
+		if (connect_reader.Start())
+		{
+			current = NatCollectorSteps::StartUserGuidance;
+		}
+		else
+		{
+			Log::Error("Failed to start connection reader");
+			current = NatCollectorSteps::Idle;
+		}
+		break;
+	}
 	case NatCollectorSteps::StartUserGuidance:
 	{
 		if (user_guidance.Start())
@@ -47,7 +60,7 @@ void NatCollector::Update(Application* app)
 	}
 	case NatCollectorSteps::UpdateUserGuidance:
 	{
-		if (user_guidance.Update(app, client_connect_type, client_meta_data))
+		if (user_guidance.Update(app, client_meta_data))
 		{
 			current = NatCollectorSteps::StartNatCollector;
 		}
@@ -68,7 +81,7 @@ void NatCollector::Update(Application* app)
 	}
 	case NatCollectorSteps::UpdateNatCollector:
 	{
-		if (collect_samples.Update(app, client_connect_type, client_meta_data))
+		if (collect_samples.Update(app, connect_reader.GetAtomicRef(), client_meta_data))
 		{
 			current = NatCollectorSteps::Idle;
 		}
@@ -77,6 +90,9 @@ void NatCollector::Update(Application* app)
 	default:
 		break;
 	}
+
+	// Connect reader is always updated
+	connect_reader.Update(app);
 }
 
 void NatCollector::Deactivate(Application* app)
