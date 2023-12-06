@@ -40,7 +40,13 @@ void UDP_Adresss_Echo_Server::handle_receive(const std::error_code& error, std::
 			break;
 		}
 
-		nlohmann::json json_buffer = nlohmann::json::from_msgpack(buffer->begin(), buffer->begin() + n);
+		nlohmann::json json_buffer = nlohmann::json::from_msgpack(buffer->begin(), buffer->begin() + n, true, false);
+		if (json_buffer.is_null())
+		{
+			std::cout << "UDP Address request, received invalid message. Abort .." << std::endl;
+			break;
+		}
+
 		shared::Address address{};
 		std::vector<jser::JSerError> jser_errors;
 		address.DeserializeObject(json_buffer, std::back_inserter(jser_errors));

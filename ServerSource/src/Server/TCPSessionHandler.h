@@ -42,15 +42,32 @@ namespace TCPSessionHandler
 			// Read message length
 			char len_buffer[5] = {0};
 			std::size_t len = co_await async_read(s, asio::buffer(len_buffer), asio::transfer_exactly(5), asio::use_awaitable);
+			
+			if (len != 5)
+			{
+				std::cout << "TCP transaction received invalid message length : Expected 5, but received " << len << std::endl;
+				break;
+			}
 			int next_msg_len = std::stoi(std::string(len_buffer, len));
 
 			// Read actual data
 			std::vector<uint8_t> buf;
 			buf.resize(next_msg_len);
 			len = co_await async_read(s, asio::buffer(buf), asio::transfer_exactly(next_msg_len), asio::use_awaitable);
+
+			if (len != next_msg_len)
+			{
+				std::cout << "TCP transaction received invalid message length : Expected " << next_msg_len << ", but received " << len << std::endl;
+				break;
+			}
 			
-			// Decompress
-			nlohmann::json decompressed_answer = nlohmann::json::from_msgpack(shared::decompressZstd(buf));
+			// Decompress without exception
+			nlohmann::json decompressed_answer = nlohmann::json::from_msgpack(shared::decompressZstd(buf), true, false);
+			if (decompressed_answer.is_null())
+			{
+				std::cout << "TCP transaction request is invalid. Abort .." << std::endl;
+				break;
+			}
 
 			// Handle transaction
 			shared::ServerResponse response = TransactionFactory::Handle(decompressed_answer);
