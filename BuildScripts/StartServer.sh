@@ -1,5 +1,5 @@
 #!/bin/bash
-
+cd ..
 if [ -d "unix_build" ]; then 
 	echo "Delete last build."
 	rm -Rf "unix_build";

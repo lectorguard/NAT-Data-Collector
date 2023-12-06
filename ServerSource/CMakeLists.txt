@@ -15,7 +15,4 @@ target_link_libraries(server-app LINK_PUBLIC  nlohmann_json JSerializerLib asio 
 set_property(DIRECTORY PROPERTY VS_STARTUP_PROJECT server-app)
 
 target_compile_features(server-app PUBLIC cxx_std_20)
-# create config
-configure_file(server_config_template.json server_config.json)
-target_compile_definitions(server-app PRIVATE CONFIG_PATH="server_config.json")
 

@@ -29,4 +29,4 @@ if '%errorlevel%' NEQ '0' (
 REM --> Delete old firewall rules, just in case (Needs admin rights, see code above)
 REM --> Windows will ask you again for adding a rule
 netsh advfirewall firewall Delete rule name="server-app"
-devenv %cd%
+devenv %cd%\..
