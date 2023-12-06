@@ -35,7 +35,7 @@ void WindowManager::Draw(Application* app)
 	{
 		wrong_nat_window.Draw(app,
 			[this]() 
-			{ 
+			{
 				PopWindow();
 				OnNatWindowClosed.Publish(false);
 			},
@@ -43,7 +43,22 @@ void WindowManager::Draw(Application* app)
 			{
 				PopWindow();
 				OnNatWindowClosed.Publish(true);
-			});
+			}, false);
+		break;
+	}
+	case WindowStates::NatInfoWindowWifi:
+	{
+		wrong_nat_window.Draw(app,
+			[this]()
+			{
+				PopWindow();
+				OnNatWindowClosed.Publish(false);
+			},
+			[this]()
+			{
+				PopWindow();
+				OnNatWindowClosed.Publish(true);
+			}, true);
 		break;
 	}
 	case WindowStates::VersionUpdateWindow:

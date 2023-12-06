@@ -40,7 +40,7 @@ bool UserGuidance::Start()
 	return false;
 }
 
-bool UserGuidance::Update(class Application* app, shared::ClientMetaData& client_meta_data)
+bool UserGuidance::Update(class Application* app, shared::ConnectionType conn_type, shared::ClientMetaData& client_meta_data)
 {
 	WindowManager& win_manager = app->_components.Get<WindowManager>();
 
@@ -219,15 +219,19 @@ bool UserGuidance::Update(class Application* app, shared::ClientMetaData& client
 			{
 				// correct nat type continue
 				current = UserGuidanceStep::FinishUserGuidance;
+				break;
+			}
+			else if (conn_type == shared::ConnectionType::WIFI)
+			{
+				win_manager.PushWindow(WindowStates::NatInfoWindowWifi);
 			}
 			else
-			{
+			{ 
 				Log::Warning("Identified NAT type is not eligible for network data collection.");
 				Log::Warning("Abort ...");
 				win_manager.PushWindow(WindowStates::NatInfoWindow);
-				// Must be idle, user is asked to restart process
-				current = UserGuidanceStep::Idle;
 			}
+			current = UserGuidanceStep::Idle;
 #else
 			current = UserGuidanceStep::FinishUserGuidance;
 #endif

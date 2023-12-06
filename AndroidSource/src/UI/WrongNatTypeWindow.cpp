@@ -8,7 +8,7 @@
 #include "string"
 #include "SharedTypes.h"
 
-void WrongNatTypeWindow::Draw(class Application* app, std::function<void()> onClose, std::function<void()> onRecalcNat)
+void WrongNatTypeWindow::Draw(class Application* app, std::function<void()> onClose, std::function<void()> onRecalcNat, bool isWifi)
 {
 	NatCollector& nat_collector = app->_components.Get<NatCollector>();
 	const shared::ConnectionType conn_type = nat_collector.connect_reader.Get();
@@ -31,7 +31,7 @@ void WrongNatTypeWindow::Draw(class Application* app, std::function<void()> onCl
 	ImGui::PopFont();
 	ImGui::PushFont(Renderer::small_font);
 
-	if (conn_type == shared::ConnectionType::WIFI)
+	if (isWifi)
 	{
 		ImGui::TextWrapped(
 			"You are currently connected to WIFI. Please disable WIFI, enable data and check the NAT type again. "

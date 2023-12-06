@@ -60,7 +60,7 @@ void NatCollector::Update(Application* app)
 	}
 	case NatCollectorSteps::UpdateUserGuidance:
 	{
-		if (user_guidance.Update(app, client_meta_data))
+		if (user_guidance.Update(app, connect_reader.Get(), client_meta_data))
 		{
 			current = NatCollectorSteps::StartNatCollector;
 		}

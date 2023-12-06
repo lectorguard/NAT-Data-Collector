@@ -22,6 +22,7 @@ enum class WindowStates : uint16_t
 	Idle = 0,
 	PopUp,
 	NatInfoWindow,
+	NatInfoWindowWifi,
 	VersionUpdateWindow,
 	InformationUpdateWindow,
 	Wait
