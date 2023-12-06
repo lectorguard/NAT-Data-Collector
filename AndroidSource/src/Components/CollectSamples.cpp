@@ -113,6 +113,7 @@ bool CollectSamples::Update(class Application* app, std::atomic<shared::Connecti
 						}
 						else
 						{
+							Log::Info("Received %d remote address samples", av.address_vector.size());
 							collected_nat_data = av.address_vector;
 							current = CollectSamplesStep::StartUploadDB;
 						}

@@ -11,7 +11,6 @@
 void WrongNatTypeWindow::Draw(class Application* app, std::function<void()> onClose, std::function<void()> onRecalcNat, bool isWifi)
 {
 	NatCollector& nat_collector = app->_components.Get<NatCollector>();
-	const shared::ConnectionType conn_type = nat_collector.connect_reader.Get();
 	const shared::NATType nat_type = nat_collector.client_meta_data.nat_type;
 
 

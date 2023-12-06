@@ -104,7 +104,6 @@ if(${CMAKE_SYSTEM_NAME} STREQUAL "Android")
 	message(STATUS "Created successfully library with name: ${imgui_name}")
 
 	add_subdirectory(AndroidSource)
-	target_compile_definitions(native-activity PRIVATE BUFFER_SIZE=16384)
 	target_compile_definitions(native-activity PRIVATE SOCKET_TIMEOUT_MS=5000) 
 	INCLUDE(android.config)
 	message(STATUS "IP address from android config ${SERVER_IP}")
@@ -135,7 +134,6 @@ else()
 	# create config
 	configure_file(server_template_config.json ServerSource/server_config.json)
 	target_compile_definitions(server-app PRIVATE CONFIG_PATH="server_config.json")
-	target_compile_definitions(server-app PRIVATE BUFFER_SIZE=16384)
 	target_compile_definitions(server-app PRIVATE SOCKET_TIMEOUT_MS=5000) 
 endif()
 
