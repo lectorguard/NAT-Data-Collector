@@ -47,22 +47,26 @@ namespace shared
 	{
 		ClientMetaData meta_data;
 		std::string timestamp;
-		uint16_t sampling_rate_ms =0;
+		uint16_t sampling_rate_ms = 0;
 		shared::ConnectionType connection_type = shared::ConnectionType::NOT_CONNECTED;
 		std::vector<Address> address_vector;
+		uint16_t delay_between_samples_ms = 0;
 
 		NATSample() {};
-		NATSample(ClientMetaData meta_data, std::string timestamp,  uint16_t sampling_rate_ms, shared::ConnectionType connection_type,  const std::vector<Address>& address_vector) :
+		NATSample(ClientMetaData meta_data, std::string timestamp,  uint16_t sampling_rate_ms,
+			shared::ConnectionType connection_type,  const std::vector<Address>& address_vector, uint16_t delay_between_samples_ms) :
 			meta_data(meta_data),
 			timestamp(timestamp),
 			sampling_rate_ms(sampling_rate_ms),
 			connection_type(connection_type),
-			address_vector(address_vector)
+			address_vector(address_vector),
+			delay_between_samples_ms(delay_between_samples_ms)
 		{};
 
 		jser::JserChunkAppender AddItem() override
 		{
-			return JSerializable::AddItem().Append(JSER_ADD(SerializeManagerType, meta_data, connection_type, timestamp, address_vector, sampling_rate_ms));
+			return JSerializable::AddItem().Append(JSER_ADD(SerializeManagerType, meta_data,
+				connection_type, timestamp, address_vector, sampling_rate_ms, delay_between_samples_ms));
 		}
 	};
 

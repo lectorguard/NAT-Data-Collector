@@ -135,7 +135,8 @@ bool CollectSamples::Update(class Application* app, std::atomic<shared::Connecti
 		using Factory = RequestFactory<RequestType::INSERT_MONGO>;
 
 		// Create Object
-		NATSample sampleToInsert{ client_meta_data, time_stamp, NAT_COLLECT_REQUEST_DELAY_MS, connect_type, collected_nat_data };
+		NATSample sampleToInsert{ client_meta_data, time_stamp, NAT_COLLECT_REQUEST_DELAY_MS,
+								  connect_type, collected_nat_data, NAT_COLLECT_SAMPLE_DELAY_MS };
 		auto request = Factory::Create(sampleToInsert, MONGO_DB_NAME, MONGO_NAT_SAMPLES_COLL_NAME);
 
 		upload_nat_sample = std::async(TCPTask::ServerTransaction,std::move(request), SERVER_IP, SERVER_TRANSACTION_TCP_PORT);

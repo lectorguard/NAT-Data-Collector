@@ -262,7 +262,6 @@ asio::system_timer UDPCollectTask::CreateDeadline(asio::io_service& service, std
 				// Package loss is expected
 				// If there is no internet connection,
 				// an error will be created at a later stage
-				Log::Warning( "Socket operation expired");
 				socket->cancel();
 			}
 		}
