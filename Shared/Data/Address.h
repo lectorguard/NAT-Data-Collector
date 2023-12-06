@@ -50,11 +50,11 @@ namespace shared
 		uint16_t sampling_rate_ms = 0;
 		shared::ConnectionType connection_type = shared::ConnectionType::NOT_CONNECTED;
 		std::vector<Address> address_vector;
-		uint16_t delay_between_samples_ms = 0;
+		uint32_t delay_between_samples_ms = 0;
 
 		NATSample() {};
 		NATSample(ClientMetaData meta_data, std::string timestamp,  uint16_t sampling_rate_ms,
-			shared::ConnectionType connection_type,  const std::vector<Address>& address_vector, uint16_t delay_between_samples_ms) :
+			shared::ConnectionType connection_type,  const std::vector<Address>& address_vector, uint32_t delay_between_samples_ms) :
 			meta_data(meta_data),
 			timestamp(timestamp),
 			sampling_rate_ms(sampling_rate_ms),
