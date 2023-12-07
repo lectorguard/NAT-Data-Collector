@@ -27,4 +27,4 @@ echo set(MONGO_NAT_USERS_COLL_NAME "users") # Mongo collection name, where app u
 echo set(MONGO_VERSION_COLL_NAME "VersionUpdate") # Mongo collection name, where new version pop up information are stored >> ..\android.config
 echo set(MONGO_INFORMATION_COLL_NAME "InformationUpdate") # Mongo collection name, where general information for popups are stored >> ..\android.config
 echo set(RANDOM_SYM_NAT_REQUIRED 1) #If set to 1, ports are only collected if NAT type is random symmetric >> ..\android.config
-
+echo set(MAX_LOG_LINES 1000) # Sets the maximum number of lines in the log, before old messages get discarded >> ..\android.config

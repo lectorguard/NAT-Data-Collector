@@ -150,6 +150,11 @@ private:
 		default:
 			break;
 		}
+		if (log_buffer.size() >= MAX_LOG_LINES)
+		{
+			// Not very efficient should be a deque instead
+			log_buffer.erase(log_buffer.begin());
+		}
 		log_buffer.emplace_back(helper);
 		scrollToBottom = true;
 	}
