@@ -89,7 +89,7 @@ bool CollectSamples::Update(class Application* app, std::atomic<shared::Connecti
 			/* remote port */					SERVER_NAT_UDP_PORT_1,
 			/* local port */					0,
 			/* amount of ports */				NAT_COLLECT_PORTS_PER_SAMPLE,
-			/* time between requests in ms */	NAT_COLLECT_REQUEST_DELAY_MS,
+			/* time between requests in ms */	frequencies[index],
 			connect_type
 		};
 		nat_collect_task = std::async(UDPCollectTask::StartCollectTask, collect_config);
@@ -128,6 +128,22 @@ bool CollectSamples::Update(class Application* app, std::atomic<shared::Connecti
 		}
 		break;
 	}
+	case CollectSamplesStep::StartWaitUpload:
+	{
+		Log::Info("Delay upload of sample 20 seconds");
+		wait_upload_timer.ExpiresFromNow(std::chrono::milliseconds(20'000));
+		current = CollectSamplesStep::UpdateWaitUpload;
+		break;
+	}
+	case CollectSamplesStep::UpdateWaitUpload:
+	{
+		if (wait_upload_timer.HasExpired())
+		{
+			wait_upload_timer.SetActive(false);
+			current = CollectSamplesStep::StartUploadDB;
+		}
+		break;
+	}
 	case CollectSamplesStep::StartUploadDB:
 	{
 		Log::Info( "Started upload to DB");
@@ -135,7 +151,7 @@ bool CollectSamples::Update(class Application* app, std::atomic<shared::Connecti
 		using Factory = RequestFactory<RequestType::INSERT_MONGO>;
 
 		// Create Object
-		NATSample sampleToInsert{ client_meta_data, time_stamp, NAT_COLLECT_REQUEST_DELAY_MS,
+		NATSample sampleToInsert{ client_meta_data, time_stamp, frequencies[index],
 								  connect_type, collected_nat_data, NAT_COLLECT_SAMPLE_DELAY_MS };
 		auto request = Factory::Create(sampleToInsert, MONGO_DB_NAME, MONGO_NAT_SAMPLES_COLL_NAME);
 
@@ -150,6 +166,21 @@ bool CollectSamples::Update(class Application* app, std::atomic<shared::Connecti
 			Log::HandleResponse(*res, "Insert NAT sample to DB");
 			if (*res)
 			{
+				if (++curr_amount >= target_amount)
+				{
+					curr_amount = 0;
+					if (++index >= frequencies.size())
+					{
+						current = CollectSamplesStep::Idle;
+						Log::Info("DONE COLLECTING");
+						break;
+					}
+				}
+				Log::Info("%s : Current frequency %d ms and amount %d/%d",
+					shared::helper::CreateTimeStampNow().c_str(),
+					frequencies[index],
+					curr_amount, target_amount);
+
 				current = CollectSamplesStep::StartWait;
 				break;
 			}
