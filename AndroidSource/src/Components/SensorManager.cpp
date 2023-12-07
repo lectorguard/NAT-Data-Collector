@@ -39,6 +39,7 @@ void SensorManager::OnAndroidEvent(struct android_app* app, int32_t cmd)
 			ASensorEventQueue_setEventRate(_sensorEventQueue, _accelerometerSensor,
 				(1000L / 60) * 1000);
 		}
+		Log::HandleResponse(utilities::ActivateWakeLock(app), "Aquire Wake Lock");
 		break;
 	}
 	case APP_CMD_LOST_FOCUS:

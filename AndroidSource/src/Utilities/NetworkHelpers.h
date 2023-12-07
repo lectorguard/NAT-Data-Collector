@@ -184,6 +184,57 @@ namespace utilities
 		return result;
 	}
 
+	// https://developer.android.com/training/scheduling/wakelock
+	inline shared::ServerResponse ActivateWakeLock(struct android_app* native_app)
+	{
+		jint lResult;
+
+		JavaVM* lJavaVM = native_app->activity->vm;
+		JNIEnv* lJNIEnv = native_app->activity->env;
+
+		JavaVMAttachArgs lJavaVMAttachArgs;
+		lJavaVMAttachArgs.version = JNI_VERSION_1_6;
+		lJavaVMAttachArgs.name = "NativeThread";
+		lJavaVMAttachArgs.group = NULL;
+
+
+		lResult = lJavaVM->AttachCurrentThread(&lJNIEnv, &lJavaVMAttachArgs);
+		if (lResult == JNI_ERR)
+		{
+			return shared::ServerResponse::Error({ "Failed to attach to JNI thread" });
+		}
+
+		// Retrieves NativeActivity.
+		jobject lNativeActivity = native_app->activity->clazz;
+
+		// Retrieves Context.INPUT_METHOD_SERVICE.
+		jclass ClassContext = lJNIEnv->FindClass("android/content/Context");
+
+		jstring powerService = lJNIEnv->NewStringUTF("power");
+		jobject powerManager = 
+			lJNIEnv->CallObjectMethod(lNativeActivity, lJNIEnv->GetMethodID(ClassContext, "getSystemService", "(Ljava/lang/String;)Ljava/lang/Object;"), powerService);
+		lJNIEnv->DeleteLocalRef(powerService);
+
+		// Get PowerManager.PARTIAL_WAKE_LOCK
+		jclass powerManagerClass = lJNIEnv->GetObjectClass(powerManager);
+		jfieldID partialWakeLockField = lJNIEnv->GetStaticFieldID(powerManagerClass, "PARTIAL_WAKE_LOCK", "I");
+		jint partialWakeLockValue = lJNIEnv->GetStaticIntField(powerManagerClass, partialWakeLockField);
+
+		// Create wake lock
+		jstring wakeLockTag = lJNIEnv->NewStringUTF("NatCollector::LogTag");
+		jmethodID newWakeLockMethod = 
+			lJNIEnv->GetMethodID(powerManagerClass, "newWakeLock", "(ILjava/lang/String;)Landroid/os/PowerManager$WakeLock;");
+		jobject wakeLock = lJNIEnv->CallObjectMethod(powerManager, newWakeLockMethod, partialWakeLockValue, wakeLockTag);
+		lJNIEnv->DeleteLocalRef(wakeLockTag);
+
+		// Acquire the wake lock
+		jmethodID acquireMethod = lJNIEnv->GetMethodID(lJNIEnv->GetObjectClass(wakeLock), "acquire", "()V");
+		lJNIEnv->CallVoidMethod(wakeLock, acquireMethod);
+		
+		lJavaVM->DetachCurrentThread();
+		return shared::ServerResponse::OK();
+	}
+
 	inline bool StyledButton(const char* label, ImVec4& currentColor, bool isSelected = false)
 	{
 		const ImVec4 Pressed = { 163 / 255.0f, 163 / 255.0f, 163 / 255.0f,1.0f };
