@@ -31,7 +31,7 @@ namespace TCPSessionHandler
 		const std::string remote_addr = s.remote_endpoint().address().to_string();
 		const uint16_t remote_port = s.remote_endpoint().port();
 
-		std::cout << "New client connected : Address " << remote_addr << " Port : " << remote_port <<  std::endl;
+		std::cout << shared::helper::CreateTimeStampNow() << " New client connected : Address " << remote_addr << " Port : " << remote_port <<  std::endl;
 		auto ex = co_await asio::this_coro::executor;
 
 		for (;;)
