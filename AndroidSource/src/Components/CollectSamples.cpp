@@ -82,6 +82,15 @@ bool CollectSamples::Update(class Application* app, std::atomic<shared::Connecti
 	case CollectSamplesStep::StartCollectPorts:
 	{
 		Log::Info("%s : Started collecting Ports", shared::helper::CreateTimeStampNow().c_str());
+		//Log::Warning("IsScreenActive %s", utilities::IsScreenActive(app->android_state) ? "true" : "false");
+		auto res = utilities::ActivateWakeLock(app->android_state,
+			{ "FULL_WAKE_LOCK", "ACQUIRE_CAUSES_WAKEUP", "ON_AFTER_RELEASE" },
+				1,
+				"CollectPortsLock");
+
+		//utilities::SetBrightness(app->android_state, 1.0f);
+
+		//Log::HandleResponse(res, "Collect Ports Awake Lock");
 		//Start Collecting
 		const UDPCollectTask::CollectInfo collect_config
 		{

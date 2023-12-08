@@ -130,9 +130,9 @@ namespace utilities
 		lJavaVMAttachArgs.name = "NativeThread";
 		lJavaVMAttachArgs.group = NULL;
 
-		
+
 		lResult = lJavaVM->AttachCurrentThread(&lJNIEnv, &lJavaVMAttachArgs);
-		if (lResult == JNI_ERR) 
+		if (lResult == JNI_ERR)
 		{
 			return shared::ServerResponse::Error({ "Failed to attach to JNI thread" });
 		}
@@ -185,7 +185,7 @@ namespace utilities
 	}
 
 	// https://developer.android.com/training/scheduling/wakelock
-	inline shared::ServerResponse ActivateWakeLock(struct android_app* native_app)
+	inline shared::ServerResponse ActivateWakeLock(struct android_app* native_app, std::vector<std::string> powerManagerFlags, long duration, std::string context)
 	{
 		jint lResult;
 
@@ -211,28 +211,75 @@ namespace utilities
 		jclass ClassContext = lJNIEnv->FindClass("android/content/Context");
 
 		jstring powerService = lJNIEnv->NewStringUTF("power");
-		jobject powerManager = 
+		jobject powerManager =
 			lJNIEnv->CallObjectMethod(lNativeActivity, lJNIEnv->GetMethodID(ClassContext, "getSystemService", "(Ljava/lang/String;)Ljava/lang/Object;"), powerService);
 		lJNIEnv->DeleteLocalRef(powerService);
 
 		// Get PowerManager.PARTIAL_WAKE_LOCK
 		jclass powerManagerClass = lJNIEnv->GetObjectClass(powerManager);
-		jfieldID partialWakeLockField = lJNIEnv->GetStaticFieldID(powerManagerClass, "PARTIAL_WAKE_LOCK", "I");
-		jint partialWakeLockValue = lJNIEnv->GetStaticIntField(powerManagerClass, partialWakeLockField);
+
+
+		jint combinedFlags = 0;
+		for (auto& flag : powerManagerFlags)
+		{
+			jfieldID partialWakeLockField = lJNIEnv->GetStaticFieldID(powerManagerClass, flag.c_str(), "I");
+			jint partialWakeLockValue = lJNIEnv->GetStaticIntField(powerManagerClass, partialWakeLockField);
+			combinedFlags |= partialWakeLockValue;
+		}
 
 		// Create wake lock
-		jstring wakeLockTag = lJNIEnv->NewStringUTF("NatCollector::LogTag");
-		jmethodID newWakeLockMethod = 
+		jstring wakeLockTag = lJNIEnv->NewStringUTF(context.c_str());
+		jmethodID newWakeLockMethod =
 			lJNIEnv->GetMethodID(powerManagerClass, "newWakeLock", "(ILjava/lang/String;)Landroid/os/PowerManager$WakeLock;");
-		jobject wakeLock = lJNIEnv->CallObjectMethod(powerManager, newWakeLockMethod, partialWakeLockValue, wakeLockTag);
+		jobject wakeLock = lJNIEnv->CallObjectMethod(powerManager, newWakeLockMethod, combinedFlags, wakeLockTag);
 		lJNIEnv->DeleteLocalRef(wakeLockTag);
 
 		// Acquire the wake lock
 		jmethodID acquireMethod = lJNIEnv->GetMethodID(lJNIEnv->GetObjectClass(wakeLock), "acquire", "()V");
-		lJNIEnv->CallVoidMethod(wakeLock, acquireMethod);
-		
+		lJNIEnv->CallVoidMethod(wakeLock, acquireMethod, duration);
+
 		lJavaVM->DetachCurrentThread();
 		return shared::ServerResponse::OK();
+	}
+
+	inline bool IsScreenActive(struct android_app* native_app)
+	{
+		jint lResult;
+
+		JavaVM* lJavaVM = native_app->activity->vm;
+		JNIEnv* lJNIEnv = native_app->activity->env;
+
+		JavaVMAttachArgs lJavaVMAttachArgs;
+		lJavaVMAttachArgs.version = JNI_VERSION_1_6;
+		lJavaVMAttachArgs.name = "NativeThread";
+		lJavaVMAttachArgs.group = NULL;
+
+
+		lResult = lJavaVM->AttachCurrentThread(&lJNIEnv, &lJavaVMAttachArgs);
+		if (lResult == JNI_ERR)
+		{
+			// in doubt screen is off
+			return false;
+		}
+
+		// Retrieves NativeActivity.
+		jobject lNativeActivity = native_app->activity->clazz;
+
+		// Retrieves Context.INPUT_METHOD_SERVICE.
+		jclass ClassContext = lJNIEnv->FindClass("android/content/Context");
+
+		jmethodID getSystemServiceMethod = lJNIEnv->GetMethodID(ClassContext, "getSystemService", "(Ljava/lang/String;)Ljava/lang/Object;");
+		jobject powerManagerObj = lJNIEnv->CallObjectMethod(lNativeActivity, getSystemServiceMethod, lJNIEnv->NewStringUTF("power"));
+
+		// Get the isScreenOn method from PowerManager class
+		jclass powerManagerClass = lJNIEnv->FindClass("android/os/PowerManager");
+		jmethodID isScreenOnMethod = lJNIEnv->GetMethodID(powerManagerClass, "isScreenOn", "()Z");
+
+		// Call isScreenOn method
+		const bool isActive = lJNIEnv->CallBooleanMethod(powerManagerObj, isScreenOnMethod);
+		lJNIEnv->DeleteLocalRef(powerManagerObj);
+		lJavaVM->DetachCurrentThread();
+		return isActive;
 	}
 
 	inline bool StyledButton(const char* label, ImVec4& currentColor, bool isSelected = false)
