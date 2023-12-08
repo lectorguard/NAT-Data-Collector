@@ -81,7 +81,7 @@ bool CollectSamples::Update(class Application* app, std::atomic<shared::Connecti
 	}
 	case CollectSamplesStep::StartCollectPorts:
 	{
-		Log::Info( "Started collecting Ports");
+		Log::Info("%s : Started collecting Ports", shared::helper::CreateTimeStampNow().c_str());
 		//Start Collecting
 		const UDPCollectTask::CollectInfo collect_config
 		{
@@ -113,7 +113,9 @@ bool CollectSamples::Update(class Application* app, std::atomic<shared::Connecti
 						}
 						else
 						{
-							Log::Info("Received %d remote address samples", av.address_vector.size());
+							Log::Info("%s : Received %d remote address samples",
+								shared::helper::CreateTimeStampNow().c_str(),
+								av.address_vector.size());
 							collected_nat_data = av.address_vector;
 							current = CollectSamplesStep::StartUploadDB;
 						}
