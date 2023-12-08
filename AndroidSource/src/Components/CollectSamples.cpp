@@ -120,7 +120,7 @@ bool CollectSamples::Update(class Application* app, std::atomic<shared::Connecti
 								shared::helper::CreateTimeStampNow().c_str(),
 								av.address_vector.size());
 							collected_nat_data = av.address_vector;
-							current = CollectSamplesStep::StartUploadDB;
+							current = CollectSamplesStep::StartWaitUpload;
 						}
 					},
 					[&](const shared::ServerResponse& sr)
@@ -135,8 +135,8 @@ bool CollectSamples::Update(class Application* app, std::atomic<shared::Connecti
 	}
 	case CollectSamplesStep::StartWaitUpload:
 	{
-		Log::Info("Delay upload of sample 20 seconds");
-		wait_upload_timer.ExpiresFromNow(std::chrono::milliseconds(20'000));
+		Log::Info("Delay upload of sample 10 seconds");
+		wait_upload_timer.ExpiresFromNow(std::chrono::milliseconds(10'000));
 		current = CollectSamplesStep::UpdateWaitUpload;
 		break;
 	}
