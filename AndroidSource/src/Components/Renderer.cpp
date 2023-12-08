@@ -109,11 +109,26 @@ void Renderer::StartFrame()
 void Renderer::EndFrame()
 {
 	ImGuiIO& io = ImGui::GetIO();
-	ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
-
 	ImGui::Render();
+
 	glViewport(0, 0, (int)io.DisplaySize.x, (int)io.DisplaySize.y);
-	glClearColor(clear_color.x * clear_color.w, clear_color.y * clear_color.w, clear_color.z * clear_color.w, clear_color.w);
+	switch (clear_type)
+	{
+	case ClearColor::BLACK:
+	{
+		glClearColor(.0f, .0f, .0f, 1.f);
+		break;
+	}	
+	case ClearColor::DEFAULT:
+	{
+		ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
+		glClearColor(clear_color.x * clear_color.w, clear_color.y * clear_color.w, clear_color.z * clear_color.w, clear_color.w);
+		break;
+	}	
+	default:
+		break;
+	}
+	
 	glClear(GL_COLOR_BUFFER_BIT);
 	ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 	eglSwapBuffers(_display, _surface);

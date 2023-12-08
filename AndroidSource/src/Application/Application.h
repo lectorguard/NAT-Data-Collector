@@ -8,6 +8,7 @@
 #include "Components/Scoreboard.h"
 #include "Components/UserData.h"
 #include "Components/WindowManager.h"
+#include "Components/AwakeManager.h"
 #include "android/log.h"
 
 
@@ -16,7 +17,7 @@
 
 class Application
 {
-	using ComponentsType = ComponentManager<SensorManager, Renderer, InputManager, NatCollector, WindowManager, Scoreboard, UserData>;
+	using ComponentsType = ComponentManager<SensorManager, Renderer, InputManager, NatCollector, WindowManager, Scoreboard, UserData, AwakeManager>;
 
 public:
 	Application() {};

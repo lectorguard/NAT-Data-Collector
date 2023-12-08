@@ -7,6 +7,11 @@
 #include <memory>
 #include <string>
 
+enum class ClearColor
+{
+    BLACK,
+    DEFAULT
+};
 
 class Renderer
 {
@@ -43,7 +48,7 @@ public:
     bool CanDraw() const;
     bool IsAnimating() const { return _animating; };
 
-
+    ClearColor clear_type = ClearColor::DEFAULT;
 private:
 	inline static int32_t displayDensity = 0;
 	// Density independant pixels
