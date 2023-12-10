@@ -15,20 +15,19 @@ void AwakeManager::Activate(class Application* app)
 		});
 }
 
-shared::ServerResponse AwakeManager::KeepAwake(class Application* app, uint32_t duration_ms)
+shared::ServerResponse AwakeManager::KeepAwake(class Application* app, long duration_ms)
 {
 	if (awake_state != AwakeState::Idle)
 	{
 		return shared::ServerResponse::Error({ "Keep process awake failed. Another awake process is active" });
 	}
-
 	awake_timer.ExpiresFromNow(std::chrono::milliseconds(duration_ms));
 	return KeepAwake_Internal(app, duration_ms);
 }
 
 
 
-shared::ServerResponse AwakeManager::KeepAwake_Internal(class Application* app, uint32_t duration_ms)
+shared::ServerResponse AwakeManager::KeepAwake_Internal(class Application* app, long duration_ms)
 {
 	if (utilities::IsScreenActive(app->android_state))
 	{
