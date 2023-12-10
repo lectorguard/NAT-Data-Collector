@@ -3,7 +3,6 @@
 #include "asio.hpp"
 #include "chrono"
 
-
 struct SimpleTimer
 {
 public:
@@ -23,8 +22,9 @@ public:
 
 	long GetRemainingDurationMS()
 	{
+		if (!bIsActive) return 0;
 		const auto time_now = std::chrono::system_clock::now();
-		if (expiry_time >= time_now)
+		if (time_now > expiry_time)
 		{
 			return 0;
 		}
