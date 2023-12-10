@@ -115,7 +115,7 @@ void PopUpWindow::Draw(class Application* app, std::function<void(bool)> onClose
 	{
 		onClose(ignore_pop_up);
 	}
-	ImGui::Dummy(ImVec2(0, Renderer::CentimeterToPixel(0.2f)));
+	ImGui::Dummy(ImVec2(0, Renderer::CentimeterToPixel(1.0f)));
 	ImGui::PopFont();
 	ImGui::PopStyleVar();
 	ImGui::End();

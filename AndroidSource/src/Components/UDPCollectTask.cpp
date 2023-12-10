@@ -64,10 +64,24 @@
 	socket_list.reserve(info.amount_ports);
 	for (uint16_t index = 0; index < info.amount_ports; ++index)
 	{
-		socket_list.emplace_back(Socket{ index,
-										createSocket(),
-										asio::system_timer(io_service)
-			});
+		try
+		{
+			socket_list.emplace_back(Socket{ index,
+								createSocket(),
+								asio::system_timer(io_service)
+				});
+		}
+		catch (const asio::system_error& ec)
+		{
+			stored_response = shared::ServerResponse::Error({ "Socket creation failed at index " + std::to_string(index), ec.what()});
+			return;
+		}
+		catch (std::exception* e)
+		{
+			stored_response = shared::ServerResponse::Error({ "Socket creation failed at index " + std::to_string(index), e->what() });
+			return;
+		}
+
 		socket_list[index].timer.expires_from_now(std::chrono::milliseconds(index * info.time_between_requests_ms));
 		socket_list[index].timer.async_wait([this, &info, &sock = socket_list[index], &io_service](auto error)
 			{
@@ -117,6 +131,11 @@ shared::Result<shared::AddressVector> UDPCollectTask::start_task_internal(std::f
 {
 	asio::io_service io_service;
 	UDPCollectTask collectTask{ createCollectTask(io_service) };
+
+	if (!collectTask.stored_response)
+	{
+		return std::move(collectTask.stored_response);
+	}
 
 	asio::error_code ec;
 	io_service.run(ec);
