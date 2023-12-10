@@ -9,7 +9,10 @@ enum class AwakeState
 	WaitForScreenActive,
 	StartUpdate,
 	Update,
-	Release
+	Release,
+	StartWait,
+	UpdateWait
+
 };
 
 
@@ -23,9 +26,13 @@ public:
 	void Deactivate(class Application* app) {};
 	void Update(class Application* app);
 	shared::ServerResponse KeepAwake(class Application* app, uint32_t duration_ms);
+
 	bool IsScreenActive() { return awake_state != AwakeState::Update; };
 
 private:
+	shared::ServerResponse KeepAwake_Internal(class Application* app, uint32_t duration_ms);
 	shared::ServerResponse TurnScreenOn(struct android_app* state, long duration);
 	AwakeState awake_state = AwakeState::Idle;
+	SimpleTimer awake_timer;
+	SimpleTimer wait_timer;
 };

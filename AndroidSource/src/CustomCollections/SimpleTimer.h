@@ -21,6 +21,19 @@ public:
 		else return std::chrono::system_clock::now() > expiry_time;
 	}
 
+	long GetRemainingDurationMS()
+	{
+		const auto time_now = std::chrono::system_clock::now();
+		if (expiry_time >= time_now)
+		{
+			return 0;
+		}
+		else
+		{
+			return std::chrono::duration_cast<std::chrono::milliseconds>(expiry_time - time_now).count();
+		}
+	}
+
 	void SetActive(bool newActiveState)
 	{
 		bIsActive = newActiveState;
