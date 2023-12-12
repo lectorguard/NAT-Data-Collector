@@ -82,8 +82,6 @@ bool CollectSamples::Update(class Application* app, std::atomic<shared::Connecti
 	case CollectSamplesStep::StartCollectPorts:
 	{
 		Log::Info("%s : Started collecting Ports", shared::helper::CreateTimeStampNow().c_str());
-		auto res = app->_components.Get<AwakeManager>().KeepAwake(app, NAT_COLLECT_PORTS_PER_SAMPLE * frequencies[index]);
-		Log::HandleResponse(res, "Keep Display Awake");
 		
 		//Start Collecting
 		const UDPCollectTask::CollectInfo collect_config

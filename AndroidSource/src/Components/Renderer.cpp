@@ -21,8 +21,6 @@ void Renderer::OnAndroidEvent(struct android_app* app, int32_t cmd)
 		if (app->window != nullptr)
 		{
 			InitDisplay(app);
-			// https://developer.android.com/reference/android/view/WindowManager.LayoutParams
-			ANativeActivity_setWindowFlags(app->activity, 1 | 128 | 524288 | 4194304 | 2097152, 0);
 		}
 		break;
 	}
@@ -99,6 +97,17 @@ void Renderer::Deactivate(class Application* app)
 	_display = EGL_NO_DISPLAY;
 	_context = EGL_NO_CONTEXT;
 	_surface = EGL_NO_SURFACE;
+}
+
+void Renderer::SetDarkMode(bool isActive)
+{
+	if (isActive && clear_type == ClearColor::DEFAULT)
+	{
+		clear_type = ClearColor::BLACK;
+		StartFrame();
+		EndFrame();
+	}
+	clear_type = isActive ? ClearColor::BLACK : ClearColor::DEFAULT;
 }
 
 void Renderer::StartFrame()

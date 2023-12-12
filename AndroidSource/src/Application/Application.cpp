@@ -46,7 +46,8 @@ void Application::run(struct android_app* state)
 			}
 		}
 		UpdateEvent.Publish(this);
-		if (_components.Get<Renderer>().CanDraw() && _components.Get<AwakeManager>().IsScreenActive())
+		Renderer& renderer = _components.Get<Renderer>();
+		if (renderer.CanDraw() && !renderer.IsDarkMode())
 		{
 			_components.Get<Renderer>().StartFrame();
 			DrawEvent.Publish(this);

@@ -32,11 +32,12 @@ public:
     void Activate(class Application* app);
     void Deactivate(class Application* app);
 
+    
+
     void OnAndroidEvent(struct android_app* app, int32_t cmd);
     void InitDisplay(struct android_app* app);
 
     void InitDisplayDensity(struct android_app* app);
-
     void StartFrame();
     void EndFrame();
 
@@ -48,8 +49,13 @@ public:
     bool CanDraw() const;
     bool IsAnimating() const { return _animating; };
 
-    ClearColor clear_type = ClearColor::DEFAULT;
+    void SetDarkMode(bool isActive);
+    void FlipDarkMode() { SetDarkMode(!IsDarkMode()); }
+    bool IsDarkMode() { return clear_type == ClearColor::BLACK; }
+    
 private:
+    ClearColor clear_type = ClearColor::DEFAULT;
+
 	inline static int32_t displayDensity = 0;
 	// Density independant pixels
 	inline static int32_t DIPX = 0;
