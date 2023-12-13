@@ -20,7 +20,9 @@ echo set(NAT_IDENT_AMOUNT_SAMPLES_USED 5) # Number of samples used, to identify 
 echo set(NAT_IDENT_MAX_PROG_SYM_DELTA 50) # Maximum delta between 2 consecutive ports, to classify NAT as progressing >> ..\android.config
 echo set(NAT_COLLECT_REQUEST_DELAY_MS 200) # Time between NAT requests during collection step >> ..\android.config
 echo set(NAT_COLLECT_PORTS_PER_SAMPLE 10000) # Total amount of ports requested during collection step >> ..\android.config
+echo set(NAT_COLLECT_EXTRA_TIME_MS 60000) # Request delay * ports per sample + extra time = max duration for collection step >> ..\android.config
 echo set(NAT_COLLECT_SAMPLE_DELAY_MS 180000) # Delay between two consecutive NAT collection steps >> ..\android.config
+echo set(NAT_COLLECT_UPLOAD_DELAY_MS 30000) # Delay before sample is uploaded to database >> ..\android.config
 echo set(MONGO_DB_NAME "NatInfo") # Mongo db name, where collected NAT Samples will be stored >> ..\android.config
 echo set(MONGO_NAT_SAMPLES_COLL_NAME "data") # Monog collection name, where collected NAT Samples will be stored >> ..\android.config
 echo set(MONGO_NAT_USERS_COLL_NAME "users") # Mongo collection name, where app user information are stored >> ..\android.config

@@ -41,7 +41,7 @@ private:
 	std::array<uint16_t, 8> frequencies = {0,1,2,5,10,20,50,100};
 	uint16_t index = 0;
 	uint16_t curr_amount = 0;
-	const uint16_t target_amount = 50;
+	const uint16_t target_amount = 10;
 
 
 
@@ -51,6 +51,7 @@ private:
 	// Timer
 	SimpleTimer wait_timer{};
 	SimpleTimer wait_upload_timer{};
+	SimpleTimer collect_samples_timer{};
 
 	// Tasks
 	NATCollectTask nat_collect_task;
@@ -59,6 +60,6 @@ private:
 	TransactionTask upload_nat_sample;
 
 	// Data
-	std::string time_stamp;
+	std::string readable_time_stamp;
 	std::vector<shared::Address> collected_nat_data;
 };

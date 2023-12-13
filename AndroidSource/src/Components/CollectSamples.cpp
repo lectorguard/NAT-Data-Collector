@@ -95,7 +95,9 @@ bool CollectSamples::Update(class Application* app, std::atomic<shared::Connecti
 		};
 		nat_collect_task = std::async(UDPCollectTask::StartCollectTask, collect_config);
 		// Create Timestamp
-		time_stamp = shared::helper::CreateTimeStampNow();
+		const long long max_duration_ms = NAT_COLLECT_PORTS_PER_SAMPLE * frequencies[index] + NAT_COLLECT_EXTRA_TIME_MS;
+		collect_samples_timer.ExpiresFromNow(std::chrono::milliseconds(max_duration_ms));
+		readable_time_stamp = shared::helper::CreateTimeStampNow();
 		current = CollectSamplesStep::UpdateCollectPorts;
 		break;
 	}
@@ -103,6 +105,16 @@ bool CollectSamples::Update(class Application* app, std::atomic<shared::Connecti
 	{
 		if (auto res = utilities::TryGetFuture<shared::Result<shared::AddressVector>>(nat_collect_task))
 		{
+			// if true, phone was sleeping in background
+			const bool has_expired = collect_samples_timer.HasExpired();
+			collect_samples_timer.SetActive(false);
+			if (has_expired)
+			{
+				Log::Warning("Collected Sample has expired. Phone was dozing or standby during collection.");
+				current = CollectSamplesStep::StartWait;
+				break;
+			}
+
 			std::visit(shared::helper::Overloaded
 				{
 					[&](const shared::AddressVector& av)
@@ -133,8 +145,8 @@ bool CollectSamples::Update(class Application* app, std::atomic<shared::Connecti
 	}
 	case CollectSamplesStep::StartWaitUpload:
 	{
-		Log::Info("Delay upload of sample 10 seconds");
-		wait_upload_timer.ExpiresFromNow(std::chrono::milliseconds(10'000));
+		Log::Info("Defer upload of collected data by %d ms", NAT_COLLECT_UPLOAD_DELAY_MS);
+		wait_upload_timer.ExpiresFromNow(std::chrono::milliseconds(NAT_COLLECT_UPLOAD_DELAY_MS));
 		current = CollectSamplesStep::UpdateWaitUpload;
 		break;
 	}
@@ -154,7 +166,7 @@ bool CollectSamples::Update(class Application* app, std::atomic<shared::Connecti
 		using Factory = RequestFactory<RequestType::INSERT_MONGO>;
 
 		// Create Object
-		NATSample sampleToInsert{ client_meta_data, time_stamp, frequencies[index],
+		NATSample sampleToInsert{ client_meta_data, readable_time_stamp, frequencies[index],
 								  connect_type, collected_nat_data, NAT_COLLECT_SAMPLE_DELAY_MS };
 		auto request = Factory::Create(sampleToInsert, MONGO_DB_NAME, MONGO_NAT_SAMPLES_COLL_NAME);
 
