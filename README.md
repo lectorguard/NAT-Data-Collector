@@ -107,6 +107,10 @@ db.test.find() // shows content of test collection
 ```
 * See [Mongosh cheat sheet](https://www.mongodb.com/developer/products/mongodb/cheat-sheet/) for more info
 
+### Export Collections
+
+* See [Database Tools Export](https://www.mongodb.com/docs/database-tools/mongoexport/)
+
 ## How to set up Server App on Ubuntu
 
 ### Prerequisites
