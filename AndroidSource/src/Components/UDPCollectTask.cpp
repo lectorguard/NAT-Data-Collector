@@ -64,26 +64,14 @@
 	socket_list.reserve(info.amount_ports);
 	for (uint16_t index = 0; index < info.amount_ports; ++index)
 	{
-		try
-		{
-			socket_list.emplace_back(Socket{ index,
-								createSocket(),
+		socket_list.emplace_back(Socket{ index,
+								nullptr, // create socket when it is used
 								asio::system_timer(io_service)
-				});
-		}
-		catch (const asio::system_error& ec)
-		{
-			stored_response = shared::ServerResponse::Error({ "Socket creation failed at index " + std::to_string(index), ec.what()});
-			return;
-		}
-		catch (std::exception* e)
-		{
-			stored_response = shared::ServerResponse::Error({ "Socket creation failed at index " + std::to_string(index), e->what() });
-			return;
-		}
+			});
+
 
 		socket_list[index].timer.expires_from_now(std::chrono::milliseconds(index * info.time_between_requests_ms));
-		socket_list[index].timer.async_wait([this, &info, &sock = socket_list[index], &io_service](auto error)
+		socket_list[index].timer.async_wait([this, &info, &sock = socket_list[index], &io_service, createSocket, index](auto error)
 			{
 #if RANDOM_SYM_NAT_REQUIRED
 				// Check if user connects to wifi during collection step
@@ -96,8 +84,21 @@
 					return; 
 				}
 #endif
-
 				auto remote_endpoint = std::make_shared<asio::ip::udp::endpoint>(asio::ip::make_address(info.remote_address), info.remote_port);
+				try
+				{
+					sock.socket = createSocket();
+				}
+				catch (const asio::system_error& ec)
+				{
+					stored_response = shared::ServerResponse::Error({ "Socket creation failed at index " + std::to_string(index), ec.what() });
+					return;
+				}
+				catch (std::exception* e)
+				{
+					stored_response = shared::ServerResponse::Error({ "Socket creation failed at index " + std::to_string(index), e->what() });
+					return;
+				}
 				send_request(sock, io_service, remote_endpoint, error);
 			});
 	}
@@ -107,17 +108,31 @@ UDPCollectTask::UDPCollectTask(const NatTypeInfo& info, asio::io_service& io_ser
 {
 	// Single socket single port
 	auto shared_local_socket = std::make_shared<asio::ip::udp::socket>(io_service, asio::ip::udp::endpoint{ asio::ip::udp::v4(), 0 });
-	auto createSocket = [shared_local_socket]() {return shared_local_socket; };
 	bUsesSingleSocket = true;
 
 	socket_list.reserve(2);
 	std::vector<uint16_t> ports = {info.first_remote_port, info.second_remote_port};
 	for (uint16_t index = 0; index < 2; ++index)
 	{
-		socket_list.emplace_back(Socket{ index,
-										createSocket(),
+		try
+		{
+			socket_list.emplace_back(Socket{ index,
+										shared_local_socket, // we only create 2 sockets, do it immediately
 										asio::system_timer(io_service)
-			});
+				});
+		}
+		catch (const asio::system_error& ec)
+		{
+			stored_response = shared::ServerResponse::Error({ "Socket creation failed at index " + std::to_string(index), ec.what() });
+			return;
+		}
+		catch (std::exception* e)
+		{
+			stored_response = shared::ServerResponse::Error({ "Socket creation failed at index " + std::to_string(index), e->what() });
+			return;
+		}
+
+		
 		socket_list[index].timer.expires_from_now(std::chrono::milliseconds(index * info.time_between_requests_ms));
 		socket_list[index].timer.async_wait([this, info, port = ports[index], &sock = socket_list[index], &io_service](auto error)
 			{
@@ -147,7 +162,10 @@ shared::Result<shared::AddressVector> UDPCollectTask::start_task_internal(std::f
 	// Shutdown created sockets
  	for (Socket& sock : collectTask.socket_list)
  	{
- 		sock.socket->close();
+		if (sock.socket->is_open())
+		{
+			sock.socket->close();
+		}
  	}
 
 
@@ -227,10 +245,11 @@ void UDPCollectTask::start_receive(Socket& local_socket, asio::io_service& io_se
 	{
 		local_socket.socket->async_receive_from(
 			asio::buffer(*shared_buffer), remote_endpoint,
-			[this, &io_service, shared_buffer, deadline_timer](const std::error_code& ec, std::size_t bytesTransferred)
+			[this, &io_service, shared_buffer, deadline_timer, &local_socket](const std::error_code& ec, std::size_t bytesTransferred)
 			{
 				deadline_timer->cancel(); // cancel time associated with socket
 				handle_receive(shared_buffer, bytesTransferred, io_service, ec);
+				local_socket.socket->close();
 			});
 	}
 }
@@ -281,7 +300,11 @@ asio::system_timer UDPCollectTask::CreateDeadline(asio::io_service& service, std
 				// Package loss is expected
 				// If there is no internet connection,
 				// an error will be created at a later stage
-				socket->cancel();
+				if (socket->is_open())
+				{
+					socket->cancel();
+					socket->close();
+				}
 			}
 		}
 	);

@@ -105,6 +105,7 @@ if(${CMAKE_SYSTEM_NAME} STREQUAL "Android")
 
 	add_subdirectory(AndroidSource)
 	target_compile_definitions(native-activity PRIVATE SOCKET_TIMEOUT_MS=5000) 
+	target_compile_definitions(native-activity PRIVATE MAX_MSG_LENGTH_DECIMALS=9) 
 	INCLUDE(android.config)
 	message(STATUS "IP address from android config ${SERVER_IP}")
 	target_compile_definitions(native-activity PRIVATE 
@@ -138,6 +139,7 @@ else()
 	configure_file(server_template_config.json ServerSource/server_config.json)
 	target_compile_definitions(server-app PRIVATE CONFIG_PATH="server_config.json")
 	target_compile_definitions(server-app PRIVATE SOCKET_TIMEOUT_MS=5000) 
+	target_compile_definitions(server-app PRIVATE MAX_MSG_LENGTH_DECIMALS=9) 
 endif()
 
 

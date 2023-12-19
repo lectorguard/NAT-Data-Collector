@@ -40,12 +40,12 @@ namespace TCPSessionHandler
  			asio::error_code error;
 			
 			// Read message length
-			char len_buffer[5] = {0};
-			std::size_t len = co_await async_read(s, asio::buffer(len_buffer), asio::transfer_exactly(5), asio::use_awaitable);
+			char len_buffer[MAX_MSG_LENGTH_DECIMALS] = {0};
+			std::size_t len = co_await async_read(s, asio::buffer(len_buffer), asio::transfer_exactly(MAX_MSG_LENGTH_DECIMALS), asio::use_awaitable);
 			
-			if (len != 5)
+			if (len != MAX_MSG_LENGTH_DECIMALS)
 			{
-				std::cout << "TCP transaction received invalid message length : Expected 5, but received " << len << std::endl;
+				std::cout << "TCP transaction received invalid message length : Expected " << MAX_MSG_LENGTH_DECIMALS << " , but received " << len << std::endl;
 				break;
 			}
 			int next_msg_len = std::stoi(std::string(len_buffer, len));

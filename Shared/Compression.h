@@ -30,7 +30,7 @@ namespace shared
 	inline const std::string encodeMsgLength(uint64_t msg_length)
 	{
 		std::stringstream ss;
-		ss << std::setw(5) << std::setfill('0') << msg_length;
+		ss << std::setw(MAX_MSG_LENGTH_DECIMALS) << std::setfill('0') << msg_length;
 		return ss.str();
 	}
 

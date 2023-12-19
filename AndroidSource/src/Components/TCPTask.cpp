@@ -38,6 +38,7 @@ shared::ServerResponse::Helper TCPTask::ServerTransaction(shared::ServerRequest&
 		asio::write(socket, asio::buffer(msg_length), asio_error);
 		response = shared::helper::HandleAsioError(asio_error, "Write Server Message length").ToSimpleHelper();
 		if (!response) break;
+		Log::Info("Calculated message length to send : %d", data_compressed.size());
 
 		// Write actual data
 		asio::write(socket, asio::buffer(data_compressed), asio_error);
@@ -45,7 +46,7 @@ shared::ServerResponse::Helper TCPTask::ServerTransaction(shared::ServerRequest&
 		if (!response) break;
 
 		// Read Server Message Length
-		char len_buffer[5] = { 0 };
+		char len_buffer[MAX_MSG_LENGTH_DECIMALS] = { 0 };
 		std::size_t len = asio::read(socket, asio::buffer(len_buffer), asio_error);
 		response = shared::helper::HandleAsioError(asio_error, "Read length of server answer").ToSimpleHelper();
 		if (!response) break;
