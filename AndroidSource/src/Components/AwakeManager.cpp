@@ -27,33 +27,62 @@ void AwakeManager::OnAndroidEvent(android_app* state, int32_t cmd, Application* 
 	}
 	case APP_CMD_GAINED_FOCUS:
 	{
-		renderer.SetDarkMode(false);
-		// Disable full screen
-		ANativeActivity_setWindowFlags(state->activity, 0, 1024);
+		if (state->window != nullptr)
+		{
+			// Only if we are not animating this flag is set, animating is set true when gaining focus
+			if (bNeedDarkModeFlip)
+			{	
+				//Flip now
+				bNeedDarkModeFlip = false;
+				FlipDarkMode(state, app);
+				
+			}
+			else
+			{
+				// We freshly gained focus, disable dark mode
+				renderer.SetDarkMode(false);
+				// Disable full screen
+				ANativeActivity_setWindowFlags(state->activity, 0, 1024);
+			}
+		}
+		
 		break;
 	}
 	case APP_CMD_STOP:
 	{
+		// Prevent screen from turning off
+		Log::HandleResponse(TurnScreenOn(state), "Turn Screen On");
 		// We have currently the screen
 		if (renderer.IsAnimating())
 		{
-			Log::HandleResponse(TurnScreenOn(state), "Turn Screen On");
-			renderer.FlipDarkMode();
-			if (renderer.IsDarkMode())
-			{
-				// Enable fullscreen to remove status bar
-				ANativeActivity_setWindowFlags(state->activity, 1024, 0);
-			}
-			else
-			{
-				// Disable fullscreen
-				ANativeActivity_setWindowFlags(state->activity, 0, 1024);
-			}
+			// Renderer is still valid flip dark mode here
+			FlipDarkMode(state, app);
+		}
+		else
+		{
+			// Flip dark mode when screen is back on
+			bNeedDarkModeFlip = true;
 		}
 		break;
 	}
 	default:
 		break;
+	}
+}
+
+void AwakeManager::FlipDarkMode(android_app* state, Application* app)
+{
+	Renderer& renderer = app->_components.Get<Renderer>();
+	renderer.FlipDarkMode();
+	if (renderer.IsDarkMode())
+	{
+		// Enable fullscreen to remove status bar
+		ANativeActivity_setWindowFlags(state->activity, 1024, 0);
+	}
+	else
+	{
+		// Disable fullscreen
+		ANativeActivity_setWindowFlags(state->activity, 0, 1024);
 	}
 }
 

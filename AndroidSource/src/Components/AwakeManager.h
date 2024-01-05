@@ -12,6 +12,10 @@ public:
 	void Deactivate(class Application* app) {};
 	void OnAndroidEvent(struct android_app* state, int32_t cmd, Application* app);
 
+	
+
 private:
 	shared::ServerResponse TurnScreenOn(struct android_app* state);
+	void FlipDarkMode(android_app* state, Application* app);
+	bool bNeedDarkModeFlip = false;
 };
