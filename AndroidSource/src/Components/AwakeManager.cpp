@@ -20,6 +20,15 @@ void AwakeManager::OnAndroidEvent(android_app* state, int32_t cmd, Application* 
 		lost_focus.ExpiresFromNow(std::chrono::milliseconds(400));
 		break;
 	}
+	case APP_CMD_STOP:
+	{
+		// Older androids do not lose focus immediately
+		if (!lost_focus.IsActive() && renderer.IsAnimating())
+		{
+			Log::HandleResponse(TurnScreenOn(state), "Turn Screen On");
+			FlipDarkMode(state, app);
+		}
+	}
 	case APP_CMD_INIT_WINDOW:
 	{
 		//Log::Warning("Init window");
