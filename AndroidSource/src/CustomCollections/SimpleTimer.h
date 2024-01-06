@@ -38,6 +38,11 @@ public:
 	{
 		bIsActive = newActiveState;
 	}
+
+	bool IsActive()
+	{
+		return bIsActive;
+	}
 	
 private:
 	std::chrono::system_clock::time_point expiry_time;
