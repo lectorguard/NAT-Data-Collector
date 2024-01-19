@@ -162,7 +162,7 @@ shared::Result<shared::AddressVector> UDPCollectTask::start_task_internal(std::f
 	// Shutdown created sockets
  	for (Socket& sock : collectTask.socket_list)
  	{
-		if (sock.socket->is_open())
+		if (sock.socket && sock.socket->is_open())
 		{
 			sock.socket->close();
 		}
@@ -270,7 +270,19 @@ void UDPCollectTask::handle_receive(std::shared_ptr<AddressBuffer> buffer, std::
 		return;
 	}
 
-	nlohmann::json json_buffer = nlohmann::json::from_msgpack(buffer->begin(), buffer->begin() + len);
+	if (!buffer || len == 0)
+	{
+		// received something invalid, ignore
+		return;
+	}
+
+	nlohmann::json json_buffer = nlohmann::json::from_msgpack(buffer->begin(), buffer->begin() + len, true, false);
+	if (json_buffer.is_null())
+	{
+		// received invalid data, ignore
+		return;
+	}
+
 	shared::Address address{};
 	std::vector<jser::JSerError> jser_errors;
 	address.DeserializeObject(json_buffer, std::back_inserter(jser_errors));

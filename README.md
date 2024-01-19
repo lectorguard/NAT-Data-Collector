@@ -148,6 +148,63 @@ db.test.find() // shows content of test collection
 * Under tools->Android Tools->logcat, you can see LOGI and LOGW. Filter for native-activity.
 * Under windows make sure, to accept windows firewall window
 
+## Read crash reports from phone directly
+
+* After crash happens connect phone to PC
+* Copy the log into a file using (make sure adb.exe is environment variable or navigate to exe)
+* The following example the name of the app is `native-activity`
+
+```
+.\adb.exe logcat > "log.txt"
+```
+* Crashes are marked fatal in log (**F**) and contain string **DEBUG**
+* Simply search for `native-activity` to get app related logs
+
+* You can simply run `DeobfuscateStackTrace.bat` inside the `BuildScripts` to save the log into a file and show the deobfiscated stacktrace if existant
+	* Android device must be connected to execute
+
+## Interpret crash reports 
+
+
+```
+DEBUG   : *** *** *** *** *** *** *** *** *** *** *** *** *** *** *** ***
+DEBUG   : Build fingerprint: 'Sony/G8341/G8341:9/47.2.A.11.228/3311891731:user/release-keys'
+DEBUG   : Revision: '0'
+DEBUG   : ABI: 'arm'
+DEBUG   : pid: 8470, tid: 30127, name: NativeThread  >>> com.NativeAndroidActivity <<<       // if pid and tid are not equal, crash happened on other thread
+DEBUG   : signal 11 (SIGSEGV), code 1 (SEGV_MAPERR), fault addr 0x4
+DEBUG   : Cause: null pointer dereference
+DEBUG   :     r0  00000000  r1  00000000  r2  00000000  r3  00000000
+DEBUG   :     r4  c9e7f910  r5  c9e7f868  r6  c8e91178  r7  c9209100
+DEBUG   :     r8  e92c03cc  r9  00002127  r10 00002116  r11 0000000b
+DEBUG   :     ip  cb2ac4a8  sp  c9e7f820  lr  cb19329f  pc  cb1bf0ac
+DEBUG   : 
+DEBUG   : backtrace:
+DEBUG   :     #00 pc 001610ac  /data/app/com.NativeAndroidActivity-E6-q8RpUa2MOYNpfssiFKA==/lib/arm/libnative-activity.so (offset 0x116000) (_ZN8nlohmann16json_abi_v3_11_26detail6concatINSt6__ndk112basic_stringIcNS3_11char_traitsIcEENS3_9allocatorIcEEEEJRS9_cRKS9_RA3_KcSC_EEET_DpOT0_+78)
+DEBUG   :     #01 pc 0000001d  <unknown>
+```
+
+* [Native Crash Docs](https://source.android.com/docs/core/tests/debug/native-crash)
+* [Native Crash Debugging](https://proandroiddev.com/debugging-native-crashes-in-android-apps-2b86fd7113d8)
+* Use `ndk-stack` tool to deobfiscate thombstone (located in C:\Microsoft\AndroidNDK\android-ndk-r23c)
+	* It might be necessary to copy paste the crash starting from the asterics line to another file
+	* Path to shared libraries can be accessed by unzipping the `.apk`
+
+```
+.\ndk-stack.cmd -sym "Path to shared libraries" -dump "log.txt"
+```
+
+* If above fails you can still try the `addr2line` tool (located in C:\Microsoft\AndroidNDK\android-ndk-r23c\toolchains\llvm\prebuilt\windows-x86_64\bin)
+	* Shared library can be found by unzipping the `.apk` file
+	* Use address from target backtrace line
+
+```
+.\llvm-addr2line.exe -C -f -e "path to .so file from target backtrace line address-from-stack-trace
+// call for crash above
+.\llvm-addr2line.exe -C -f -e "<project origin>/AndroidPackaging\ARM\Debug\NativeAndroidActivity\lib\armeabi-v7a\libnative-activity.so" 001610ac
+```
+
+
 # Issues 
 
 ## Windows Defender blocks socket communication between WSL server app and android app (silent failure)

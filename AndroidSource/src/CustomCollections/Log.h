@@ -5,6 +5,8 @@
 #include "SharedProtocol.h"
 #include "Utilities/NetworkHelpers.h"
 
+#define FORCE_LOG(x, ...) ((void)__android_log_buf_print(LOG_ID_CRASH, ANDROID_LOG_ERROR, "native-activity", x, __VA_ARGS__))
+
 enum LogWarn
 {
 	Log_INFO = 0,
