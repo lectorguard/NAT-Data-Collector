@@ -110,7 +110,8 @@ bool CollectSamples::Update(class Application* app, std::atomic<shared::Connecti
 			collect_samples_timer.SetActive(false);
 			if (has_expired)
 			{
-				Log::Warning("Collected Sample has expired. Phone was dozing or standby during collection.");
+				Log::Warning("%s : Collected Sample has expired. Phone was dozing or standby during collection.", 
+					shared::helper::CreateTimeStampNow().c_str());
 				current = CollectSamplesStep::StartWait;
 				break;
 			}
