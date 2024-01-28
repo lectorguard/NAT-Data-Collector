@@ -111,6 +111,10 @@ db.test.find() // shows content of test collection
 
 * See [Database Tools Export](https://www.mongodb.com/docs/database-tools/mongoexport/)
 
+```
+mongoexport --uri="mongodb://<mongo-user>:<mongo-user-password>@<mongo-server-ip-address>/?authSource=NatInfo" --collection=<collection-name(default: data)> --out=NatData.json
+```
+
 ## How to set up Server App on Ubuntu
 
 ### Prerequisites
