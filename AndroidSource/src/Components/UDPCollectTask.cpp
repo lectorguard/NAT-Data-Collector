@@ -71,8 +71,14 @@
 
 
 		socket_list[index].timer.expires_from_now(std::chrono::milliseconds(index * info.time_between_requests_ms));
-		socket_list[index].timer.async_wait([this, &info, &sock = socket_list[index], &io_service, createSocket, index](auto error)
+		socket_list[index].timer.async_wait([this, &info, &io_service, createSocket, index](auto error)
 			{
+
+				if (system_error_state != SystemErrorStates::NO_ERROR)
+				{
+					return;
+				}
+
 #if RANDOM_SYM_NAT_REQUIRED
 				// Check if user connects to wifi during collection step
 				const shared::ConnectionType ct = info.conn_type.load();
@@ -84,22 +90,29 @@
 					return; 
 				}
 #endif
+
 				auto remote_endpoint = std::make_shared<asio::ip::udp::endpoint>(asio::ip::make_address(info.remote_address), info.remote_port);
 				try
 				{
-					sock.socket = createSocket();
+					socket_list[index].socket = createSocket();
 				}
 				catch (const asio::system_error& ec)
 				{
-					stored_response = shared::ServerResponse::Error({ "Socket creation failed at index " + std::to_string(index), ec.what() });
+					// Could indicate Hardware Limitation in creation of sockets
+					// Stop sending requests
+					system_error_state = SystemErrorStates::SOCKETS_EXHAUSTED;
+					Log::Warning("Creation of Sockets is exhausted due to Hardware Limitations.");
+					Log::Warning("Successful created sockets : %d", index + 1);
 					return;
 				}
 				catch (std::exception* e)
 				{
-					stored_response = shared::ServerResponse::Error({ "Socket creation failed at index " + std::to_string(index), e->what() });
+					system_error_state = SystemErrorStates::SOCKETS_EXHAUSTED;
+					Log::Warning("Creation of Sockets is exhausted due to Hardware Limitations.");
+					Log::Warning("Successful created sockets : %d", index + 1);
 					return;
 				}
-				send_request(sock, io_service, remote_endpoint, error);
+				send_request(socket_list[index], io_service, remote_endpoint, error);
 			});
 	}
 }

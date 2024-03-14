@@ -29,12 +29,20 @@ public:
 		uint16_t time_between_requests_ms;
 	};
 
+	enum class SystemErrorStates
+	{
+		NO_ERROR,
+		SOCKETS_EXHAUSTED
+	};
+
 	static shared::Result<shared::AddressVector> StartCollectTask(const CollectInfo& collect_info);
 	static shared::Result<shared::AddressVector> StartNatTypeTask(const NatTypeInfo& collect_info);
 
 	// Normal Collect Task
 	UDPCollectTask(const CollectInfo& info, asio::io_service& io_service);
 	UDPCollectTask(const NatTypeInfo& info, asio::io_service& io_service);
+
+	SystemErrorStates GetSystemErrorState(){ return system_error_state; }
 
 private:
 	struct Socket
@@ -55,4 +63,8 @@ private:
 	shared::AddressVector stored_natsample{};
 	std::queue<std::shared_ptr<asio::system_timer>> deadline_queue;
 	bool bUsesSingleSocket = false;
+
+
+
+	SystemErrorStates system_error_state = SystemErrorStates::NO_ERROR;
 };
