@@ -23,7 +23,7 @@ jobs:
         cd ${{ secrets.WORK_DIR }} && \
         git checkout ${{ secrets.MAIN_BRANCH }} && \
         git pull && \
-        cat <<'EOF'${{ secrets.SERVER_CONFIG }}EOF && \
+        echo '${{ secrets.SERVER_CONFIG }}' && \
         cd BuildScripts && \
         ./StartServer.sh && \
         exit"
