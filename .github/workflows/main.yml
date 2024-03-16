@@ -23,9 +23,10 @@ jobs:
         cd ${{ secrets.WORK_DIR }} && \
         git checkout ${{ secrets.MAIN_BRANCH }} && \
         git pull && \
-        echo '${{ secrets.SERVER_CONFIG }}' | tr -d '\r' > server_template_config.json && \
+        echo ${{ secrets.SERVER_CONFIG }} > server_template_config.json && \
         cd BuildScripts && \
         ./StartServer.sh && \
         exit"
+        
     - name: cleanup
       run: rm -rf ~/.ssh
