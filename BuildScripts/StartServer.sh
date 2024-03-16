@@ -15,8 +15,8 @@ make
 # Check if the build was successful
 if [ $? -eq 0 ]; then
     # If the build was successful, execute the binary
-    cd ServerSource
-    ./server-app
+    sudo systemctl restart nat-server.service
+    sudo systemctl status nat-server.service
 else
     # If the build failed, display an error message
     echo "Build failed. Please check the CMake configuration and fix any errors."
