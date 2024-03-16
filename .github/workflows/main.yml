@@ -23,7 +23,7 @@ jobs:
         cd ${{ secrets.WORK_DIR }} && \
         git checkout ${{ secrets.MAIN_BRANCH }} && \
         git pull && \
-        echo \"${{ secrets.SERVER_CONFIG }}\" > server_template_config.json && \
+        echo '${{ secrets.SERVER_CONFIG }}' | sed 's/./& /g' > server_template_config.json && \
         cd BuildScripts && \
         ./StartServer.sh && \
         exit"
