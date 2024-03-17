@@ -2,6 +2,5 @@
 # Start mongod
 sudo systemctl start mongod
 # Check status
-#sudo systemctl status mongod
-# start mongo db access
-sudo mongosh
+sudo systemctl status mongod
+
