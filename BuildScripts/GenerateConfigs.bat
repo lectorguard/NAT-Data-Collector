@@ -18,8 +18,8 @@ echo set(SERVER_TRANSACTION_TCP_PORT 7779) # server port to upload >> ..\android
 echo set(NAT_IDENT_REQUEST_FREQUNCY_MS 20) # Frequency of nat requests for NAT identification >> ..\android.config
 echo set(NAT_IDENT_AMOUNT_SAMPLES_USED 5) # Number of samples used, to identify NAT type >> ..\android.config
 echo set(NAT_IDENT_MAX_PROG_SYM_DELTA 50) # Maximum delta between 2 consecutive ports, to classify NAT as progressing >> ..\android.config
-echo set(NAT_COLLECT_REQUEST_DELAY_MS 200) # Time between NAT requests during collection step >> ..\android.config
-echo set(NAT_COLLECT_PORTS_PER_SAMPLE 10000) # Total amount of ports requested during collection step >> ..\android.config
+echo set(NAT_COLLECT_REQUEST_DELAY_MS 1) # Time between NAT requests during collection step >> ..\android.config
+echo set(NAT_COLLECT_PORTS_PER_SAMPLE 60000) # Total amount of ports requested during collection step >> ..\android.config
 echo set(NAT_COLLECT_EXTRA_TIME_MS 60000) # Request delay * ports per sample + extra time = max duration for collection step >> ..\android.config
 echo set(NAT_COLLECT_SAMPLE_DELAY_MS 180000) # Delay between two consecutive NAT collection steps >> ..\android.config
 echo set(NAT_COLLECT_UPLOAD_DELAY_MS 30000) # Delay before sample is uploaded to database >> ..\android.config

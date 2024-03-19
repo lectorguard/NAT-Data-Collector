@@ -38,13 +38,6 @@ public:
 	bool Start();
 	bool Update(class Application* app, std::atomic<shared::ConnectionType>& connect_type, shared::ClientMetaData& client_meta_data);
 private:
-	std::array<uint16_t, 8> frequencies = {0,1,2,5,10,20,50,100};
-	uint16_t index = 0;
-	uint16_t curr_amount = 0;
-	const uint16_t target_amount = 10;
-
-
-
 	// State
 	CollectSamplesStep current = CollectSamplesStep::Idle;
 
