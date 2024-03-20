@@ -8,8 +8,9 @@
 class InformationUpdateWindow
 {
 public:
-
-	void Draw(class Application* app, shared::InformationUpdate info_update, std::function<void()> onClose);
+	void Activate(class Application* app);
+	void Draw(Application* app);
+	void Deactivate(class Application* app) {};
 public:
 	ImVec4 close_button_style;
 };

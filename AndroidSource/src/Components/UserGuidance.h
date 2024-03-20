@@ -42,8 +42,15 @@ public:
 	void Activate(class Application* app);
 	bool Start();
 	bool Update(class Application* app, shared::ConnectionType conn_type, shared::ClientMetaData& client_meta_data);
-	
+
+	shared::VersionUpdate version_update_info;
+	shared::InformationUpdate information_update_info;
 private:
+	void OnClosePopUpWindow(Application* app);
+	void OnCloseVersionUpdateWindow(Application* app);
+	void OnCloseInfoUpdateWindow(Application* app);
+	void OnRecalcNAT();
+
 	// State
 	UserGuidanceStep current = UserGuidanceStep::Idle;
 

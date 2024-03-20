@@ -4,7 +4,6 @@
 #include "CustomCollections/Log.h"
 #include "Components/UserData.h"
 #include "Utilities/NetworkHelpers.h"
-#include "UserWindow.h"
 #include "LogWindow.h"
 #include "StyleConstants.h"
 #include "misc/cpp/imgui_stdlib.h"

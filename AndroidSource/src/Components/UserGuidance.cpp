@@ -15,19 +15,56 @@
 #include "ctime"
 #include "CustomCollections/Log.h"
 #include "UserData.h"
+#include "Model/NatCollectorModel.h"
 
 
 void UserGuidance::Activate(Application* app)
 {
-	app->_components.Get<WindowManager>().OnNatWindowClosed.Subscribe([this](bool recalcNat) 
-		{
-			if (recalcNat)
-			{
-				if (current == UserGuidanceStep::Idle)
-					current = UserGuidanceStep::StartNATInfo;
-				else Log::Warning("Failed to recalculate NAT");
-			}
-		});
+	NatCollectorModel& nat_model = app->_components.Get<NatCollectorModel>();
+	app->_components.Get<NatCollectorModel>().SubscribeRecalculateNAT([this](bool b) {OnRecalcNAT(); });
+	nat_model.SubscribePopUpEvent(NatCollectorPopUpState::PopUp, nullptr, nullptr, [this, app](auto st) {OnClosePopUpWindow(app); });
+	nat_model.SubscribePopUpEvent(NatCollectorPopUpState::VersionUpdateWindow,
+		nullptr,
+		nullptr,
+		[this, app](auto st) {OnCloseVersionUpdateWindow(app); });
+
+	nat_model.SubscribePopUpEvent(NatCollectorPopUpState::InformationUpdateWindow,
+		nullptr,
+		nullptr,
+		[this, app](auto st) {OnCloseInfoUpdateWindow(app); });
+}
+
+void UserGuidance::OnRecalcNAT()
+{
+	if (current == UserGuidanceStep::Idle)
+		current = UserGuidanceStep::StartNATInfo;
+	else Log::Warning("Failed to recalculate NAT");
+}
+
+void UserGuidance::OnClosePopUpWindow(Application* app)
+{
+	UserData& user_data = app->_components.Get<UserData>();
+	bool ignore_pop_up = app->_components.Get<PopUpWindow>().IsPopUpIgnored();
+	user_data.info.ignore_pop_up = ignore_pop_up;
+	user_data.WriteToDisc();
+}
+
+void UserGuidance::OnCloseVersionUpdateWindow(Application* app)
+{
+	UserData& user_data = app->_components.Get<UserData>();
+	bool ignore_pop_up = app->_components.Get<VersionUpdateWindow>().IsIgnorePopUp();
+	if (ignore_pop_up)
+	{
+		user_data.info.version_update = version_update_info.latest_version;
+		Log::HandleResponse(user_data.WriteToDisc(), "Write ignore version update window to disk");
+	}
+}
+
+void UserGuidance::OnCloseInfoUpdateWindow(Application* app)
+{
+	UserData& user_data = app->_components.Get<UserData>();
+	user_data.info.information_identifier = information_update_info.identifier;
+	Log::HandleResponse(user_data.WriteToDisc(), "Write user information update to disc");
 }
 
 bool UserGuidance::Start()
@@ -42,7 +79,8 @@ bool UserGuidance::Start()
 
 bool UserGuidance::Update(class Application* app, shared::ConnectionType conn_type, shared::ClientMetaData& client_meta_data)
 {
-	WindowManager& win_manager = app->_components.Get<WindowManager>();
+	NatCollectorModel& nat_model = app->_components.Get<NatCollectorModel>();
+	UserData& user_data = app->_components.Get<UserData>();
 
 	switch (current)
 	{
@@ -73,9 +111,16 @@ bool UserGuidance::Update(class Application* app, shared::ConnectionType conn_ty
 	}
 	case UserGuidanceStep::StartMainPopUp:
 	{
-		Log::Info("Show Start Pop Up");
-		win_manager.PushWindow(WindowStates::PopUp);
-		current = UserGuidanceStep::StartVersionUpdate;
+		if (user_data.info.ignore_pop_up)
+		{
+			current = UserGuidanceStep::StartInformationUpdate;
+		}
+		else
+		{
+			Log::Info("Show Start Pop Up");
+			nat_model.PushPopUpState(NatCollectorPopUpState::PopUp);
+			current = UserGuidanceStep::StartVersionUpdate;
+		}
 		break;
 	}
 	case UserGuidanceStep::StartVersionUpdate:
@@ -97,10 +142,13 @@ bool UserGuidance::Update(class Application* app, shared::ConnectionType conn_ty
 			UserData::Information& user_info = app->_components.Get<UserData>().info;
 			std::visit(shared::helper::Overloaded
 				{
-					[&win_manager, user_info](shared::VersionUpdate vu) 
+					[this, user_info, &nat_model](shared::VersionUpdate vu) 
 					{
-						win_manager.version_update_info = vu;
-						win_manager.PushWindow(WindowStates::VersionUpdateWindow);
+						version_update_info = vu;
+						if (user_info.version_update != version_update_info.latest_version)
+						{
+							nat_model.PushPopUpState(NatCollectorPopUpState::VersionUpdateWindow);
+						}
 					},
 					[](shared::ServerResponse resp) 
 					{
@@ -130,10 +178,13 @@ bool UserGuidance::Update(class Application* app, shared::ConnectionType conn_ty
 		{
 			std::visit(shared::helper::Overloaded
 				{
-					[&win_manager](shared::InformationUpdate iu)
+					[this, user_data, &nat_model](shared::InformationUpdate iu)
 					{
-						win_manager.information_update_info = iu;
-						win_manager.PushWindow(WindowStates::InformationUpdateWindow);
+						information_update_info = iu;
+						if (user_data.info.information_identifier != information_update_info.identifier)
+						{
+							nat_model.PushPopUpState(NatCollectorPopUpState::InformationUpdateWindow);
+						}
 					},
 					[](shared::ServerResponse resp)
 					{
@@ -146,7 +197,7 @@ bool UserGuidance::Update(class Application* app, shared::ConnectionType conn_ty
 	}
 	case UserGuidanceStep::WaitForDialogsToClose:
 	{
-		if (win_manager.GetWindow() == WindowStates::Idle)
+		if (nat_model.IsPopUpQueueEmpty())
 		{
 			current = UserGuidanceStep::StartIPInfo;
 		}
@@ -219,19 +270,12 @@ bool UserGuidance::Update(class Application* app, shared::ConnectionType conn_ty
 			{
 				// correct nat type continue
 				current = UserGuidanceStep::FinishUserGuidance;
-				break;
-			}
-			else if (conn_type == shared::ConnectionType::WIFI)
-			{
-				win_manager.PushWindow(WindowStates::NatInfoWindowWifi);
 			}
 			else
-			{ 
-				Log::Warning("Identified NAT type is not eligible for network data collection.");
-				Log::Warning("Abort ...");
-				win_manager.PushWindow(WindowStates::NatInfoWindow);
+			{
+				nat_model.PushPopUpState(NatCollectorPopUpState::NatInfoWindow);
+				current = UserGuidanceStep::Idle;
 			}
-			current = UserGuidanceStep::Idle;
 #else
 			current = UserGuidanceStep::FinishUserGuidance;
 #endif

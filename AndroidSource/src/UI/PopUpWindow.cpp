@@ -7,9 +7,17 @@
 #include "misc/cpp/imgui_stdlib.h"
 #include "string"
 #include "StyleConstants.h"
+#include "Model/NatCollectorModel.h"
 
 
-void PopUpWindow::Draw(class Application* app, std::function<void(bool)> onClose)
+void PopUpWindow::Activate(Application* app)
+{
+	app->_components
+		.Get<NatCollectorModel>()
+		.SubscribePopUpEvent(NatCollectorPopUpState::PopUp, nullptr, [this](auto app, auto st) {Draw(app); }, nullptr);
+}
+
+void PopUpWindow::Draw(class Application* app)
 {
 	ImGuiIO& io = ImGui::GetIO();
 	
@@ -113,7 +121,7 @@ void PopUpWindow::Draw(class Application* app, std::function<void(bool)> onClose
 	ImGui::SetCursorPosX(ImGui::GetWindowSize().x / 2.0f - ImGui::CalcTextSize("Proceed").x / 2.0f);
 	if (utilities::StyledButton("Proceed", proceed, false))
 	{
-		onClose(ignore_pop_up);
+		app->_components.Get<NatCollectorModel>().PopPopUpState();
 	}
 	ImGui::Dummy(ImVec2(0, Renderer::CentimeterToPixel(1.0f)));
 	ImGui::PopFont();

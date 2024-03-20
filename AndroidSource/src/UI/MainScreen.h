@@ -4,7 +4,6 @@
 #include <vector>
 #include <string>
 #include "Components/Renderer.h"
-#include "UserWindow.h"
 #include "LogWindow.h"
 #include "PopUpWindow.h"
 #include "WrongNatTypeWindow.h"

@@ -7,8 +7,9 @@
 class WrongNatTypeWindow
 {
 public:
-
-	void Draw(class Application* app, std::function<void()> onClose, std::function<void()> onRecalcNat, bool isWifi);
+	void Activate(class Application* app);
+	void Draw(Application* app);
+	void Deactivate(class Application* app) {};
 private:
 	ImVec4 close_cb;
 	ImVec4 check_nat_cb;

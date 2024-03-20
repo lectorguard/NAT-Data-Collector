@@ -8,9 +8,18 @@
 #include "string"
 #include "SharedTypes.h"
 
-void WrongNatTypeWindow::Draw(class Application* app, std::function<void()> onClose, std::function<void()> onRecalcNat, bool isWifi)
+
+void WrongNatTypeWindow::Activate(Application* app)
+{
+	app->_components
+		.Get<NatCollectorModel>()
+		.SubscribePopUpEvent(NatCollectorPopUpState::NatInfoWindow, nullptr, [this](auto app, auto st) {Draw(app); }, nullptr);
+}
+
+void WrongNatTypeWindow::Draw(class Application* app)
 {
 	NatCollector& nat_collector = app->_components.Get<NatCollector>();
+	NatCollectorModel& nat_model = app->_components.Get<NatCollectorModel>();
 	const shared::NATType nat_type = nat_collector.client_meta_data.nat_type;
 
 
@@ -30,7 +39,8 @@ void WrongNatTypeWindow::Draw(class Application* app, std::function<void()> onCl
 	ImGui::PopFont();
 	ImGui::PushFont(Renderer::small_font);
 
-	if (isWifi)
+	const shared::ConnectionType conn_type = app->_components.Get<NatCollector>().connect_reader.Get();
+	if (conn_type == shared::ConnectionType::WIFI)
 	{
 		ImGui::TextWrapped(
 			"You are currently connected to WIFI. Please disable WIFI, enable data and check the NAT type again. "
@@ -43,14 +53,17 @@ void WrongNatTypeWindow::Draw(class Application* app, std::function<void()> onCl
 		ImGui::Columns(2, "Pairs", false);
 		ImGui::PushFont(Renderer::medium_font);
 		ImGui::SetCursorPosX(ImGui::GetColumnWidth(0) / 2.0f - ImGui::CalcTextSize("Close").x / 2.0f);
+
+		
 		if (utilities::StyledButton("Close", close_cb, false))
 		{
-			onClose();
+			nat_model.PopPopUpState();
 		}
 		ImGui::NextColumn();
 		if (utilities::StyledButton("Check NAT", check_nat_cb, false))
 		{
-			onRecalcNat();
+			nat_model.PopPopUpState();
+			nat_model.RecalculateNAT();
 		}
 		ImGui::PopFont();
 		ImGui::Columns(1);
@@ -73,7 +86,7 @@ void WrongNatTypeWindow::Draw(class Application* app, std::function<void()> onCl
 		ImGui::SetCursorPosX(ImGui::GetWindowWidth() / 2.0f - ImGui::CalcTextSize("Close").x / 2.0f);
 		if (utilities::StyledButton("Close", close_cb, false))
 		{
-			onClose();
+			nat_model.PopPopUpState();
 		}
 
 		ImGui::PopFont();
@@ -82,3 +95,5 @@ void WrongNatTypeWindow::Draw(class Application* app, std::function<void()> onCl
 	ImGui::PopFont();
 	ImGui::End();
 }
+
+

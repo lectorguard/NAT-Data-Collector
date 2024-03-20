@@ -4,9 +4,16 @@
 #include "misc/cpp/imgui_stdlib.h"
 #include "string"
 
-
-void InformationUpdateWindow::Draw(class Application* app, shared::InformationUpdate info_update, std::function<void()> onClose)
+void InformationUpdateWindow::Activate(Application* app)
 {
+	app->_components
+		.Get<NatCollectorModel>()
+		.SubscribePopUpEvent(NatCollectorPopUpState::InformationUpdateWindow, nullptr, [this](auto app, auto st) {Draw(app); }, nullptr);
+}
+
+void InformationUpdateWindow::Draw(class Application* app)
+{
+	const shared::InformationUpdate info_update = app->_components.Get<NatCollector>().user_guidance.information_update_info;
 	ImGuiIO& io = ImGui::GetIO();
 
 	ImGui::PushFont(Renderer::medium_font);
@@ -33,9 +40,11 @@ void InformationUpdateWindow::Draw(class Application* app, shared::InformationUp
 	ImGui::SetCursorPosX(ImGui::GetWindowSize().x / 2.0f - ImGui::CalcTextSize("Close").x / 2.0f);
 	if (utilities::StyledButton("Close", close_button_style, false))
 	{
-		onClose();
+		app->_components.Get<NatCollectorModel>().PopPopUpState();
 	}
 	ImGui::Dummy(ImVec2(0, Renderer::CentimeterToPixel(0.2f)));
 	ImGui::PopFont();
 	ImGui::End();
 }
+
+

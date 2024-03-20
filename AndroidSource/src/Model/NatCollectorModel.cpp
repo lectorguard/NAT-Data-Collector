@@ -9,6 +9,10 @@ void NatCollectorModel::Activate(Application* app)
 void NatCollectorModel::Draw(Application* app)
 {
 	UpdateDrawTabEvent[current_tab_state].Publish(app, current_tab_state);
+	if (!popup_queue.empty())
+	{
+		UpdateDrawPopupEvent[GetTopPopUpState()].Publish(app, GetTopPopUpState());
+	}
 }
 
 void NatCollectorModel::SetTabState(NatCollectorTabState val)
@@ -21,48 +25,83 @@ void NatCollectorModel::SetTabState(NatCollectorTabState val)
 	}
 }
 
+void NatCollectorModel::PushPopUpState(const NatCollectorPopUpState& val)
+{
+	popup_queue.push(val);
+	if (popup_queue.empty())
+	{
+		StartDrawPopupEvent[val].Publish(val);
+	}
+}
+
+void NatCollectorModel::PopPopUpState()
+{
+	if (popup_queue.empty())
+	{
+		Log::Warning("Try popping empty pop-up window queue NatCollectorModel::PopPopUpState");
+		return;
+	}
+
+	NatCollectorPopUpState last = GetTopPopUpState();
+	popup_queue.pop();
+	EndDrawPopupEvent[last].Publish(last);
+	if (!popup_queue.empty())
+	{
+		NatCollectorPopUpState current = GetTopPopUpState();
+		StartDrawPopupEvent[current].Publish(current);
+	}
+}
+
+template<typename MAP, typename STATE, typename CB>
+void SubscribeMap(MAP& map, STATE state, CB callback)
+{
+	using VALUE = std::remove_const_t<typename MAP::value_type::second_type>;
+
+	if (callback)
+	{
+		if (map.contains(state))
+		{
+			map.at(state).Subscribe(callback);
+		}
+		else
+		{
+			map.emplace(state, VALUE());
+			map.at(state).Subscribe(callback);
+		}
+	}
+}
+
+
 void NatCollectorModel::SubscribeTabEvent(NatCollectorTabState dt,
 	const std::function<void(NatCollectorTabState)>& StartTabCB,
 	const std::function<void(Application*, NatCollectorTabState)>& UpdateTabCB,
 	const std::function<void(NatCollectorTabState)>& EndTabCB)
 {
-	if (StartTabCB)
-	{
-		if (StartDrawTabEvent.contains(dt))
-		{
-			StartDrawTabEvent.at(dt).Subscribe(StartTabCB);
-		}
-		else
-		{
-			StartDrawTabEvent.emplace(dt, Event<NatCollectorTabState>());
-			StartDrawTabEvent.at(dt).Subscribe(StartTabCB);
-		}
-	}
-	if (UpdateTabCB)
-	{
-		if (UpdateDrawTabEvent.contains(dt))
-		{
-			UpdateDrawTabEvent.at(dt).Subscribe(UpdateTabCB);
-		}
-		else
-		{
-			UpdateDrawTabEvent.emplace(dt, Event<Application*, NatCollectorTabState>());
-			UpdateDrawTabEvent.at(dt).Subscribe(UpdateTabCB);
-		}
-	}
-	if (EndTabCB)
-	{
-		if (EndDrawTabEvent.contains(dt))
-		{
-			EndDrawTabEvent.at(dt).Subscribe(EndTabCB);
-		}
-		else
-		{
-			EndDrawTabEvent.emplace(dt, Event<NatCollectorTabState>());
-			EndDrawTabEvent.at(dt).Subscribe(EndTabCB);
-		}
-	}
+	SubscribeMap(StartDrawTabEvent, dt, StartTabCB);
+	SubscribeMap(UpdateDrawTabEvent, dt, UpdateTabCB);
+	SubscribeMap(EndDrawTabEvent, dt, EndTabCB);
 }
+
+void NatCollectorModel::SubscribePopUpEvent(NatCollectorPopUpState ps,
+	const std::function<void(NatCollectorPopUpState)>& StartTabCB,
+	const std::function<void(Application*, NatCollectorPopUpState)>& UpdateTabCB,
+	const std::function<void(NatCollectorPopUpState)>& EndTabCB)
+{
+	SubscribeMap(StartDrawPopupEvent, ps, StartTabCB);
+	SubscribeMap(UpdateDrawPopupEvent, ps, UpdateTabCB);
+	SubscribeMap(EndDrawPopupEvent, ps, EndTabCB);
+}
+
+void NatCollectorModel::RecalculateNAT()
+{
+	OnRecalculateNAT.Publish(true);
+}
+
+void NatCollectorModel::SubscribeRecalculateNAT(std::function<void(bool)> cb)
+{
+	OnRecalculateNAT.Subscribe(cb);
+}
+
 
 
 

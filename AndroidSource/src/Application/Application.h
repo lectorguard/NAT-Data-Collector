@@ -7,13 +7,16 @@
 #include "Components/NatCollector.h"
 #include "Components/Scoreboard.h"
 #include "Components/UserData.h"
-#include "Components/WindowManager.h"
 #include "Components/AwakeManager.h"
 #include "Model/NatCollectorModel.h"
 #include "android/log.h"
 #include "UI/MainScreen.h"
 #include "UI/LogWindow.h"
 #include "UI/ScoreboardWindow.h"
+#include "UI/PopUpWindow.h"
+#include "UI/WrongNatTypeWindow.h"
+#include "UI/VersionUpdateWindow.h"
+#include "UI/InformationUpdateWindow.h"
 
 
 #define LOGI(...) ((void)__android_log_print(ANDROID_LOG_INFO, "native-activity", __VA_ARGS__))
@@ -21,7 +24,7 @@
 
 class Application
 {
-	using ComponentsType = ComponentManager<SensorManager, Renderer, InputManager, NatCollector, WindowManager, Scoreboard, UserData, AwakeManager, NatCollectorModel, MainScreen, LogWindow, ScoreboardWindow>;
+	using ComponentsType = ComponentManager<SensorManager, Renderer, InputManager, NatCollector, Scoreboard, UserData, AwakeManager, NatCollectorModel, MainScreen, LogWindow, ScoreboardWindow, PopUpWindow, WrongNatTypeWindow, VersionUpdateWindow, InformationUpdateWindow>;
 
 public:
 	Application() {};

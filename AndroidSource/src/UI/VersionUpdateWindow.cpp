@@ -8,8 +8,16 @@
 #include "string"
 
 
-void VersionUpdateWindow::Draw(class Application* app, shared::VersionUpdate version_update, std::function<void(bool)> onClose)
+void VersionUpdateWindow::Activate(Application* app)
 {
+	app->_components
+		.Get<NatCollectorModel>()
+		.SubscribePopUpEvent(NatCollectorPopUpState::VersionUpdateWindow, nullptr, [this](auto app, auto st) {Draw(app); }, nullptr);
+}
+
+void VersionUpdateWindow::Draw(class Application* app)
+{
+	const shared::VersionUpdate version_update = app->_components.Get<NatCollector>().user_guidance.version_update_info;
 	ImGuiIO& io = ImGui::GetIO();
 
 	ImGui::PushFont(Renderer::medium_font);
@@ -38,7 +46,7 @@ void VersionUpdateWindow::Draw(class Application* app, shared::VersionUpdate ver
 	ImGui::SetCursorPosX(ImGui::GetColumnWidth(0) / 2.0f - ImGui::CalcTextSize("Close").x / 2.0f);
 	if (utilities::StyledButton("Close", close_button_style, false))
 	{
-		onClose(ignore_pop_up);
+		app->_components.Get<NatCollectorModel>().PopPopUpState();
 	}
 	ImGui::NextColumn();
 	if (utilities::StyledButton("Copy Link", link_button_style, false))

@@ -26,8 +26,9 @@ public:
 	// global data
 	shared::ClientMetaData client_meta_data{};
 	ConnectionReader connect_reader;
-private:
+
 	UserGuidance user_guidance;
+private:
 	CollectSamples collect_samples;
 
 	// State
