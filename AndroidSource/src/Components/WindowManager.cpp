@@ -109,9 +109,6 @@ void WindowManager::Draw(Application* app)
 	default:
 		break;
 	}
-
-	// Always draw main screen, except early return above
-	main_screen_window.Draw(app);
 }
 
 

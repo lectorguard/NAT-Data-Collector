@@ -7,6 +7,7 @@
 class LogWindow
 {
 public:
-
-	void Draw(class Application* app);
+	void Activate(class Application* app);
+	void Draw(Application* app);
+	void Deactivate(class Application* app) {};
 };

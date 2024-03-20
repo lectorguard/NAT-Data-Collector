@@ -11,7 +11,11 @@
 
  void Scoreboard::Activate(Application* app)
  {
- 	app->UpdateEvent.Subscribe([this](Application* app) {Update(app); });
+ 	app->UpdateEvent
+		.Subscribe([this](Application* app) {Update(app); });
+	app->_components
+		.Get<NatCollectorModel>()
+		.SubscribeTabEvent(NatCollectorTabState::Scoreboard, [this, app](auto st) {RequestScores(app); }, nullptr, nullptr);
  }
 
  void Scoreboard::RequestScores(Application* app)

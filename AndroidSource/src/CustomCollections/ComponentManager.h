@@ -29,7 +29,6 @@ struct ComponentManager
 	template<typename T>
 	void ForEach(const T& cb)
 	{
-
 		for (auto& variant : _components)
 		{
 			std::visit([cb](auto&& x)

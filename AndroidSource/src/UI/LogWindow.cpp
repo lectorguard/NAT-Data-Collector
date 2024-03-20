@@ -7,10 +7,24 @@
 #include "string"
 #include "StyleConstants.h"
 
+
+void LogWindow::Activate(Application* app)
+{
+	app->_components
+		.Get<NatCollectorModel>()
+		.SubscribeTabEvent(NatCollectorTabState::Log, nullptr, [this](auto app, auto st) {Draw(app); }, nullptr);
+}
+
 void LogWindow::Draw(Application* app)
 {
+	ImGuiIO& io = ImGui::GetIO();
+
+	ImGui::PushStyleVar(ImGuiStyleVar_ScrollbarSize, Renderer::CentimeterToPixel(StyleConst::ScrollbarSizeCM));
+	ImGui::SetNextWindowSize(ImVec2(io.DisplaySize.x, io.DisplaySize.y * MainScreenConst::BotWinSize));
+	ImGui::SetNextWindowPos(ImVec2(0, io.DisplaySize.y * MainScreenConst::BotWinCursor));
+
 	ImGui::PushFont(Renderer::small_font);
-	ImGui::PushStyleVar(ImGuiStyleVar_ScrollbarSize, Renderer::CentimeterToPixel(StyleConstants::ScrollbarSizeCM));
+	ImGui::PushStyleVar(ImGuiStyleVar_ScrollbarSize, Renderer::CentimeterToPixel(StyleConst::ScrollbarSizeCM));
 	ImGui::Begin("BotWindow", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_AlwaysHorizontalScrollbar | ImGuiWindowFlags_NoTitleBar);
 	for (auto info : Log::GetLog())
 	{
@@ -38,5 +52,8 @@ void LogWindow::Draw(Application* app)
 
 	ImGui::End();
 	ImGui::PopFont(); //small font
+	ImGui::PopStyleVar();
+
+	ImGui::End();
 	ImGui::PopStyleVar();
 }

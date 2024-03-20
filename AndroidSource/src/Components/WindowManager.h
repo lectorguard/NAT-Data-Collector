@@ -53,7 +53,6 @@ private:
 	// Controlled windows
 	PopUpWindow pop_up_window;
 	WrongNatTypeWindow wrong_nat_window;
-	MainScreen main_screen_window;
 	VersionUpdateWindow version_update_window;
 	InformationUpdateWindow information_update_window;
 

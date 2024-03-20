@@ -8,15 +8,26 @@
 #include "StyleConstants.h"
 
 
+void ScoreboardWindow::Activate(Application* app)
+{
+	app->_components
+		.Get<NatCollectorModel>()
+		.SubscribeTabEvent(NatCollectorTabState::Scoreboard, nullptr, [this](auto app, auto st) {Draw(app); }, nullptr);
+}
+
 void ScoreboardWindow::Draw(Application* app)
 {
 	ImGuiIO& io = ImGui::GetIO();
 
+	ImGui::PushStyleVar(ImGuiStyleVar_ScrollbarSize, Renderer::CentimeterToPixel(StyleConst::ScrollbarSizeCM));
+	ImGui::SetNextWindowSize(ImVec2(io.DisplaySize.x, io.DisplaySize.y * MainScreenConst::BotWinSize));
+	ImGui::SetNextWindowPos(ImVec2(0, io.DisplaySize.y * MainScreenConst::BotWinCursor));
+
 	const uint16_t placementWidth = Renderer::medium_font->FontSize * 2.5;
-	const float scrollbarPixel = Renderer::CentimeterToPixel(StyleConstants::ScrollbarSizeCM);
+	const float scrollbarPixel = Renderer::CentimeterToPixel(StyleConst::ScrollbarSizeCM);
 	ImGui::PushFont(Renderer::medium_font);
 
-	ImGui::PushStyleVar(ImGuiStyleVar_ScrollbarSize, Renderer::CentimeterToPixel(StyleConstants::ScrollbarSizeCM));
+	ImGui::PushStyleVar(ImGuiStyleVar_ScrollbarSize, Renderer::CentimeterToPixel(StyleConst::ScrollbarSizeCM));
 	ImGui::Begin("ScoreboardWindow", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_AlwaysHorizontalScrollbar | ImGuiWindowFlags_NoTitleBar);
 	shared::Scores& scores = app->_components.Get<Scoreboard>().scores;
 	ImGui::Columns(3, "Triples", false);
@@ -61,5 +72,8 @@ void ScoreboardWindow::Draw(Application* app)
 	ImGui::Columns(1);
 	ImGui::End();
 	ImGui::PopFont();
+	ImGui::PopStyleVar();
+
+	ImGui::End();
 	ImGui::PopStyleVar();
 }

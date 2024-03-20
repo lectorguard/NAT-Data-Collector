@@ -20,15 +20,13 @@ class Scoreboard
 {
 
 public:
-	void Update(Application* app);
-
 	void Activate(Application* app);
+	void Update(Application* app);
 	void Deactivate(Application* app);
-
-	void RequestScores(Application* app);
 
 	shared::Scores scores;
 private:
+	void RequestScores(Application* app);
 	// State
 	ScoreboardSteps current = ScoreboardSteps::Idle;
 	std::future<shared::ServerResponse::Helper> scoreboard_transaction;

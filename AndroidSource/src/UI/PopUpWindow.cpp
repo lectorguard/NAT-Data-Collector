@@ -14,7 +14,7 @@ void PopUpWindow::Draw(class Application* app, std::function<void(bool)> onClose
 	ImGuiIO& io = ImGui::GetIO();
 	
 	ImGui::PushFont(Renderer::large_font);
-	ImGui::PushStyleVar(ImGuiStyleVar_ScrollbarSize, Renderer::CentimeterToPixel(StyleConstants::ScrollbarSizeCM));
+	ImGui::PushStyleVar(ImGuiStyleVar_ScrollbarSize, Renderer::CentimeterToPixel(StyleConst::ScrollbarSizeCM));
 	ImGui::SetNextWindowSize(ImVec2(io.DisplaySize.x, io.DisplaySize.y));
 	ImGui::SetNextWindowPos(ImVec2(0, 0));
 	ImGui::Begin("##Welcom Popup", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse );
