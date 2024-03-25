@@ -61,14 +61,13 @@ void MainScreen::Draw(Application* app)
 	for (auto& tab : glob_tabs)
 	{
 #if !TRAVERSAL_FEATURE_ENABLED
-		if (tab.state == DisplayType::Traversal) continue;
+		if (tab.state == NatCollectorGlobalState::Traverse) continue;
 #endif
 		ImGui::SameLine();
 		if (utilities::StyledButton(tab.label.data(), tab.button_color, modelRef.GetCurrentGlobState() == tab.state, modelRef.GetNextGlobState() == tab.state))
 		{
 			modelRef.SetNextGlobalState(tab.state);
 		}
-		
 	}
 
 
