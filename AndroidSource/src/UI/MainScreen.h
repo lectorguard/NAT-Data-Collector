@@ -22,18 +22,27 @@ public:
 	void Deactivate(class Application* app) {};
 
 private:
+
+	template<typename T>
 	struct Tab
 	{
 		ImVec4 button_color;
-		NatCollectorTabState display_type;
+		T state;
 		std::string_view label;
 	};
 
-	std::array<Tab, 4> tabs
+	std::array<Tab<NatCollectorGlobalState>, 3> glob_tabs
 	{
-		Tab{ ImVec4(),NatCollectorTabState::Log, "Log"},
-		Tab{ ImVec4(),NatCollectorTabState::Traversal, "Traversal"},
-		Tab{ ImVec4(),NatCollectorTabState::Scoreboard, "Scores"},
-		Tab{ ImVec4(),NatCollectorTabState::CopyLog, "Copy Log"}
+		Tab<NatCollectorGlobalState>{ImVec4(), NatCollectorGlobalState::Idle, "Idle"},
+		Tab<NatCollectorGlobalState>{ImVec4(), NatCollectorGlobalState::Collect, "Collect"},
+		Tab<NatCollectorGlobalState>{ImVec4(), NatCollectorGlobalState::Traverse, "Traverse"},
+	};
+
+	std::array<Tab<NatCollectorTabState>, 4> context_tabs
+	{
+		Tab<NatCollectorTabState>{ ImVec4(),NatCollectorTabState::Log, "Log"},
+		Tab<NatCollectorTabState>{ ImVec4(),NatCollectorTabState::Traversal, "Traversal"},
+		Tab<NatCollectorTabState>{ ImVec4(),NatCollectorTabState::Scoreboard, "Scores"},
+		Tab<NatCollectorTabState>{ ImVec4(),NatCollectorTabState::CopyLog, "Copy Log"}
 	};
 };

@@ -16,11 +16,6 @@ enum class ClearColor
 class Renderer
 {
 public:
-    const float font_large_cm = 0.55f;
-    const float font_medium_cm = 0.32f;
-    const float font_small_cm = 0.2f;
-    const float font_very_small_cm = 0.1f;
-
     inline static struct ImFont* large_font = nullptr;
     inline static struct ImFont* medium_font = nullptr;
     inline static struct ImFont* small_font = nullptr;

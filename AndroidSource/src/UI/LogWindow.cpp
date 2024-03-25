@@ -2,7 +2,6 @@
 #include "MainScreen.h"
 #include "Application/Application.h"
 #include "Components/UserData.h"
-#include "Components/NatCollector.h"
 #include "Data/Address.h"
 #include "string"
 #include "StyleConstants.h"

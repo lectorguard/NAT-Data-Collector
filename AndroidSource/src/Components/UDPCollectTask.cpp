@@ -84,8 +84,7 @@
 				const shared::ConnectionType ct = info.conn_type.load();
 				if (ct == shared::ConnectionType::WIFI || ct == shared::ConnectionType::NOT_CONNECTED)
 				{
-					Log::Info("Abort Collecting Ports, entered WIFI or Disconnect");
-					stored_response = shared::ServerResponse::OK();
+					stored_response = shared::ServerResponse::Error({"Abort Collecting Ports, entered WIFI or Disconnect"});
 					io_service.stop();
 					return; 
 				}

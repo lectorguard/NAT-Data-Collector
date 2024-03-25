@@ -16,14 +16,12 @@ enum class ConnectionReaderStep : uint16_t
 
 class ConnectionReader
 {
-
 public:
 	void Activate(class Application* app);
-	bool Start();
 	void Update(class Application* app);
+	void Deactivate(class Application* app) {};
 
 	shared::ConnectionType Get() { return connection_type.load(); }
-
 	std::atomic<shared::ConnectionType>& GetAtomicRef() { return connection_type;}
 private:
 	inline static shared::ConnectionType ReadConnectionType(struct android_app* native_app);

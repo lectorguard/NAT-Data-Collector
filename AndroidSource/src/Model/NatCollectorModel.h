@@ -2,6 +2,8 @@
 #include <cstdint>
 #include <map>
 #include "CustomCollections/Event.h"
+#include "Components/ConnectionReader.h"
+#include "Data/IPMetaData.h"
 
 
 enum class NatCollectorGlobalState : uint8_t
@@ -37,11 +39,25 @@ class NatCollectorModel
 public:
 	using GlobalEv = std::map<NatCollectorGlobalState, Event<Application*, NatCollectorGlobalState>>;
 	using GlobalFun = std::function<void(Application*, NatCollectorGlobalState)>;
-
+	template<typename T>
+	using GlobEv = std::map < NatCollectorGlobalState, T>;
 	template<typename T>
 	using TabEv = std::map<NatCollectorTabState, T>;
 	template<typename T>
 	using PopUpEv = std::map<NatCollectorPopUpState, T>;
+
+	//Glob
+	void SubscribeGlobEvent(NatCollectorGlobalState gs,
+		const std::function<void(NatCollectorGlobalState)>& StartGlobCB,
+		const std::function<void(Application*, NatCollectorGlobalState)>& UpdateGlobCB,
+		const std::function<void(NatCollectorGlobalState)>& EndGlobCB);
+	void SubscribeNextGlobStateChanged(const std::function<void(NatCollectorGlobalState)>& stateChangedCB);
+	void SetNextGlobalState(const NatCollectorGlobalState& nextGlobState);
+	NatCollectorGlobalState GetNextGlobState() const { return next_global_state; }
+	NatCollectorGlobalState GetCurrentGlobState() const { return current_global_state; }
+	bool TrySwitchGlobState();
+	shared::ClientMetaData client_meta_data{};
+	
 
 	// Tabs
 	NatCollectorTabState GetTabState() const { return current_tab_state; }
@@ -67,13 +83,18 @@ public:
 
 	// General
 	void Activate(class Application* app);
+	void Start(class Application* app);
 	void Draw(class Application* app);
+	void Update(class Application* app);
 	void Deactivate(class Application* app) {};
 private:
-	
-
 	NatCollectorGlobalState current_global_state = NatCollectorGlobalState::Idle;
 	NatCollectorGlobalState next_global_state = NatCollectorGlobalState::Idle;
+	GlobEv<Event<NatCollectorGlobalState>> StartGlobEvent;
+	GlobEv<Event<Application*, NatCollectorGlobalState>> UpdateGlobEvent;
+	GlobEv<Event<NatCollectorGlobalState>> EndGlobEvent;
+	Event<NatCollectorGlobalState> OnNextGlobalStateChanged;
+
 
 	NatCollectorTabState current_tab_state = NatCollectorTabState::Log;
 	TabEv<Event<NatCollectorTabState>> StartDrawTabEvent;

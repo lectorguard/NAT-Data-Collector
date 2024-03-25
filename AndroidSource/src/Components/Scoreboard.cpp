@@ -1,5 +1,4 @@
 #include "Scoreboard.h"
-#include "NatCollector.h"
 #include "Application/Application.h"
 #include "CustomCollections/Log.h"
 #include "Data/Address.h"
@@ -22,10 +21,10 @@
 {
 	 if (current == ScoreboardSteps::Idle)
 	 {
-		 auto& nat_collector = app->_components.Get<NatCollector>();
+		 auto& model = app->_components.Get<NatCollectorModel>();
 		 auto user_data = app->_components.Get<UserData>();
 		 auto response = user_data.ValidateUsername();
-		 if (nat_collector.client_meta_data.android_id.empty())
+		 if (model.client_meta_data.android_id.empty())
 		 {
 			 Log::Warning("Invalid android id, can not retrieve scoreboard");
 		 }
@@ -60,9 +59,9 @@ void Scoreboard::Update(Application* app)
 
 		// Get reference
 		UserData& user_data = app->_components.Get<UserData>();
-		NatCollector& nat_collector = app->_components.Get<NatCollector>();
+		NatCollectorModel& model = app->_components.Get<NatCollectorModel>();
 		// Create client id
-		ClientID client_id{ nat_collector.client_meta_data.android_id, user_data.info.username, user_data.info.show_score, 0 };
+		ClientID client_id{ model.client_meta_data.android_id, user_data.info.username, user_data.info.show_score, 0 };
 		auto request = Factory::Create(client_id, MONGO_DB_NAME, MONGO_NAT_USERS_COLL_NAME, MONGO_NAT_SAMPLES_COLL_NAME);
 		scoreboard_transaction = std::async(TCPTask::ServerTransaction, std::move(request), SERVER_IP, SERVER_TRANSACTION_TCP_PORT);
 		current = ScoreboardSteps::UpdateRequestScores;

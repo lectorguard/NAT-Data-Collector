@@ -5,6 +5,7 @@
 #include "SharedHelpers.h"
 #include "imgui.h"
 #include "jni.h"
+#include "UI/StyleConstants.h"
 #include "android_native_app_glue.h"
 
 namespace utilities
@@ -282,19 +283,18 @@ namespace utilities
 		return isActive;
 	}
 
-	inline bool StyledButton(const char* label, ImVec4& currentColor, bool isSelected = false)
+	inline bool StyledButton(const char* label, ImVec4& currentColor, bool selected = false, bool marked = false)
 	{
-		const ImVec4 Pressed = { 163 / 255.0f, 163 / 255.0f, 163 / 255.0f,1.0f };
-		const ImVec4 Selected = { 88 / 255.0f, 88 / 255.0f, 88 / 255.0f, 1.0f };
-		const ImVec4 Unselected = { 46 / 255.0f, 46 / 255.0f, 46 / 255.0f, 1.0f };
-
 		ImGui::PushStyleColor(ImGuiCol_Button, currentColor);
 		ImGui::PushStyleColor(ImGuiCol_ButtonActive, currentColor);
 		ImGui::PushStyleColor(ImGuiCol_ButtonHovered, currentColor);
+
 		bool released = ImGui::Button(label);
-		if (ImGui::IsItemActive()) currentColor = Pressed;
-		else if (isSelected) currentColor = Selected;
-		else currentColor = Unselected;
+		if (ImGui::IsItemActive()) currentColor = ButtonColors::Pressed;
+		else if (selected) currentColor = ButtonColors::Selected;
+		else if (marked) currentColor = ButtonColors::Marked;
+		else currentColor = ButtonColors::Unselected;
+
 		ImGui::PopStyleColor(3);
 		return released;
 	}

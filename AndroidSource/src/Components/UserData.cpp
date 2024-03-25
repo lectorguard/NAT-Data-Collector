@@ -3,7 +3,6 @@
 #include "CustomCollections/Log.h"
 #include "SharedHelpers.h"
 #include "Utilities/NetworkHelpers.h"
-#include "NatCollector.h"
 
 
 void UserData::Activate(class Application* app)

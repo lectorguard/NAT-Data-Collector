@@ -4,6 +4,7 @@
 #include "backends/imgui_impl_android.h"
 #include "backends/imgui_impl_opengl3.h"
 #include "CustomCollections/Log.h"
+#include "UI/StyleConstants.h"
 
 void Renderer::Activate(class Application* app)
 {
@@ -55,12 +56,12 @@ void Renderer::InitDisplay(struct android_app* app)
 
 	_animating = 1;
 	ImGui::StyleColorsDark();
-	very_small_font = CreateFontbySizePixels(CentimeterToPixel(font_very_small_cm));
-	small_font = CreateFontbySizePixels(CentimeterToPixel(font_small_cm));
-	large_font = CreateFontbySizePixels(CentimeterToPixel(font_large_cm));
+	very_small_font = CreateFontbySizePixels(CentimeterToPixel(FontSizes::font_very_small_cm));
+	small_font = CreateFontbySizePixels(CentimeterToPixel(FontSizes::font_small_cm));
+	large_font = CreateFontbySizePixels(CentimeterToPixel(FontSizes::font_large_cm));
 
 	//Default is medium
-	medium_font = CreateFontbySizePixels(CentimeterToPixel(font_medium_cm));
+	medium_font = CreateFontbySizePixels(CentimeterToPixel(FontSizes::font_medium_cm));
 	
 }
 

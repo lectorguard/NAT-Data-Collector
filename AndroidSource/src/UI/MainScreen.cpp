@@ -18,6 +18,8 @@ void MainScreen::Activate(Application* app)
 void MainScreen::Draw(Application* app)
 {
 	ImGuiIO& io = ImGui::GetIO();
+	NatCollectorModel& modelRef = app->_components.Get<NatCollectorModel>();
+	ConnectionReader& connection_reader = app->_components.Get<ConnectionReader>();
 
 	// User Window
 	ImGui::SetNextWindowSize(ImVec2(io.DisplaySize.x, io.DisplaySize.y * MainScreenConst::UserWinSize));
@@ -54,6 +56,21 @@ void MainScreen::Draw(Application* app)
 		ImGui::Checkbox("##Show Score", &user_data.info.show_score); ImGui::NextColumn();
 	}
 	ImGui::Columns(1);
+	//Tabs
+	ImGui::Text("Select App Task ");
+	for (auto& tab : glob_tabs)
+	{
+#if !TRAVERSAL_FEATURE_ENABLED
+		if (tab.state == DisplayType::Traversal) continue;
+#endif
+		ImGui::SameLine();
+		if (utilities::StyledButton(tab.label.data(), tab.button_color, modelRef.GetCurrentGlobState() == tab.state, modelRef.GetNextGlobState() == tab.state))
+		{
+			modelRef.SetNextGlobalState(tab.state);
+		}
+		
+	}
+
 
 	ImGui::Dummy(ImVec2(0, Renderer::CentimeterToPixel(0.1f)));
 	ImGui::Separator();
@@ -68,8 +85,7 @@ void MainScreen::Draw(Application* app)
 	ImGui::Columns(2, "Pairs", false);
 	ImGui::SetColumnWidth(0, StyleConst::LeftColumnWidth * io.DisplaySize.x);
 	{
-		NatCollector& nat_collector = app->_components.Get<NatCollector>();
-		shared::ClientMetaData& meta_data = nat_collector.client_meta_data;
+		shared::ClientMetaData& meta_data = modelRef.client_meta_data;
 
 		ImGui::Text("Android ID"); ImGui::NextColumn();
 		ImGui::PushItemWidth(io.DisplaySize.x * (1.0f - StyleConst::LeftColumnWidth));
@@ -102,7 +118,7 @@ void MainScreen::Draw(Application* app)
 
 		ImGui::Text("Connection"); ImGui::NextColumn();
 		ImGui::PushItemWidth(io.DisplaySize.x * (1.0f - StyleConst::LeftColumnWidth));
-		const std::string connection_type = shared::connect_type_to_string.at(nat_collector.connect_reader.Get());
+		const std::string connection_type = shared::connect_type_to_string.at(connection_reader.Get());
 		ImGui::Text("%s", connection_type.c_str()); ImGui::NextColumn();
 
 		ImGui::Dummy(ImVec2(0, Renderer::CentimeterToPixel(0.1f)));
@@ -113,20 +129,23 @@ void MainScreen::Draw(Application* app)
 	ImGui::End();
 	
 	// Tabs
-	NatCollectorModel& modelRef = app->_components.Get<NatCollectorModel>();
 	ImGui::PushFont(Renderer::medium_font);
 	// Tabs selection
 	ImGui::SetNextWindowSize(ImVec2(io.DisplaySize.x, io.DisplaySize.y * MainScreenConst::TabWinSize));
 	ImGui::SetNextWindowPos(ImVec2(0, io.DisplaySize.y * MainScreenConst::TabWinCursor));
 	ImGui::Begin("Tabs", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoScrollbar);
-	for (Tab& tab: tabs)
+	for (auto& tab: context_tabs)
 	{
-#if !TRAVERSAL_FEATURE_ENABLED
-		if (tab.display_type == DisplayType::Traversal) continue;
-#endif
-		if (utilities::StyledButton(tab.label.data(), tab.button_color, modelRef.GetTabState() == tab.display_type))
+		// Ignore traversal tab when not traversing
+		if (modelRef.GetCurrentGlobState() != NatCollectorGlobalState::Traverse &&
+			tab.state == NatCollectorTabState::Traversal)
 		{
-			modelRef.SetTabState(tab.display_type);
+			continue;
+		}
+
+		if (utilities::StyledButton(tab.label.data(), tab.button_color, modelRef.GetTabState() == tab.state))
+		{
+			modelRef.SetTabState(tab.state);
 		}
 		ImGui::SameLine();
 	}

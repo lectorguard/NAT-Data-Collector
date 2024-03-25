@@ -2,7 +2,6 @@
 #include "MainScreen.h"
 #include "Application/Application.h"
 #include "Components/UserData.h"
-#include "Components/NatCollector.h"
 #include "Data/Address.h"
 #include "misc/cpp/imgui_stdlib.h"
 #include "string"
@@ -57,7 +56,7 @@ void PopUpWindow::Draw(class Application* app)
 
 	ImGui::Dummy(ImVec2(ImGui::CalcTextSize("	").x, 0));
 	ImGui::SameLine();
-	if (utilities::StyledButton("Copy link to tutorial", link_settings_tutorial, false))
+	if (utilities::StyledButton("Copy link to tutorial", link_settings_tutorial))
 	{
 		auto result = utilities::WriteToClipboard(app->android_state, "Nat Collector", "https://support.signonsite.com.au/hc/en-us/articles/360003166495-Run-App-In-Background-Android");
 		Log::HandleResponse(result, "Copy tutorial link to disable optimization");
@@ -119,7 +118,7 @@ void PopUpWindow::Draw(class Application* app)
 
 	ImGui::PushFont(Renderer::medium_font);
 	ImGui::SetCursorPosX(ImGui::GetWindowSize().x / 2.0f - ImGui::CalcTextSize("Proceed").x / 2.0f);
-	if (utilities::StyledButton("Proceed", proceed, false))
+	if (utilities::StyledButton("Proceed", proceed))
 	{
 		app->_components.Get<NatCollectorModel>().PopPopUpState();
 	}

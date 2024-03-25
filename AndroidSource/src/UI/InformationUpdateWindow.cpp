@@ -3,6 +3,7 @@
 #include "Application/Application.h"
 #include "misc/cpp/imgui_stdlib.h"
 #include "string"
+#include "Components/GlobUserGuidance.h"
 
 void InformationUpdateWindow::Activate(Application* app)
 {
@@ -13,7 +14,7 @@ void InformationUpdateWindow::Activate(Application* app)
 
 void InformationUpdateWindow::Draw(class Application* app)
 {
-	const shared::InformationUpdate info_update = app->_components.Get<NatCollector>().user_guidance.information_update_info;
+	const shared::InformationUpdate info_update = app->_components.Get<GlobUserGuidance>().information_update_info;
 	ImGuiIO& io = ImGui::GetIO();
 
 	ImGui::PushFont(Renderer::medium_font);
@@ -38,7 +39,7 @@ void InformationUpdateWindow::Draw(class Application* app)
 
 	ImGui::PushFont(Renderer::medium_font);
 	ImGui::SetCursorPosX(ImGui::GetWindowSize().x / 2.0f - ImGui::CalcTextSize("Close").x / 2.0f);
-	if (utilities::StyledButton("Close", close_button_style, false))
+	if (utilities::StyledButton("Close", close_button_style))
 	{
 		app->_components.Get<NatCollectorModel>().PopPopUpState();
 	}

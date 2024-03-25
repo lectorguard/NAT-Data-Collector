@@ -2,7 +2,6 @@
 #include "MainScreen.h"
 #include "Application/Application.h"
 #include "Components/UserData.h"
-#include "Components/NatCollector.h"
 #include "Data/Address.h"
 #include "misc/cpp/imgui_stdlib.h"
 #include "string"
@@ -18,9 +17,9 @@ void WrongNatTypeWindow::Activate(Application* app)
 
 void WrongNatTypeWindow::Draw(class Application* app)
 {
-	NatCollector& nat_collector = app->_components.Get<NatCollector>();
 	NatCollectorModel& nat_model = app->_components.Get<NatCollectorModel>();
-	const shared::NATType nat_type = nat_collector.client_meta_data.nat_type;
+	ConnectionReader& conn_reader = app->_components.Get<ConnectionReader>();
+	const shared::NATType nat_type = nat_model.client_meta_data.nat_type;
 
 
 	ImGui::PushFont(Renderer::medium_font);
@@ -39,7 +38,7 @@ void WrongNatTypeWindow::Draw(class Application* app)
 	ImGui::PopFont();
 	ImGui::PushFont(Renderer::small_font);
 
-	const shared::ConnectionType conn_type = app->_components.Get<NatCollector>().connect_reader.Get();
+	const shared::ConnectionType conn_type = conn_reader.Get();
 	if (conn_type == shared::ConnectionType::WIFI)
 	{
 		ImGui::TextWrapped(
@@ -55,12 +54,12 @@ void WrongNatTypeWindow::Draw(class Application* app)
 		ImGui::SetCursorPosX(ImGui::GetColumnWidth(0) / 2.0f - ImGui::CalcTextSize("Close").x / 2.0f);
 
 		
-		if (utilities::StyledButton("Close", close_cb, false))
+		if (utilities::StyledButton("Close", close_cb))
 		{
 			nat_model.PopPopUpState();
 		}
 		ImGui::NextColumn();
-		if (utilities::StyledButton("Check NAT", check_nat_cb, false))
+		if (utilities::StyledButton("Check NAT", check_nat_cb))
 		{
 			nat_model.PopPopUpState();
 			nat_model.RecalculateNAT();
@@ -84,7 +83,7 @@ void WrongNatTypeWindow::Draw(class Application* app)
 		ImGui::Dummy(ImVec2(0, Renderer::CentimeterToPixel(0.2f)));
 		ImGui::PushFont(Renderer::medium_font);
 		ImGui::SetCursorPosX(ImGui::GetWindowWidth() / 2.0f - ImGui::CalcTextSize("Close").x / 2.0f);
-		if (utilities::StyledButton("Close", close_cb, false))
+		if (utilities::StyledButton("Close", close_cb))
 		{
 			nat_model.PopPopUpState();
 		}

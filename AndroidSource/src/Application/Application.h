@@ -4,7 +4,6 @@
 #include "CustomCollections/ComponentManager.h"
 #include "Components/SensorManager.h"
 #include "Components/InputManager.h"
-#include "Components/NatCollector.h"
 #include "Components/Scoreboard.h"
 #include "Components/UserData.h"
 #include "Components/AwakeManager.h"
@@ -17,6 +16,13 @@
 #include "UI/WrongNatTypeWindow.h"
 #include "UI/VersionUpdateWindow.h"
 #include "UI/InformationUpdateWindow.h"
+#include "Components/ConnectionReader.h"
+#include "Components/GlobCollectSamples.h"
+#include "Components/GlobUserGuidance.h"
+#include "Components/GlobIdle.h"
+#include "Components/CopyLog.h"
+#include "Components/GlobTraverse.h"
+#include "UI/TraversalWindow.h"
 
 
 #define LOGI(...) ((void)__android_log_print(ANDROID_LOG_INFO, "native-activity", __VA_ARGS__))
@@ -24,7 +30,7 @@
 
 class Application
 {
-	using ComponentsType = ComponentManager<SensorManager, Renderer, InputManager, NatCollector, Scoreboard, UserData, AwakeManager, NatCollectorModel, MainScreen, LogWindow, ScoreboardWindow, PopUpWindow, WrongNatTypeWindow, VersionUpdateWindow, InformationUpdateWindow>;
+	using ComponentsType = ComponentManager<SensorManager, Renderer, InputManager, Scoreboard, UserData, AwakeManager, NatCollectorModel, MainScreen, LogWindow, ScoreboardWindow, PopUpWindow, WrongNatTypeWindow, VersionUpdateWindow, InformationUpdateWindow, ConnectionReader, GlobCollectSamples, GlobUserGuidance, GlobIdle, CopyLog, GlobTraverse, TraversalWindow>;
 
 public:
 	Application() {};

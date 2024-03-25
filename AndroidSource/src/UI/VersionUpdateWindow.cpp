@@ -2,7 +2,6 @@
 #include "MainScreen.h"
 #include "Application/Application.h"
 #include "Components/UserData.h"
-#include "Components/NatCollector.h"
 #include "Data/Address.h"
 #include "misc/cpp/imgui_stdlib.h"
 #include "string"
@@ -17,7 +16,7 @@ void VersionUpdateWindow::Activate(Application* app)
 
 void VersionUpdateWindow::Draw(class Application* app)
 {
-	const shared::VersionUpdate version_update = app->_components.Get<NatCollector>().user_guidance.version_update_info;
+	const shared::VersionUpdate version_update = app->_components.Get<GlobUserGuidance>().version_update_info;
 	ImGuiIO& io = ImGui::GetIO();
 
 	ImGui::PushFont(Renderer::medium_font);
@@ -44,12 +43,12 @@ void VersionUpdateWindow::Draw(class Application* app)
 	ImGui::Columns(2, "Pairs", false);
 	ImGui::PushFont(Renderer::medium_font);
 	ImGui::SetCursorPosX(ImGui::GetColumnWidth(0) / 2.0f - ImGui::CalcTextSize("Close").x / 2.0f);
-	if (utilities::StyledButton("Close", close_button_style, false))
+	if (utilities::StyledButton("Close", close_button_style))
 	{
 		app->_components.Get<NatCollectorModel>().PopPopUpState();
 	}
 	ImGui::NextColumn();
-	if (utilities::StyledButton("Copy Link", link_button_style, false))
+	if (utilities::StyledButton("Copy Link", link_button_style))
 	{
 		auto response = utilities::WriteToClipboard(app->android_state, "NAT Collector Version Link", version_update.download_link);
 		Log::HandleResponse(response, "Write new version download link to clipboard");

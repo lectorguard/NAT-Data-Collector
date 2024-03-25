@@ -5,16 +5,11 @@
 
 void ConnectionReader::Activate(Application* app)
 {
-}
-
-bool ConnectionReader::Start()
-{
+	app->UpdateEvent.Subscribe([this](auto app) {Update(app); });
 	if (current == ConnectionReaderStep::Idle)
 	{
 		current = ConnectionReaderStep::StartReadConnection;
-		return true;
 	}
-	return false;
 }
 
 
