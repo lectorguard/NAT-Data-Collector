@@ -51,7 +51,7 @@ void NatCollectorModel::SetTabState(NatCollectorTabState val)
 void NatCollectorModel::PushPopUpState(const NatCollectorPopUpState& val)
 {
 	popup_queue.push(val);
-	if (popup_queue.empty())
+	if (popup_queue.size() == 1)
 	{
 		if (StartDrawPopupEvent.contains(val))
 			StartDrawPopupEvent[val].Publish(val);

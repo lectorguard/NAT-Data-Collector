@@ -5,22 +5,28 @@
 #include "Data/Address.h"
 #include "misc/cpp/imgui_stdlib.h"
 #include "string"
-#include "SharedTypes.h"
 
 
 void WrongNatTypeWindow::Activate(Application* app)
 {
 	app->_components
 		.Get<NatCollectorModel>()
-		.SubscribePopUpEvent(NatCollectorPopUpState::NatInfoWindow, nullptr, [this](auto app, auto st) {Draw(app); }, nullptr);
+		.SubscribePopUpEvent(NatCollectorPopUpState::NatInfoWindow,
+			[this, app](auto s) {StartDraw(app); },
+			[this](auto app, auto st) {UpdateDraw(app); },
+			[this](auto s) { EndDraw(); });
 }
 
-void WrongNatTypeWindow::Draw(class Application* app)
+void WrongNatTypeWindow::StartDraw(Application* app)
+{
+	ConnectionReader& conn_reader = app->_components.Get<ConnectionReader>();
+	con_type_at_start = conn_reader.Get();
+}
+
+void WrongNatTypeWindow::UpdateDraw(class Application* app)
 {
 	NatCollectorModel& nat_model = app->_components.Get<NatCollectorModel>();
-	ConnectionReader& conn_reader = app->_components.Get<ConnectionReader>();
 	const shared::NATType nat_type = nat_model.client_meta_data.nat_type;
-
 
 	ImGui::PushFont(Renderer::medium_font);
 
@@ -38,8 +44,7 @@ void WrongNatTypeWindow::Draw(class Application* app)
 	ImGui::PopFont();
 	ImGui::PushFont(Renderer::small_font);
 
-	const shared::ConnectionType conn_type = conn_reader.Get();
-	if (conn_type == shared::ConnectionType::WIFI)
+	if (con_type_at_start == shared::ConnectionType::WIFI)
 	{
 		ImGui::TextWrapped(
 			"You are currently connected to WIFI. Please disable WIFI, enable data and check the NAT type again. "
@@ -93,6 +98,11 @@ void WrongNatTypeWindow::Draw(class Application* app)
 	}
 	ImGui::PopFont();
 	ImGui::End();
+}
+
+void WrongNatTypeWindow::EndDraw()
+{
+	con_type_at_start = shared::ConnectionType::NOT_CONNECTED;
 }
 
 

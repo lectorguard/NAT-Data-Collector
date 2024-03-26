@@ -108,7 +108,7 @@ void GlobUserGuidance::UpdateGlobState(Application* app)
 		{
 			nat_model.client_meta_data.android_id = "Not Identified";
 			Log::Error("Failed to retrieve android id");
-			current = UserGuidanceStep::Idle;
+			current = UserGuidanceStep::FinishUserGuidance;
 		}
 		break;
 	}
@@ -229,7 +229,7 @@ void GlobUserGuidance::UpdateGlobState(Application* app)
 				if (jser_errors.size() > 0)
 				{
 					Log::HandleResponse(shared::helper::HandleJserError(jser_errors, "Deserialize Meta Data"), "Deserialize IP Address Metadata from Server");
-					current = UserGuidanceStep::Idle;
+					current = UserGuidanceStep::FinishUserGuidance;
 					break;
 				}
 				// Set client meta data
@@ -245,7 +245,7 @@ void GlobUserGuidance::UpdateGlobState(Application* app)
 			else
 			{
 				Log::HandleResponse(std::get<shared::ServerResponse>(*res), "Get IP Address Metadata from Server");
-				current = UserGuidanceStep::Idle;
+				current = UserGuidanceStep::FinishUserGuidance;
 				break;
 			}
 		}
@@ -256,7 +256,7 @@ void GlobUserGuidance::UpdateGlobState(Application* app)
 		Log::Info("Start classifying NAT");
 		shared::ServerResponse resp = nat_classifier.AsyncClassifyNat(NAT_IDENT_AMOUNT_SAMPLES_USED);
 		Log::HandleResponse(resp, "Classify NAT");
-		current = resp ? UserGuidanceStep::UpdateNATInfo : UserGuidanceStep::Idle;
+		current = resp ? UserGuidanceStep::UpdateNATInfo : UserGuidanceStep::FinishUserGuidance;
 		break;
 	}
 	case UserGuidanceStep::UpdateNATInfo:
