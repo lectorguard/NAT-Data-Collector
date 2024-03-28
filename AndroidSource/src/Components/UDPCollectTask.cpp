@@ -89,8 +89,12 @@
 					return; 
 				}
 #endif
+				asio::error_code ec;
+				auto address = asio::ip::make_address(info.remote_address, ec);
+				stored_response = shared::helper::HandleAsioError(ec, "Make Address");
+				if (!stored_response) return;
 
-				auto remote_endpoint = std::make_shared<asio::ip::udp::endpoint>(asio::ip::make_address(info.remote_address), info.remote_port);
+				auto remote_endpoint = std::make_shared<asio::ip::udp::endpoint>(address, info.remote_port);
 				try
 				{
 					socket_list[index].socket = createSocket();
@@ -145,10 +149,17 @@ UDPCollectTask::UDPCollectTask(const NatTypeInfo& info, asio::io_service& io_ser
 		}
 
 		
+
 		socket_list[index].timer.expires_from_now(std::chrono::milliseconds(index * info.time_between_requests_ms));
 		socket_list[index].timer.async_wait([this, info, port = ports[index], &sock = socket_list[index], &io_service](auto error)
 			{
-				auto remote_endpoint = std::make_shared<asio::ip::udp::endpoint>(asio::ip::make_address(info.remote_address), port);
+				
+				asio::error_code ec;
+				auto address = asio::ip::make_address(info.remote_address, ec);
+				stored_response = shared::helper::HandleAsioError(ec, "Make Address");
+				if (!stored_response) return;
+
+				auto remote_endpoint = std::make_shared<asio::ip::udp::endpoint>(address, port);
 				send_request(sock, io_service, remote_endpoint, error);
 			});
 	}

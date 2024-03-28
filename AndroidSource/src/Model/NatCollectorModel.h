@@ -80,6 +80,10 @@ public:
 	void RecalculateNAT();
 	void SubscribeRecalculateNAT(std::function<void(bool)> cb);
 
+	//Traversal
+	void JoinLobby(uint16_t lobby_index) { OnJoinLobby.Publish(lobby_index); }
+	void SubscribeJoinLobby(std::function<void(uint16_t)> cb) { OnJoinLobby.Subscribe(cb); }
+
 
 	// General
 	void Activate(class Application* app);
@@ -88,6 +92,7 @@ public:
 	void Update(class Application* app);
 	void Deactivate(class Application* app) {};
 private:
+	//Glob
 	NatCollectorGlobalState current_global_state = NatCollectorGlobalState::Idle;
 	NatCollectorGlobalState next_global_state = NatCollectorGlobalState::Idle;
 	GlobEv<Event<NatCollectorGlobalState>> StartGlobEvent;
@@ -95,16 +100,19 @@ private:
 	GlobEv<Event<NatCollectorGlobalState>> EndGlobEvent;
 	Event<NatCollectorGlobalState> OnNextGlobalStateChanged;
 
-
+	//Tab
 	NatCollectorTabState current_tab_state = NatCollectorTabState::Log;
 	TabEv<Event<NatCollectorTabState>> StartDrawTabEvent;
 	TabEv<Event<Application*, NatCollectorTabState>> UpdateDrawTabEvent;
 	TabEv<Event<NatCollectorTabState>> EndDrawTabEvent;
 
+	//Popup
 	std::queue<NatCollectorPopUpState> popup_queue{};
 	PopUpEv<Event<NatCollectorPopUpState>> StartDrawPopupEvent;
 	PopUpEv<Event<Application*, NatCollectorPopUpState>> UpdateDrawPopupEvent;
 	PopUpEv<Event<NatCollectorPopUpState>> EndDrawPopupEvent;
-	
 	Event<bool> OnRecalculateNAT;
+
+	//Traversal
+	Event<uint16_t> OnJoinLobby;
 };

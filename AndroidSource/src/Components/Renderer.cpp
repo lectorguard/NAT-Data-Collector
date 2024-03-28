@@ -58,6 +58,7 @@ void Renderer::InitDisplay(struct android_app* app)
 	ImGui::StyleColorsDark();
 	very_small_font = CreateFontbySizePixels(CentimeterToPixel(FontSizes::font_very_small_cm));
 	small_font = CreateFontbySizePixels(CentimeterToPixel(FontSizes::font_small_cm));
+	med_large_font = CreateFontbySizePixels(CentimeterToPixel(FontSizes::font_med_large_cm));
 	large_font = CreateFontbySizePixels(CentimeterToPixel(FontSizes::font_large_cm));
 
 	//Default is medium

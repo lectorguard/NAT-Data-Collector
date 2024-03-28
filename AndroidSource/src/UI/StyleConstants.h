@@ -28,6 +28,7 @@ namespace ButtonColors
 namespace FontSizes
 {
 	inline const float font_large_cm = 0.55f;
+	inline const float font_med_large_cm = 0.34f;
 	inline const float font_medium_cm = 0.29f;
 	inline const float font_small_cm = 0.2f;
 	inline const float font_very_small_cm = 0.1f;

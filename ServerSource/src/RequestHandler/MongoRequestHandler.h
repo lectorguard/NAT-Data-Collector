@@ -145,7 +145,8 @@ struct RequestHandler<shared::RequestType::GET_SCORES>
 
 			// Get all users 
 			
-			result = mongoUtils::FindElementsInCollection("{}", meta_data.db_name, meta_data.users_coll_name, [&all_scores](mongoc_cursor_t* cursor, int64_t length)
+			result = mongoUtils::FindElementsInCollection("{}", meta_data.db_name, meta_data.users_coll_name, 
+				[&all_scores](mongoc_cursor_t* cursor, int64_t length)
 				{
 					return std::visit(shared::helper::Overloaded
 						{

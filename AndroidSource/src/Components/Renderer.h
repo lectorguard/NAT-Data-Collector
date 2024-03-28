@@ -17,6 +17,7 @@ class Renderer
 {
 public:
     inline static struct ImFont* large_font = nullptr;
+    inline static struct ImFont* med_large_font = nullptr;
     inline static struct ImFont* medium_font = nullptr;
     inline static struct ImFont* small_font = nullptr;
     inline static struct ImFont* very_small_font = nullptr;

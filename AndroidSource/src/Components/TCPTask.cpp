@@ -20,7 +20,11 @@ shared::ServerResponse::Helper TCPTask::ServerTransaction(shared::ServerRequest&
 		asio::error_code asio_error;
 
 		// Connect to Server
-		asio::connect(socket, resolver.resolve(server_addr, std::to_string(server_port)), asio_error);
+		auto resolved = resolver.resolve(server_addr, std::to_string(server_port), asio_error);
+		response = shared::helper::HandleAsioError(asio_error, "Resolve address").ToSimpleHelper();
+		if (!response) break;
+
+		asio::connect(socket, resolved, asio_error);
 		response = shared::helper::HandleAsioError(asio_error, "Connect to Server for Transaction").ToSimpleHelper();
 		if (!response) break;
 

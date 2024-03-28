@@ -9,6 +9,18 @@
 
 namespace mongoUtils
 {
+	static shared::ServerResponse CheckMongocCursor(mongoc_cursor_t* cursor)
+	{
+		bson_error_t error;
+		if (mongoc_cursor_error(cursor, &error))
+		{
+			auto response = shared::ServerResponse::Error({ "Mongodb cursor error when calling find : " + std::string(error.message) });
+			std::cout << response.messages[0] << std::endl;
+			return response;
+		}
+		return shared::ServerResponse::OK();
+	}
+
 	static shared::ServerResponse OpenCollection(const std::string& db_name, const std::string& coll_name, std::function<shared::ServerResponse(mongoc_database_t*, mongoc_collection_t*)> openCollectionCB)
 	{
 		using namespace SD;
@@ -88,6 +100,9 @@ namespace mongoUtils
 				SmartDestruct<mongoc_cursor_t> cursor = Create<mongoc_cursor_t>(coll, bson_query.Value, query_opts);
 				bson_destroy(query_opts);
 
+				auto cursorValid = CheckMongocCursor(cursor.Value);
+				if (!cursorValid)return cursorValid;
+
 				return cursorCallback(cursor.Value, count);
 			});
     };
@@ -141,11 +156,9 @@ namespace mongoUtils
 			return ServerResponse::Warning({ "Document Cursor is invalid or empty" });
 		}
 
-		bson_error_t error;
-		if (mongoc_cursor_error(cursor, &error))
-		{
-			return ServerResponse::Error({ "Passed cursor to CursorToJserVector() function is invalid", "Error Message : " + std::string(error.message) });
-		}
+		ServerResponse cursor_valid;
+		cursor_valid = CheckMongocCursor(cursor);
+		if (!cursor_valid) return cursor_valid;
 
 		std::vector<T> response;
 		const bson_t* doc;
@@ -163,6 +176,10 @@ namespace mongoUtils
 			response.emplace_back(toDeserialize);
 			bson_free(str);
 		}
+		cursor_valid = CheckMongocCursor(cursor);
+		if (!cursor_valid) return cursor_valid;
 		return response;
 	}
+
+
 }
