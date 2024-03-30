@@ -9,9 +9,9 @@
 #include <unistd.h>
 #include <thread>
 #include "Server/AddressRequest.h"
-#include "Server/TCPSessionHandler.h"
 #include "asio.hpp"
 #include "Singletons/ServerConfig.h"
+#include "Server/Server.h"
 
 int main()
 {
@@ -23,7 +23,7 @@ int main()
 		std::jthread UDPAddressEchoServer2{ [server_config] {UDP_Adresss_Echo_Server::StartService(server_config->udp_address_server2_port); } };
 
 		asio::io_context context;
-		asio::co_spawn(context, [server_config] { return TCPSessionHandler::StartService(server_config->tcp_session_server_port); }, asio::detached);
+		Server tcp_transaction_server{ context, server_config->tcp_session_server_port };
 		context.run();
 	}
 	else

@@ -2,6 +2,7 @@
 
 #include "nlohmann/json.hpp"
 #include "zstd.h"
+#include "iostream"
 
 
 
@@ -13,7 +14,7 @@ namespace shared
 		size_t const cBuffSize = ZSTD_compressBound(data.size());
 		buf.resize(cBuffSize);
 		size_t const cSize = ZSTD_compress(buf.data(), buf.size(), data.data(), data.size(), compression_level);
-		buf.resize(cSize);
+		buf.shrink_to_fit();
 		return buf;
 	}
 
@@ -23,7 +24,7 @@ namespace shared
 		unsigned long long const rSize = ZSTD_getFrameContentSize(data.data(), data.size());
 		buf.resize(rSize);
 		size_t const dSize = ZSTD_decompress(buf.data(), buf.size(), data.data(), data.size());
-		buf.resize(dSize);
+		buf.shrink_to_fit();
 		return buf;
 	}
 
@@ -32,6 +33,14 @@ namespace shared
 		std::stringstream ss;
 		ss << std::setw(MAX_MSG_LENGTH_DECIMALS) << std::setfill('0') << msg_length;
 		return ss.str();
+	}
+
+	inline std::vector<uint8_t> stringToVector(const std::string& msg)
+	{
+		std::vector<uint8_t> buffer;
+		buffer.resize(msg.size());
+		std::copy(msg.begin(), msg.end(), buffer.begin());
+		return buffer;
 	}
 
 

@@ -51,7 +51,7 @@ shared::ServerResponse::Helper TCPTask::ServerTransaction(shared::ServerRequest&
 
 		// Read Server Message Length
 		char len_buffer[MAX_MSG_LENGTH_DECIMALS] = { 0 };
-		std::size_t len = asio::read(socket, asio::buffer(len_buffer), asio_error);
+		std::size_t len = asio::read(socket, asio::buffer(len_buffer), asio::transfer_exactly(MAX_MSG_LENGTH_DECIMALS), asio_error);
 		response = shared::helper::HandleAsioError(asio_error, "Read length of server answer").ToSimpleHelper();
 		if (!response) break;
 		uint32_t next_msg_len = std::stoi(std::string(len_buffer, len));
@@ -59,7 +59,7 @@ shared::ServerResponse::Helper TCPTask::ServerTransaction(shared::ServerRequest&
 		// Receive Answer from Server
 		std::vector<uint8_t> buf;
 		buf.resize(next_msg_len);
-		asio::read(socket, asio::buffer(buf), asio_error);
+		asio::read(socket, asio::buffer(buf), asio::transfer_exactly(next_msg_len), asio_error);
 		response = shared::helper::HandleAsioError(asio_error, "Read Answer from Server Request").ToSimpleHelper();
 		if (!response) break;
 		
