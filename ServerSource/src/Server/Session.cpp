@@ -1,4 +1,7 @@
 #include "Session.h"
+#include "SharedProtocol.h"
+#include "SharedHelpers.h"
+#include "RequestHandler/TransactionFactory.h"
 
 
 
@@ -80,7 +83,7 @@ void Session::do_read_msg(uint32_t msg_length)
 				std::cout << "TCP transaction received invalid message length : Expected " << MAX_MSG_LENGTH_DECIMALS << " , but received " << length << std::endl;
 				return;
 			}
-
+			// alloc answer memory
 			const std::vector<uint8_t> vec_buf{ buf.get(), buf.get() + length };
 			// Decompress without exception
 			nlohmann::json decompressed_answer = nlohmann::json::from_msgpack(shared::decompressZstd(vec_buf), true, false);
@@ -89,9 +92,29 @@ void Session::do_read_msg(uint32_t msg_length)
 				std::cout << "TCP transaction request is invalid. Abort .." << std::endl;
 				return;
 			}
-			// Handle request
-			shared::ServerResponse response = TransactionFactory::Handle(decompressed_answer);
-			// Post answer
+			// Deserialize answer
+			std::vector<jser::JSerError> errors;
+			shared::ServerRequest::Helper request_handler{};
+			request_handler.DeserializeObject(decompressed_answer, std::back_inserter(errors));
+			shared::ServerResponse response;
+			if (errors.size() > 0)
+			{
+				response = shared::helper::HandleJserError(errors, "Failed to deserialize Server Request");
+			}
+			else
+			{
+				RequestInfo info
+				{
+					request_handler.req_data,
+					request_handler.req_meta_data,
+					_server_ref,
+					_hash,
+					request_handler.req_type
+				};
+				response = TransactionFactory::Handle(info);
+			}
+
+			// Post response
 			if (auto buffer = prepare_write_message(std::move(response)))
 			{
 				write(*buffer);

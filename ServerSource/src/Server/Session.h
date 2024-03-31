@@ -5,9 +5,11 @@
 #include <utility>
 #include "iostream"
 #include "string"
-#include "RequestHandler/TransactionFactory.h"
 #include "Compression.h"
 #include "JSerializer.h"
+#include "SharedProtocol.h"
+
+class Server;
 
 
 // No need to close socket on error, 
@@ -16,13 +18,13 @@ class Session : public std::enable_shared_from_this<Session>
 {
 public:
 	
-	Session(asio::ip::tcp::socket socket, uint64_t hash)
-		: socket_(std::move(socket)), hash(hash)
+	Session(asio::ip::tcp::socket socket, uint64_t hash, Server* server)
+		: socket_(std::move(socket)), _hash(hash), _server_ref(server)
 	{}
 
 	void start(){ do_read_msg_length(); }
 	void write(const std::vector<uint8_t>& buffer);
-	std::optional<std::vector<uint8_t>> prepare_write_message(shared::ServerResponse response);
+	static std::optional<std::vector<uint8_t>> prepare_write_message(shared::ServerResponse response);
 
 private:
 	static const bool HasTCPError(asio::error_code error, std::string_view action);
@@ -34,5 +36,6 @@ private:
 	// Deque is numerical stable
 	std::deque<std::vector<uint8_t>> outbox_;
 	asio::ip::tcp::socket socket_;
-	const uint64_t hash = 0;
+	Server* _server_ref = nullptr;
+	const uint64_t _hash = 0;
 };

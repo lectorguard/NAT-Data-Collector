@@ -11,7 +11,8 @@ namespace shared
 		INSERT_MONGO,
 		GET_SCORES,
 		GET_VERSION_DATA,
-		GET_INFORMATION_DATA
+		GET_INFORMATION_DATA,
+		CREATE_LOBBY
 	};
 
 	enum class ResponseType : uint8_t
