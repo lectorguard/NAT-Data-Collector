@@ -45,7 +45,17 @@ void Session::do_read_msg_length()
 				return;
 			}
 			std::string length_as_string(buf.get(), buf.get() + MAX_MSG_LENGTH_DECIMALS);
-			uint32_t next_msg_len = std::stoi(length_as_string);
+			uint32_t next_msg_len{};
+			try 
+			{
+				// unexpected connections can cause errors here
+				next_msg_len = std::stoi(length_as_string);
+			}
+			catch (...) 
+			{
+				std::cout << "Received Invalid Message Length : " << length_as_string << std::endl;
+				return;
+			}
 			do_read_msg(next_msg_len);
 		});
 }

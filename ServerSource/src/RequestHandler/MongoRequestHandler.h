@@ -42,7 +42,8 @@ struct ServerHandler<shared::Transaction::SERVER_GET_VERSION_DATA>
 			[old_version = curr_version, &version_upate](mongoc_cursor_t* cursor, int64_t length)
 			{
 				if (length == 0) return Error(ErrorType::OK);
-				else return std::visit(shared::helper::Overloaded
+				else return 
+					std::visit(shared::helper::Overloaded
 					{
 						[old_version, &version_upate](std::vector<shared::VersionUpdate> vu)
 						{
