@@ -66,8 +66,9 @@ void UDP_Adresss_Echo_Server::handle_receive(const std::error_code& error, std::
 		const nlohmann::json answer_json = answer.SerializeObjectJson(std::back_inserter(errors));
 		if (errors.size() > 0)
 		{
-			auto resp = shared::helper::HandleJserError(jser_errors, "Serialize address request answer failed !");
-			for (auto m : resp.messages) std::cout << "Jser error : " << m << std::endl;
+			auto resp = shared::helper::JserErrorToString(jser_errors);
+			for (auto m : resp) std::cout << "Jser error : " << m << std::endl;
+			std::cout << "Serialize address request answer failed !" << std::endl;
 			break;
 		}
 

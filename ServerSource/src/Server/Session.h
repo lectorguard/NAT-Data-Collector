@@ -24,7 +24,6 @@ public:
 
 	void start(){ do_read_msg_length(); }
 	void write(const std::vector<uint8_t>& buffer);
-	static std::optional<std::vector<uint8_t>> prepare_write_message(shared::ServerResponse response);
 
 private:
 	static const bool HasTCPError(asio::error_code error, std::string_view action);

@@ -17,7 +17,7 @@ class Server
 public:
 	Server(asio::io_service& io_service, uint16_t port);
 	void send_all(char const* msg, size_t length);
-	void send_lobby_owners_if(shared::ServerResponse resp, std::function<bool(const Lobby&)> pred);
+	void send_lobby_owners_if(shared::DataPackage data, std::function<bool(const Lobby&)> pred);
 
 	void add_lobby(User owner, std::vector<User> joined = {});
 	void remove_lobby(User owner);

@@ -40,21 +40,6 @@ namespace shared
 		}
 	};
 
-	struct CreateLobby : public jser::JSerializable
-	{
-		CreateLobby() {};
-		CreateLobby(std::string username) :
-			username(username)
-		{};
-
-		std::string username;
-
-		jser::JserChunkAppender AddItem() override
-		{
-			return JSerializable::AddItem().Append(JSER_ADD(SerializeManagerType, username));
-		}
-	};
-
 	struct GetAllLobbies : public jser::JSerializable
 	{
 		GetAllLobbies() {};

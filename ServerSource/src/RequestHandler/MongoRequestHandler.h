@@ -1,183 +1,182 @@
 #pragma once
 #include "Utils/DBUtils.h"
 #include "BaseRequestHandler.h"
-#include "RequestFactories/MongoRequestFactories.h"
-#include "RequestFactories/UtilityRequestFactories.h"
 #include "mutex"
 #include "SharedProtocol.h"
 #include "SharedHelpers.h"
 #include "Data/Address.h"
 #include "Data/WindowData.h"
+#include "Data/ScoreboardData.h"
 
 inline static std::mutex mongoWriteMutex{};
 
 template<>
-struct RequestHandler<shared::RequestType::INSERT_MONGO>
+struct ServerHandler<shared::Transaction::SERVER_INSERT_MONGO>
 {
-	static const shared::ServerResponse Handle(RequestInfo info)
+	static const shared::DataPackage Handle(shared::DataPackage pkg, class Server* ref, uint64_t session_hash)
 	{
 		using namespace shared;
-
-		std::vector<jser::JSerError> jser_errors;
-		RequestFactory<RequestType::INSERT_MONGO>::Meta meta_data;
-		meta_data.DeserializeObject(info.meta_data, std::back_inserter(jser_errors));
-		if (jser_errors.size() > 0)
-		{
-			return shared::helper::HandleJserError(jser_errors, "Deserialize Meta Data for Insert Mongo Request");
-		}
 
 		// Data races are possible when same user writes to same document/collection
 		std::scoped_lock lock{ mongoWriteMutex };
-		return mongoUtils::InsertElementToCollection(info.data.dump(), meta_data.db_name, meta_data.coll_name);
+		Error error = mongoUtils::InsertElementToCollection(pkg.data.dump(), pkg.Get<std::string>(MetaDataField::DB_NAME), pkg.Get<std::string>(MetaDataField::DB_NAME));
+		return shared::DataPackage::Create(error);
 	}
 };
 
+
 template<>
-struct RequestHandler<shared::RequestType::GET_VERSION_DATA>
+struct ServerHandler<shared::Transaction::SERVER_GET_VERSION_DATA>
 {
-	static const shared::ServerResponse Handle(RequestInfo info)
+	static const shared::DataPackage Handle(shared::DataPackage pkg, Server* ref, uint64_t session_hash)
 	{
 		using namespace shared;
 
-		std::vector<jser::JSerError> jser_errors;
-		RequestFactory<RequestType::GET_VERSION_DATA>::Meta meta_data;
-		meta_data.DeserializeObject(info.meta_data, std::back_inserter(jser_errors));
-		if (jser_errors.size() > 0)
-		{
-			return shared::helper::HandleJserError(jser_errors, "Deserialize Meta Data for Insert Mongo Request");
-		}
+		auto db_name = pkg.Get<std::string>(MetaDataField::DB_NAME);
+		auto coll_name = pkg.Get<std::string>(MetaDataField::COLL_NAME);
+		auto curr_version = pkg.Get<std::string>(MetaDataField::CURR_VERSION);
 
-		// Data races are possible when same user writes to same document/collection
-		return mongoUtils::FindElementsInCollection("{}", meta_data.db_name, meta_data.coll_name, 
-			[old_version = meta_data.current_version](mongoc_cursor_t* cursor, int64_t length)
+
+		shared::VersionUpdate version_upate;
+		Error err =  mongoUtils::FindElementsInCollection("{}", db_name,coll_name ,
+			[old_version = curr_version, &version_upate](mongoc_cursor_t* cursor, int64_t length)
 			{
-				if (length == 0) return ServerResponse::OK();
+				if (length == 0) return Error(ErrorType::OK);
 				else return std::visit(shared::helper::Overloaded
 					{
-						[old_version](std::vector<shared::VersionUpdate> vu)
+						[old_version, &version_upate](std::vector<shared::VersionUpdate> vu)
 						{
-							// Check if latest version is newer then current version
-							if (vu[0].latest_version.compare(old_version) > 0)
-							{
-								return ServerResponse::Answer(std::make_unique<shared::VersionUpdate>(vu[0]));
-							}
-							else return ServerResponse::OK();
-						},
-						[](ServerResponse resp) { return resp; }
+						// Check if latest version is newer then current version
+						if (vu[0].latest_version.compare(old_version) > 0)
+						{
+							version_upate = vu[0];
+							return Error(ErrorType::ANSWER);
+						}
+						else return Error(ErrorType::OK);
+					},
+					[](Error err) { return err; }
 
 					}, mongoUtils::CursorToJserVector<shared::VersionUpdate>(cursor));
 			});
+		if (err.Is<ErrorType::ANSWER>())
+		{
+			return shared::DataPackage::Create(&version_upate);
+		}
+		else
+		{
+			return shared::DataPackage::Create(err);
+		}
 	}
 };
 
+
+
+
 template<>
-struct RequestHandler<shared::RequestType::GET_INFORMATION_DATA>
+struct ServerHandler<shared::Transaction::SERVER_GET_INFORMATION_DATA>
 {
-	static const shared::ServerResponse Handle(RequestInfo info)
+	static const shared::DataPackage Handle(shared::DataPackage pkg, Server* ref, uint64_t session_hash)
 	{
 		using namespace shared;
+		auto db_name = pkg.Get<std::string>(MetaDataField::DB_NAME);
+		auto coll_name = pkg.Get<std::string>(MetaDataField::COLL_NAME);
+		auto identifier = pkg.Get<std::string>(MetaDataField::IDENTIFIER);
 
-		std::vector<jser::JSerError> jser_errors;
-		RequestFactory<RequestType::GET_INFORMATION_DATA>::Meta meta_data;
-		meta_data.DeserializeObject(info.meta_data, std::back_inserter(jser_errors));
-		if (jser_errors.size() > 0)
-		{
-			return shared::helper::HandleJserError(jser_errors, "Deserialize Meta Data for Insert Mongo Request");
-		}
 
+		InformationUpdate info_update;
 		// Data races are possible when same user writes to same document/collection
-		return mongoUtils::FindElementsInCollection("{}", meta_data.db_name, meta_data.coll_name,
-			[passed_ident = meta_data.identifier](mongoc_cursor_t* cursor, int64_t length)
+		Error err =  mongoUtils::FindElementsInCollection("{}", db_name, coll_name,
+			[passed_ident = identifier, &info_update](mongoc_cursor_t* cursor, int64_t length)
 			{
-				if (length == 0) return ServerResponse::OK();
+				if (length == 0) return Error(ErrorType::OK);
 				else return std::visit(shared::helper::Overloaded
 					{
-						[passed_ident](std::vector<shared::InformationUpdate> iu)
+						[passed_ident, &info_update](std::vector<shared::InformationUpdate> iu)
 						{
-							// If identifier does match, message was never sent before -> send message
-							if (iu[0].identifier.compare(passed_ident) != 0)
-							{
-								return ServerResponse::Answer(std::make_unique<shared::InformationUpdate>(iu[0]));
-							}
-							else return ServerResponse::OK();
-						},
-						[](ServerResponse resp) { return resp; }
+						// If identifier does match, message was never sent before -> send message
+						if (iu[0].identifier.compare(passed_ident) != 0)
+						{
+							info_update = iu[0];
+							return Error(ErrorType::ANSWER);
+						}
+						else return Error(ErrorType::OK);
+					},
+					[](Error err) { return err; }
 					}, mongoUtils::CursorToJserVector<shared::InformationUpdate>(cursor));
 			});
+		if (err.Is<ErrorType::ANSWER>())
+		{
+			return shared::DataPackage::Create(&info_update);
+		}
+		else
+		{
+			return shared::DataPackage::Create(err);
+		}
 	}
 };
 
-
-
 template<>
-struct RequestHandler<shared::RequestType::GET_SCORES>
+struct ServerHandler<shared::Transaction::SERVER_GET_SCORES>
 {
-	static const shared::ServerResponse Handle(RequestInfo info)
+	static const shared::DataPackage Handle(shared::DataPackage pkg, Server* ref, uint64_t session_hash)
 	{
 		using namespace shared;
-		std::vector<jser::JSerError> jser_errors;
-		RequestFactory<RequestType::GET_SCORES>::Meta meta_data;
-		meta_data.DeserializeObject(info.meta_data, std::back_inserter(jser_errors));
-		if (jser_errors.size() > 0)
-		{
-			return shared::helper::HandleJserError(jser_errors, "Deserialize Meta Data for Get Scores Request");
-		}
+		auto db_name = pkg.Get<std::string>(MetaDataField::DB_NAME);
+		auto users_coll_name = pkg.Get<std::string>(MetaDataField::USERS_COLL_NAME);
+		auto data_coll_name = pkg.Get<std::string>(MetaDataField::DATA_COLL_NAME);
+		auto android_id = pkg.Get<std::string>(MetaDataField::ANDROID_ID);
 
 		// Mongo Update Parameter
 		nlohmann::json query;
-		query["android_id"] = info.data["android_id"];
+		query["android_id"] = android_id;
 		nlohmann::json update;
-		update["$set"] = info.data;
+		update["$set"] = pkg.data;
 		nlohmann::json update_options;
 		update_options["upsert"] = true;
 		// Update Users accordingly
-		Scores all_scores;
-		ServerResponse result = ServerResponse::OK();
-		for (;;)
+		
+		// Update current user information
 		{
-			// Update current user information
+			std::scoped_lock lock{ mongoWriteMutex };
+			if (Error err = mongoUtils::UpdateElementInCollection(query.dump(), update.dump(), update_options.dump(), db_name, users_coll_name))
 			{
-				std::scoped_lock lock{ mongoWriteMutex };
-				result = mongoUtils::UpdateElementInCollection(query.dump(), update.dump(), update_options.dump(), meta_data.db_name, meta_data.users_coll_name);
+				return DataPackage::Create(err);
 			}
-			if (!result)
-				break;
-
-			// Get all users 
-			
-			result = mongoUtils::FindElementsInCollection("{}", meta_data.db_name, meta_data.users_coll_name, 
-				[&all_scores](mongoc_cursor_t* cursor, int64_t length)
-				{
-					return std::visit(shared::helper::Overloaded
-						{
-							[&all_scores](std::vector<ClientID> ids) {all_scores.scores = ids; return ServerResponse::OK(); },
-							[](ServerResponse resp) { return resp; }
-
-						}, mongoUtils::CursorToJserVector<ClientID>(cursor));
-				});
-			if (!result)
-				break;
-			// Remove users to be ignored
-			all_scores.scores.erase(std::remove_if(all_scores.scores.begin(), all_scores.scores.end(), [](ClientID a) { return !a.show_score; }), all_scores.scores.end());
-			
-			// Get number of samples per user
-			for (ClientID& user : all_scores.scores)
-			{
-				nlohmann::json user_query;
-				user_query["meta_data.android_id"] = user.android_id;
-				result = mongoUtils::FindElementsInCollection(user_query.dump(), meta_data.db_name, meta_data.data_coll_name,
-					[&user](mongoc_cursor_t* cursor, int64_t length)
-					{
-						user.uploaded_samples = length > 0 ? length : 0;
-						return ServerResponse::OK();
-					});
-				if (!result)
-					break;
-			}
-			result = ServerResponse::Answer(std::make_unique<Scores>(all_scores));
-			break;
 		}
-		return result;
-	}
 
+		// Get all users
+		Scores all_scores;
+		auto err = mongoUtils::FindElementsInCollection("{}", db_name, users_coll_name,
+			[&all_scores](mongoc_cursor_t* cursor, int64_t length)
+			{
+				return std::visit(shared::helper::Overloaded
+					{
+						[&all_scores](std::vector<ClientID> ids) {
+							all_scores.scores = ids; 
+							return Error(ErrorType::ANSWER); 
+						},
+						[](Error err) { return err; }
+
+					}, mongoUtils::CursorToJserVector<ClientID>(cursor));
+			});
+		if (!err.Is<ErrorType::ANSWER>()) return DataPackage::Create(err);
+
+		// Remove users to be ignored
+		all_scores.scores.erase(std::remove_if(all_scores.scores.begin(), all_scores.scores.end(), [](ClientID a) { return !a.show_score; }), all_scores.scores.end());
+
+		// Get number of samples per user
+		for (ClientID& user : all_scores.scores)
+		{
+			nlohmann::json user_query;
+			user_query["meta_data.android_id"] = user.android_id;
+			err = mongoUtils::FindElementsInCollection(user_query.dump(), db_name, data_coll_name,
+				[&user](mongoc_cursor_t* cursor, int64_t length)
+				{
+					user.uploaded_samples = length > 0 ? length : 0;
+					return Error(ErrorType::OK);
+				});
+			if (err) return DataPackage::Create(err);
+		}
+		return DataPackage::Create(&all_scores);
+	}
 };

@@ -1,7 +1,7 @@
 #include "Session.h"
 #include "SharedProtocol.h"
 #include "SharedHelpers.h"
-#include "RequestHandler/TransactionFactory.h"
+#include "RequestHandler/ServerTransactionHandler.h"
 
 
 
@@ -11,22 +11,6 @@ void Session::write(const std::vector<uint8_t>& buffer)
 
 	post(socket_.get_executor(),
 		[this, data = buffer]() mutable { do_write(std::move(data)); });
-}
-
-std::optional<std::vector<uint8_t>> Session::prepare_write_message(shared::ServerResponse response)
-{
-	std::vector<jser::JSerError> jser_errors;
-	const nlohmann::json response_json = response.SerializeObjectJson(std::back_inserter(jser_errors));
-	if (jser_errors.size() > 0)
-	{
-		std::cout << "Failed to deserialize request answer" << std::endl;
-		return std::nullopt;
-	}
-	std::vector<uint8_t> data_compressed = shared::compressZstd(nlohmann::json::to_msgpack(response_json));
-	data_compressed.reserve(MAX_MSG_LENGTH_DECIMALS);
-	std::vector<uint8_t> data_length = shared::stringToVector(shared::encodeMsgLength(data_compressed.size()));
-	data_compressed.insert(data_compressed.begin(), data_length.begin(), data_length.end());
-	return data_compressed;
 }
 
 const bool Session::HasTCPError(asio::error_code error, std::string_view action)
@@ -85,37 +69,9 @@ void Session::do_read_msg(uint32_t msg_length)
 			}
 			// alloc answer memory
 			const std::vector<uint8_t> vec_buf{ buf.get(), buf.get() + length };
-			// Decompress without exception
-			nlohmann::json decompressed_answer = nlohmann::json::from_msgpack(shared::decompressZstd(vec_buf), true, false);
-			if (decompressed_answer.is_null())
-			{
-				std::cout << "TCP transaction request is invalid. Abort .." << std::endl;
-				return;
-			}
-			// Deserialize answer
-			std::vector<jser::JSerError> errors;
-			shared::ServerRequest::Helper request_handler{};
-			request_handler.DeserializeObject(decompressed_answer, std::back_inserter(errors));
-			shared::ServerResponse response;
-			if (errors.size() > 0)
-			{
-				response = shared::helper::HandleJserError(errors, "Failed to deserialize Server Request");
-			}
-			else
-			{
-				RequestInfo info
-				{
-					request_handler.req_data,
-					request_handler.req_meta_data,
-					_server_ref,
-					_hash,
-					request_handler.req_type
-				};
-				response = TransactionFactory::Handle(info);
-			}
-
+			DataPackage response = ServerTransactionHandler::Handle(DataPackage::Decompress(vec_buf), _server_ref, _hash);
 			// Post response
-			if (auto buffer = prepare_write_message(std::move(response)))
+			if (auto buffer = response.Compress())
 			{
 				write(*buffer);
 			}

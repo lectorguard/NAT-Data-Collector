@@ -5,22 +5,50 @@
 
 namespace shared 
 {
-	enum class RequestType : uint16_t
-	{
-		NO_REQUEST = 0,
-		INSERT_MONGO,
-		GET_SCORES,
-		GET_VERSION_DATA,
-		GET_INFORMATION_DATA,
-		CREATE_LOBBY
-	};
-
-	enum class ResponseType : uint8_t
+	enum class ErrorType : uint8_t
 	{
 		OK = 0,
 		WARNING,
 		ERROR,
 		ANSWER
+	};
+
+	enum class Transaction : uint32_t
+	{
+		NO_TRANSACTION = 0,
+		CLIENT_START,
+		CLIENT_RECEIVE_LOBBIES,
+		CLIENT_END,
+		SERVER_START,
+		SERVER_INSERT_MONGO,
+		SERVER_GET_SCORES,
+		SERVER_GET_VERSION_DATA,
+		SERVER_GET_INFORMATION_DATA,
+		SERVER_CREATE_LOBBY,
+		SERVER_END
+	};
+
+	enum class MetaDataField : uint32_t
+	{
+		DB_NAME = 0,
+		COLL_NAME,
+		CURR_VERSION,
+		IDENTIFIER,
+		ANDROID_ID,
+		USERS_COLL_NAME,
+		DATA_COLL_NAME,
+		USERNAME
+	};
+
+	inline const std::map<MetaDataField, std::string> meta_data_to_string{
+		{MetaDataField::DB_NAME, "db_name"},
+		{MetaDataField::COLL_NAME, "coll_name"},
+		{MetaDataField::CURR_VERSION, "curr_version"},
+		{MetaDataField::IDENTIFIER, "identifier"},
+		{MetaDataField::ANDROID_ID, "android_id"},
+		{MetaDataField::USERS_COLL_NAME, "users_coll_name"},
+		{MetaDataField::DATA_COLL_NAME, "data_coll_name"},
+		{MetaDataField::USERNAME, "username"}
 	};
 
 	enum class NATType : uint8_t

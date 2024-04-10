@@ -1,4 +1,5 @@
 #include "Server.h"
+#include "SharedProtocol.h"
 
 Server::Server(asio::io_service& io_service, uint16_t port) : 
 	acceptor_(asio::make_strand(io_service), asio::ip::tcp::endpoint(asio::ip::tcp::v4(), port))
@@ -17,7 +18,7 @@ void Server::send_all(char const* msg, size_t length)
 		});
 }
 
-void Server::send_lobby_owners_if(shared::ServerResponse resp, std::function<bool(const Lobby&)> pred)
+void Server::send_lobby_owners_if(shared::DataPackage data, std::function<bool(const Lobby&)> pred)
 {
 	auto lobbies = GetLobbies();
 	std::vector<uint64_t> toSend{};
@@ -29,7 +30,7 @@ void Server::send_lobby_owners_if(shared::ServerResponse resp, std::function<boo
 		}
 	}
 
-	auto buffer = Session::prepare_write_message(std::move(resp));
+	auto buffer = data.Compress();
 	if (!buffer)
 	{
 		std::cout << "Failed to serialize response to all lobby owners" << std::endl;
@@ -112,9 +113,9 @@ void Server::remove_expired_sessions()
 	
 	if (needsUpdate)
 	{
-		auto server_response = shared::ServerResponse::Answer(make_unique<GetAllLobbies>(GetLobbies()));
 		// Only update empty lobbies
-		send_lobby_owners_if(std::move(server_response),
+		auto lobbies{ GetAllLobbies(GetLobbies()) };
+		send_lobby_owners_if(shared::DataPackage::Create(&lobbies),
 			[](Lobby const& lobby)
 			{
 				return lobby.joined.size() == 0;

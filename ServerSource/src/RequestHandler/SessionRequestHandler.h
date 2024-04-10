@@ -4,20 +4,20 @@
 #include "Data/Traversal.h"
 #include "Server/Server.h"
 
-
 template<>
-struct RequestHandler<shared::RequestType::CREATE_LOBBY>
+struct ServerHandler<shared::Transaction::SERVER_CREATE_LOBBY>
 {
-	static const shared::ServerResponse Handle(RequestInfo info)
+	static const shared::DataPackage Handle(shared::DataPackage pkg, Server* ref, uint64_t session_hash)
 	{
-		info.server_ref->add_lobby(shared::User{ info.session_handle, info.data["username"] });
-		auto answer = ServerResponse::Answer(std::make_unique<shared::GetAllLobbies>(info.server_ref->GetLobbies()));
-		// Publish added lobby to all active empty lobbies
-		info.server_ref->send_lobby_owners_if(std::move(answer),
+		using namespace shared;
+		auto username = pkg.Get<std::string>(MetaDataField::USERNAME);
+		ref->add_lobby(shared::User{ session_hash, username });
+		GetAllLobbies all_lobbies{ ref->GetLobbies() };
+		ref->send_lobby_owners_if(DataPackage::Create(&all_lobbies),
 			[](Lobby const& lobby)
 			{
 				return lobby.joined.size() == 0;
 			});
-		return ServerResponse::OK();
+		return DataPackage::Create<ErrorType::OK>();
 	}
 };

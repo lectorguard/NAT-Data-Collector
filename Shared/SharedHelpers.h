@@ -3,12 +3,13 @@
 #include <functional>
 #include <algorithm>
 #include "JSerializer.h"
-#include "SharedProtocol.h"
 #include "chrono"
 #include "asio.hpp"
 
 namespace shared::helper
 {
+
+
 		template<typename P, typename R>
 		inline std::vector<R> mapVector(const std::vector<P>& vec, std::function<R(const P&)> lambda)
 		{
@@ -22,31 +23,20 @@ namespace shared::helper
 			return mapVector<jser::JSerError, std::string>(errors, [](auto jser_err) {return jser_err.Message; });
 		}
 
-		inline ServerResponse HandleJserError(const std::vector<jser::JSerError>& jserErrors, const std::string& context)
-		{
-			using namespace shared;
-			if (jserErrors.size() > 0)
-			{
-				std::vector<std::string> stringErrors = JserErrorToString(jserErrors);
-				stringErrors.push_back(context);
-				return ServerResponse::Error(stringErrors);
-			}
-			return ServerResponse::OK();
-		}
-
-		inline shared::ServerResponse HandleAsioError(const asio::error_code& ec, const std::string& context)
-		{
-			using namespace shared;
-			if (ec == asio::error::eof)
-			{
-				return ServerResponse::Error({ "Connection Rejected during Transaction Attempt : Context : " + context });
-			}
-			else if (ec)
-			{
-				return ServerResponse::Error({ "Server Connection Error " + ec.message() });
-			}
-			return ServerResponse::OK();
-		}
+// 
+// 		inline shared::ServerResponse HandleAsioError(const asio::error_code& ec, const std::string& context)
+// 		{
+// 			using namespace shared;
+// 			if (ec == asio::error::eof)
+// 			{
+// 				return ServerResponse::Error({ "Connection Rejected during Transaction Attempt : Context : " + context });
+// 			}
+// 			else if (ec)
+// 			{
+// 				return ServerResponse::Error({ "Server Connection Error " + ec.message() });
+// 			}
+// 			return ServerResponse::OK();
+// 		}
 
 
 		inline uint16_t CreateTimeStampOnlyMS()
