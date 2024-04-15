@@ -17,9 +17,12 @@ struct ServerHandler<shared::Transaction::SERVER_INSERT_MONGO>
 	{
 		using namespace shared;
 
+		const auto db_name = pkg.Get<std::string>(MetaDataField::DB_NAME);
+		const auto coll_name = pkg.Get<std::string>(MetaDataField::COLL_NAME);
+
 		// Data races are possible when same user writes to same document/collection
 		std::scoped_lock lock{ mongoWriteMutex };
-		Error error = mongoUtils::InsertElementToCollection(pkg.data.dump(), pkg.Get<std::string>(MetaDataField::DB_NAME), pkg.Get<std::string>(MetaDataField::DB_NAME));
+		Error error = mongoUtils::InsertElementToCollection(pkg.data.dump(), db_name, coll_name);
 		return shared::DataPackage::Create(error);
 	}
 };
@@ -32,9 +35,9 @@ struct ServerHandler<shared::Transaction::SERVER_GET_VERSION_DATA>
 	{
 		using namespace shared;
 
-		auto db_name = pkg.Get<std::string>(MetaDataField::DB_NAME);
-		auto coll_name = pkg.Get<std::string>(MetaDataField::COLL_NAME);
-		auto curr_version = pkg.Get<std::string>(MetaDataField::CURR_VERSION);
+		const auto db_name = pkg.Get<std::string>(MetaDataField::DB_NAME);
+		const auto coll_name = pkg.Get<std::string>(MetaDataField::COLL_NAME);
+		const auto curr_version = pkg.Get<std::string>(MetaDataField::CURR_VERSION);
 
 
 		shared::VersionUpdate version_upate;
@@ -61,7 +64,7 @@ struct ServerHandler<shared::Transaction::SERVER_GET_VERSION_DATA>
 			});
 		if (err.Is<ErrorType::ANSWER>())
 		{
-			return shared::DataPackage::Create(&version_upate);
+			return shared::DataPackage::Create(&version_upate, Transaction::NO_TRANSACTION);
 		}
 		else
 		{
@@ -79,9 +82,9 @@ struct ServerHandler<shared::Transaction::SERVER_GET_INFORMATION_DATA>
 	static const shared::DataPackage Handle(shared::DataPackage pkg, Server* ref, uint64_t session_hash)
 	{
 		using namespace shared;
-		auto db_name = pkg.Get<std::string>(MetaDataField::DB_NAME);
-		auto coll_name = pkg.Get<std::string>(MetaDataField::COLL_NAME);
-		auto identifier = pkg.Get<std::string>(MetaDataField::IDENTIFIER);
+		const auto db_name = pkg.Get<std::string>(MetaDataField::DB_NAME);
+		const auto coll_name = pkg.Get<std::string>(MetaDataField::COLL_NAME);
+		const auto identifier = pkg.Get<std::string>(MetaDataField::IDENTIFIER);
 
 
 		InformationUpdate info_update;
@@ -107,7 +110,7 @@ struct ServerHandler<shared::Transaction::SERVER_GET_INFORMATION_DATA>
 			});
 		if (err.Is<ErrorType::ANSWER>())
 		{
-			return shared::DataPackage::Create(&info_update);
+			return shared::DataPackage::Create(&info_update, Transaction::NO_TRANSACTION);
 		}
 		else
 		{
@@ -122,10 +125,10 @@ struct ServerHandler<shared::Transaction::SERVER_GET_SCORES>
 	static const shared::DataPackage Handle(shared::DataPackage pkg, Server* ref, uint64_t session_hash)
 	{
 		using namespace shared;
-		auto db_name = pkg.Get<std::string>(MetaDataField::DB_NAME);
-		auto users_coll_name = pkg.Get<std::string>(MetaDataField::USERS_COLL_NAME);
-		auto data_coll_name = pkg.Get<std::string>(MetaDataField::DATA_COLL_NAME);
-		auto android_id = pkg.Get<std::string>(MetaDataField::ANDROID_ID);
+		const auto db_name = pkg.Get<std::string>(MetaDataField::DB_NAME);
+		const auto users_coll_name = pkg.Get<std::string>(MetaDataField::USERS_COLL_NAME);
+		const auto data_coll_name = pkg.Get<std::string>(MetaDataField::DATA_COLL_NAME);
+		const auto android_id = pkg.Get<std::string>(MetaDataField::ANDROID_ID);
 
 		// Mongo Update Parameter
 		nlohmann::json query;
@@ -178,6 +181,6 @@ struct ServerHandler<shared::Transaction::SERVER_GET_SCORES>
 				});
 			if (err) return DataPackage::Create(err);
 		}
-		return DataPackage::Create(&all_scores);
+		return DataPackage::Create(&all_scores, Transaction::NO_TRANSACTION);
 	}
 };

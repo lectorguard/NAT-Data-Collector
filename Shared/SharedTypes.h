@@ -8,9 +8,10 @@ namespace shared
 	enum class ErrorType : uint8_t
 	{
 		OK = 0,
+		ANSWER,
 		WARNING,
 		ERROR,
-		ANSWER
+		
 	};
 
 	enum class Transaction : uint32_t

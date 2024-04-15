@@ -115,7 +115,7 @@ void Server::remove_expired_sessions()
 	{
 		// Only update empty lobbies
 		auto lobbies{ GetAllLobbies(GetLobbies()) };
-		send_lobby_owners_if(shared::DataPackage::Create(&lobbies),
+		send_lobby_owners_if(shared::DataPackage::Create(&lobbies, Transaction::CLIENT_RECEIVE_LOBBIES),
 			[](Lobby const& lobby)
 			{
 				return lobby.joined.size() == 0;

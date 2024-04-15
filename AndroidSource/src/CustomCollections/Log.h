@@ -56,53 +56,44 @@ public:
 		Log_Internal(helper);
 	}
 
-	static void HandleResponse(const std::vector<shared::ServerResponse>& resp)
+	static void HandleResponse(const shared::DataPackage& pkg, const std::string& context)
 	{
-		for (const shared::ServerResponse& m : resp)
-		{
-			HandleResponse(m, "");
-		}
+		return HandleResponse(pkg.error, context);
 	}
 
-
-	static void HandleResponse(const shared::ServerResponse::Helper& resp, const std::string& context)
+	static void HandleResponse(const shared::Error& err, const std::string& context)
 	{
-		return HandleResponse(shared::ServerResponse(resp.resp_type, resp.messages, nullptr), context);
-	}
-
-	static void HandleResponse(const shared::ServerResponse& resp, const std::string& context)
-	{
-		switch (resp.resp_type)
+		switch (err.error)
 		{
-		case shared::ResponseType::OK:
-		case shared::ResponseType::ANSWER:
+		case shared::ErrorType::OK:
+		case shared::ErrorType::ANSWER:
 		{
 			if (!context.empty())
 			{
 				Info("%s : OK", context.c_str());
 			}
-			for (const auto& msg : resp.messages)
+			for (const auto& msg : err.messages)
 			{
 				Info("%s", msg.c_str());
 			}
 			break;
 		}
-		case shared::ResponseType::WARNING:
+		case shared::ErrorType::WARNING:
 		{
 			Warning("%s : Produced Warning", context.c_str());
 			Warning("---- START TRACE ----");
-			for (const auto& msg : resp.messages)
+			for (const auto& msg : err.messages)
 			{
 				Warning("%s", msg.c_str());
 			}
 			Warning("----- END TRACE -----");
 			break;
 		}
-		case shared::ResponseType::ERROR:
+		case shared::ErrorType::ERROR:
 		{
 			Error("%s : FAILED", context.c_str());
 			Error("---- START TRACE ----");
-			for (const auto& msg : resp.messages)
+			for (const auto& msg : err.messages)
 			{
 				Error("%s", msg.c_str());
 			}

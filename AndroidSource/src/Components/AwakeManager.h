@@ -16,7 +16,7 @@ public:
 	
 
 private:
-	shared::ServerResponse TurnScreenOn(struct android_app* state);
+	shared::Error TurnScreenOn(struct android_app* state);
 	void FlipDarkMode(android_app* state, Application* app);
 	SimpleTimer lost_focus;
 };

@@ -29,9 +29,9 @@ enum class CollectSamplesStep : uint16_t
 
 class GlobCollectSamples
 {
-	using NATIdentTask = std::future<shared::Result<shared::AddressVector>>;
-	using NATCollectTask = std::future<shared::Result<shared::AddressVector>>;
-	using TransactionTask = std::future<shared::ServerResponse::Helper>;
+	using NATIdentTask = std::future<DataPackage>;
+	using NATCollectTask = std::future<DataPackage>;
+	using TransactionTask = std::future<DataPackage>;
 
 public:
 	void Activate(class Application* app);

@@ -13,7 +13,7 @@ struct ServerHandler<shared::Transaction::SERVER_CREATE_LOBBY>
 		auto username = pkg.Get<std::string>(MetaDataField::USERNAME);
 		ref->add_lobby(shared::User{ session_hash, username });
 		GetAllLobbies all_lobbies{ ref->GetLobbies() };
-		ref->send_lobby_owners_if(DataPackage::Create(&all_lobbies),
+		ref->send_lobby_owners_if(DataPackage::Create(&all_lobbies, Transaction::CLIENT_RECEIVE_LOBBIES),
 			[](Lobby const& lobby)
 			{
 				return lobby.joined.size() == 0;

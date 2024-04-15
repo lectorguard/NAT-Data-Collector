@@ -33,23 +33,6 @@ namespace utilities
 		return fut.get();
 	}
 
-	template<typename T>
-	inline std::variant<shared::ServerResponse, T> TryGetObjectFromResponse(const shared::ServerResponse::Helper& response)
-	{
-		if (response.resp_type == shared::ResponseType::ANSWER)
-		{
-			T toDeserialize;
-			std::vector<jser::JSerError> jser_errors;
-			toDeserialize.DeserializeObject(response.answer, std::back_inserter(jser_errors));
-			if (jser_errors.size() > 0)
-			{
-				return shared::helper::HandleJserError(jser_errors, "TryGetObjectFromResponse : Error during deserialization of server response");
-			}
-			return toDeserialize;
-		}
-		return shared::ServerResponse(response.resp_type, response.messages, nullptr);
-	}
-
 	inline std::optional<std::string> GetAndroidID(struct android_app* native_app)
 	{
 		jint lResult;
@@ -119,8 +102,10 @@ namespace utilities
 	}
 
 
-	inline shared::ServerResponse WriteToClipboard(struct android_app* native_app, const std::string& label, const std::string& content)
+	inline shared::Error WriteToClipboard(struct android_app* native_app, const std::string& label, const std::string& content)
 	{
+		using namespace shared;
+
 		jint lResult;
 
 		JavaVM* lJavaVM = native_app->activity->vm;
@@ -135,10 +120,10 @@ namespace utilities
 		lResult = lJavaVM->AttachCurrentThread(&lJNIEnv, &lJavaVMAttachArgs);
 		if (lResult == JNI_ERR)
 		{
-			return shared::ServerResponse::Error({ "Failed to attach to JNI thread" });
+			return Error(ErrorType::ERROR, { "Failed to attach to JNI thread" });
 		}
 
-		shared::ServerResponse result = shared::ServerResponse::OK();
+		Error result{ErrorType::OK};
 		{
 			// Retrieves NativeActivity.
 			jobject lNativeActivity = native_app->activity->clazz;
@@ -186,8 +171,10 @@ namespace utilities
 	}
 
 	// https://developer.android.com/training/scheduling/wakelock
-	inline shared::ServerResponse ActivateWakeLock(struct android_app* native_app, std::vector<std::string> powerManagerFlags, long duration, std::string context)
+	inline shared::Error ActivateWakeLock(struct android_app* native_app, std::vector<std::string> powerManagerFlags, long duration, std::string context)
 	{
+		using namespace shared;
+
 		jint lResult;
 
 		JavaVM* lJavaVM = native_app->activity->vm;
@@ -202,7 +189,7 @@ namespace utilities
 		lResult = lJavaVM->AttachCurrentThread(&lJNIEnv, &lJavaVMAttachArgs);
 		if (lResult == JNI_ERR)
 		{
-			return shared::ServerResponse::Error({ "Failed to attach to JNI thread" });
+			return Error(ErrorType::ERROR, { "Failed to attach to JNI thread" });
 		}
 
 		// Retrieves NativeActivity.
@@ -240,7 +227,7 @@ namespace utilities
 		lJNIEnv->CallVoidMethod(wakeLock, acquireMethod, duration);
 
 		lJavaVM->DetachCurrentThread();
-		return shared::ServerResponse::OK();
+		return Error{ErrorType::OK};
 	}
 
 	inline bool IsScreenActive(struct android_app* native_app)

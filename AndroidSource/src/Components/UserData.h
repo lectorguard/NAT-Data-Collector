@@ -2,6 +2,8 @@
 #include "JSerializer.h"
 #include "SharedProtocol.h"
 
+using namespace shared;
+
 class UserData
 {
 
@@ -28,8 +30,8 @@ public:
 	const int maxUsernameLength = 14;
 
 	Information info;
-	shared::ServerResponse WriteToDisc();
-	shared::ServerResponse ValidateUsername();
+	Error WriteToDisc();
+	Error ValidateUsername();
 
 
 	void Activate(class Application* app);
@@ -37,9 +39,9 @@ public:
 
 
 private:
-	std::variant<Information, shared::ServerResponse> ReadFromDisc();
+	DataPackage ReadFromDisc();
 	std::optional<std::string> GetAbsoluteUserDataPath() const;
-	std::variant<shared::ServerResponse, std::string> GetExternalFilesDir(struct android_app* native_app) const;
+	std::variant<Error, std::string> GetExternalFilesDir(struct android_app* native_app) const;
 
 	const std::string user_data_file = "user_data.json";
 	std::optional<std::string> external_files_dir = std::nullopt;

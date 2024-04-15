@@ -8,6 +8,7 @@
 #include <memory>
 #include "SharedHelpers.h"
 #include <Compression.h>
+#include "asio.hpp"
 
 CREATE_DEFAULT_JSER_MANAGER_TYPE(SerializeManagerType);
 
@@ -26,6 +27,35 @@ namespace shared
 		jser::JserChunkAppender AddItem() override
 		{
 			return JSerializable::AddItem().Append(JSER_ADD(SerializeManagerType, error, messages));
+		}
+
+		void Add(Error e)
+		{
+			if (static_cast<uint16_t>(e.error) > static_cast<uint16_t>(error))
+			{
+				error = e.error;
+			}
+			messages.insert(messages.end(), e.messages.begin(), e.messages.end());
+		}
+
+		static Error FromAsio(asio::error_code ec, const std::string& context = "")
+		{
+			using namespace shared;
+			if (ec == asio::error::eof)
+			{
+				const std::vector<std::string> msg
+				{
+					"Connection Rejected during Transaction Attempt",
+					"Context : " + context
+				};
+				return Error(ErrorType::ERROR, msg);
+			}
+			else if (ec)
+			{
+
+				return Error(ErrorType::ERROR, {"Networking Error : " +  ec.message()});
+			}
+			return Error(ErrorType::OK);
 		}
 
 		template<ErrorType e>
@@ -57,12 +87,27 @@ namespace shared
 		template<typename T>
 		T Get(MetaDataField field)
 		{
-			return meta_data[meta_data_to_string.at(field)];
+			const std::string field_name = meta_data_to_string.at(field);
+			if (meta_data.contains(field_name))
+			{
+				return meta_data[field_name];
+			}
+			else
+			{
+				std::cout << "Failed to extract Meta Data Field : " << field_name << std::endl;
+				assert(false);
+				return T();
+			}
 		}
 
 		template<typename T>
 		Error Get(T& object)
 		{
+			if (!error.Is<ErrorType::ANSWER>())
+			{
+				return error;
+			}
+
 			std::vector<jser::JSerError> jser_errors;
 			object.DeserializeObject(data, std::back_inserter(jser_errors));
 			if (jser_errors.size() > 0)
@@ -87,25 +132,24 @@ namespace shared
 			return pkg;
 		}
 
-		static DataPackage Create(jser::JSerializable* data)
+		static DataPackage Create(jser::JSerializable* data, Transaction transaction)
 		{
 			using namespace shared;
-			if (!data)
-			{
-				return Create<ErrorType::ERROR>({ "passed data to create package is null" });
-			}
-
 			DataPackage pkg{};
-			std::vector<jser::JSerError> jser_errors;
-			pkg.data = data->SerializeObjectJson(std::back_inserter(jser_errors));
-			if (jser_errors.size() > 0)
+			if (data)
 			{
-				return Create<ErrorType::ERROR>(helper::JserErrorToString(jser_errors));
+				std::vector<jser::JSerError> jser_errors;
+				pkg.data = data->SerializeObjectJson(std::back_inserter(jser_errors));
+				if (jser_errors.size() > 0)
+				{
+					return Create<ErrorType::ERROR>(helper::JserErrorToString(jser_errors));
+				}
+				else
+				{
+					pkg.error = Error(ErrorType::ANSWER);
+				}
 			}
-			else
-			{
-				pkg.error = Error(ErrorType::OK);
-			}
+			pkg.transaction = transaction;
 			return pkg;
 		}
 

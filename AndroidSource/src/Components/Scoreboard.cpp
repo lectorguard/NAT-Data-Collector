@@ -5,7 +5,6 @@
 #include "TCPTask.h"
 #include "Utilities/NetworkHelpers.h"
 #include "UserData.h"
-#include "RequestFactories/RequestFactoryHelper.h"
 
 
  void Scoreboard::Activate(Application* app)
@@ -55,30 +54,36 @@ void Scoreboard::Update(Application* app)
 		Log::Info("Started requesting Scoreboard Entries");
 
 		using namespace shared;
-		using Factory = RequestFactory<RequestType::GET_SCORES>;
 
 		// Get reference
 		UserData& user_data = app->_components.Get<UserData>();
 		NatCollectorModel& model = app->_components.Get<NatCollectorModel>();
 		// Create client id
 		ClientID client_id{ model.client_meta_data.android_id, user_data.info.username, user_data.info.show_score, 0 };
-		auto request = Factory::Create(client_id, MONGO_DB_NAME, MONGO_NAT_USERS_COLL_NAME, MONGO_NAT_SAMPLES_COLL_NAME);
-		scoreboard_transaction = std::async(TCPTask::ServerTransaction, std::move(request), SERVER_IP, SERVER_TRANSACTION_TCP_PORT);
+		DataPackage pkg = DataPackage::Create(&client_id, Transaction::SERVER_GET_SCORES)
+			.Add<std::string>(MetaDataField::DB_NAME, MONGO_DB_NAME)
+			.Add<std::string>(MetaDataField::USERS_COLL_NAME, MONGO_NAT_USERS_COLL_NAME)
+			.Add<std::string>(MetaDataField::DATA_COLL_NAME, MONGO_NAT_SAMPLES_COLL_NAME);
+
+		scoreboard_transaction = std::async(TCPTask::ServerTransaction, pkg, SERVER_IP, SERVER_TRANSACTION_TCP_PORT);
 		current = ScoreboardSteps::UpdateRequestScores;
 		break;
 	}
 	case ScoreboardSteps::UpdateRequestScores:
 	{
-		if (auto result_ready = utilities::TryGetFuture<shared::ServerResponse::Helper>(scoreboard_transaction))
+		if (auto result_ready = utilities::TryGetFuture<DataPackage>(scoreboard_transaction))
 		{
-			std::visit(shared::helper::Overloaded
-				{
-					[this](shared::Scores sc) {
-						std::sort(sc.scores.begin(), sc.scores.end(), [](auto l, auto r) {return l.uploaded_samples > r.uploaded_samples; });
-						scores = sc;  
-						Log::Info("Successfully received scores"); },
-					[](shared::ServerResponse resp) { Log::HandleResponse(resp, "Receive Scoreboard Entry"); }
-				}, utilities::TryGetObjectFromResponse<shared::Scores>(*result_ready));
+			shared::Scores rcvd;
+			if (auto error = result_ready->Get(rcvd))
+			{
+				Log::HandleResponse(error, "Receive Scoreboard Entries");
+			}
+			else
+			{
+				std::sort(rcvd.scores.begin(), rcvd.scores.end(), [](auto l, auto r) {return l.uploaded_samples > r.uploaded_samples; });
+				scores = rcvd;
+				Log::Info("Successfully received scores");
+			}
 			current = ScoreboardSteps::Idle;
 		}
 		break;

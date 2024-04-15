@@ -2,53 +2,53 @@
 #include "Utilities/NetworkHelpers.h"
 
 
-shared::ServerResponse NatClassifier::AsyncClassifyNat(uint16_t num_nat_samples, UDPCollectTask::NatTypeInfo config)
+shared::Error NatClassifier::AsyncClassifyNat(uint16_t num_nat_samples, UDPCollectTask::NatTypeInfo config /*= base_nat_config*/)
 {
 	if (!nat_future.valid())
 	{
 		required_nat_samples = num_nat_samples;
 		nat_future = std::async(UDPCollectTask::StartNatTypeTask, config);
-		return shared::ServerResponse::OK();
+		return Error{ ErrorType::OK };
 	}
 	else
 	{
-		return shared::ServerResponse::Error({ "Future is already bound to async task !"});
+		return Error{ ErrorType::ERROR, { "Future is already bound to async task !"} };
 	}	
 }
 
-std::optional<shared::NATType> NatClassifier::TryGetAsyncClassifyNatResult(std::vector<shared::ServerResponse>& all_responses)
+std::optional<shared::NATType> NatClassifier::TryGetAsyncClassifyNatResult(Error& all_responses)
 {
-	if (auto res = utilities::TryGetFuture<shared::Result<shared::AddressVector>>(nat_future))
+	if (auto res = utilities::TryGetFuture<DataPackage>(nat_future))
 	{
-		std::visit(shared::helper::Overloaded
+		shared::AddressVector rcvd{};
+		if (auto error = res->Get(rcvd))
+		{
+			log_information.Add(error);
+		}
+		else
+		{
+			if (rcvd.address_vector.size() != 2)
 			{
-				[&](shared::AddressVector& av)
-				{
-					if (av.address_vector.size() != 2)
+				identified_nat_types.push_back(shared::NATType::UNDEFINED);
+				log_information.Add({ ErrorType::WARNING, { "Failed to get NAT Info information from server" }});
+			}
+			else
+			{
+				identified_nat_types.push_back(IdentifyNatType(rcvd.address_vector[0], rcvd.address_vector[1]));
+				log_information.Add({ ErrorType::OK,
 					{
-						identified_nat_types.push_back(shared::NATType::UNDEFINED);
-						log_information.push_back({ shared::ServerResponse::Warning({ "Failed to get NAT Info information from server" }) });
+						"-- Collected NAT Sample --",
+						"Address : " + rcvd.address_vector[0].ip_address,
+						"Port 1  : " + std::to_string(rcvd.address_vector[0].port),
+						"Port 2  : " + std::to_string(rcvd.address_vector[1].port)
 					}
-					else
-					{
-						identified_nat_types.push_back(IdentifyNatType(av.address_vector[0], av.address_vector[1]));
-						log_information.push_back(shared::ServerResponse::OK(
-							{
-								"-- Collected NAT Sample --",
-								"Address : " + av.address_vector[0].ip_address,
-								"Port 1  : " + std::to_string(av.address_vector[0].port),
-								"Port 2  : " + std::to_string(av.address_vector[1].port)
-							}
-						));
-					}
-				},
-				[&](shared::ServerResponse& sr) { log_information.push_back(std::move(sr)); }
-
-			}, *res);
+				});
+			}
+		}
 
 		if (identified_nat_types.size() < required_nat_samples)
 		{
-			log_information.push_back(AsyncClassifyNat(required_nat_samples));
+			log_information.Add(AsyncClassifyNat(required_nat_samples));
 		}
 		else
 		{
@@ -56,7 +56,7 @@ std::optional<shared::NATType> NatClassifier::TryGetAsyncClassifyNatResult(std::
 			auto result =  GetMostFrequentNatType(identified_nat_types);
 			required_nat_samples = 0;
 			identified_nat_types.clear();
-			log_information.clear();
+			log_information = Error{ ErrorType::OK };
 			return result;
 		}
 	}

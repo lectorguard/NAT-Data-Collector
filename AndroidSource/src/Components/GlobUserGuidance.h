@@ -32,11 +32,12 @@ enum class UserGuidanceStep : uint16_t
 	FinishUserGuidance
 };
 
+using namespace shared;
+
 class GlobUserGuidance
 {
-	using IPInfoTask = std::future<shared::Result<std::string>>;
-	using NATIdentTask = std::future<shared::Result<shared::AddressVector>>;
-	using TransactionTask = std::future<shared::ServerResponse::Helper>;
+	using IPInfoTask = std::future<std::variant<Error, std::string>>;
+	using TransactionTask = std::future<DataPackage>;
 
 public:
 	void Activate(class Application* app);

@@ -29,5 +29,5 @@ private:
 	void RequestScores(Application* app);
 	// State
 	ScoreboardSteps current = ScoreboardSteps::Idle;
-	std::future<shared::ServerResponse::Helper> scoreboard_transaction;
+	std::future<shared::DataPackage> scoreboard_transaction;
 };

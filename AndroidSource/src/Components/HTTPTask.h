@@ -13,9 +13,11 @@
 #include <unistd.h>
 #include "SharedProtocol.h"
 
+using namespace shared;
+
 class HTTPTask
 {
 public:
-	static shared::Result<std::string> SimpleHttpRequest(std::string_view request, std::string url, bool ignoreRespondHeader, std::string port);
+	static std::variant<Error, std::string> SimpleHttpRequest(std::string_view request, std::string url, bool ignoreRespondHeader, std::string port);
 };
 

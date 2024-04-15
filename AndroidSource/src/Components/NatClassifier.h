@@ -6,6 +6,8 @@
 #include "future"
 
 
+using namespace shared;
+
 class NatClassifier
 {
 	inline static UDPCollectTask::NatTypeInfo base_nat_config
@@ -17,10 +19,10 @@ class NatClassifier
 	};
 
 public:
-	using NatFuture = std::future<shared::Result<shared::AddressVector>>;
+	using NatFuture = std::future<DataPackage>;
 
-	shared::ServerResponse AsyncClassifyNat(uint16_t num_nat_samples, UDPCollectTask::NatTypeInfo config = base_nat_config);
-	std::optional<shared::NATType> TryGetAsyncClassifyNatResult(std::vector<shared::ServerResponse>& all_responses);
+	Error AsyncClassifyNat(uint16_t num_nat_samples, UDPCollectTask::NatTypeInfo config = base_nat_config);
+	std::optional<shared::NATType> TryGetAsyncClassifyNatResult(Error& all_responses);
 
 	static shared::NATType IdentifyNatType(const shared::Address& first, const shared::Address& second);
 	static shared::NATType GetMostFrequentNatType(const std::vector<shared::NATType>& nat_types);
@@ -28,5 +30,5 @@ private:
 	uint16_t required_nat_samples = 0;
 	NatFuture nat_future;
 	std::vector<shared::NATType> identified_nat_types;
-	std::vector<shared::ServerResponse> log_information;
+	Error log_information;
 };

@@ -5,7 +5,6 @@
 #include "SharedProtocol.h"
 #include "Data/Address.h"
 #include "Data/WindowData.h"
-#include "RequestFactories/RequestFactoryHelper.h"
 #include <variant>
 #include "HTTPTask.h"
 #include "Data/IPMetaData.h"
@@ -55,18 +54,18 @@ void GlobCollectSamples::UpdateGlobState(class Application* app)
 	case CollectSamplesStep::StartNATInfo:
 	{
 		Log::Info("Started classify NAT");
-		shared::ServerResponse resp = nat_classifier.AsyncClassifyNat(NAT_IDENT_AMOUNT_SAMPLES_USED);
-		Log::HandleResponse(resp, "Classify NAT");
-		current = resp ? CollectSamplesStep::UpdateNATInfo : CollectSamplesStep::StartWait;
+		Error err = nat_classifier.AsyncClassifyNat(NAT_IDENT_AMOUNT_SAMPLES_USED);
+		Log::HandleResponse(err, "Classify NAT");
+		current = err ? CollectSamplesStep::StartWait : CollectSamplesStep::UpdateNATInfo;
 		break;
 	}
 	case CollectSamplesStep::UpdateNATInfo:
 	{
-		std::vector<shared::ServerResponse> all_responses;
-		if (auto nat_type = nat_classifier.TryGetAsyncClassifyNatResult(all_responses))
+		Error logs;
+		if (auto nat_type = nat_classifier.TryGetAsyncClassifyNatResult(logs))
 		{
 			client_meta_data.nat_type = *nat_type;
-			Log::HandleResponse(all_responses);
+			Log::HandleResponse(logs, "Receive NAT Classification");
 			Log::Info("Identified NAT type %s", shared::nat_to_string.at(client_meta_data.nat_type).c_str());
 
 #if RANDOM_SYM_NAT_REQUIRED
@@ -111,7 +110,7 @@ void GlobCollectSamples::UpdateGlobState(class Application* app)
 	}
 	case CollectSamplesStep::UpdateCollectPorts:
 	{
-		if (auto res = utilities::TryGetFuture<shared::Result<shared::AddressVector>>(nat_collect_task))
+		if (auto res = utilities::TryGetFuture<DataPackage>(nat_collect_task))
 		{
 			// if true, phone was sleeping in background
 			const bool has_expired = collect_samples_timer.HasExpired();
@@ -124,31 +123,28 @@ void GlobCollectSamples::UpdateGlobState(class Application* app)
 				break;
 			}
 
-			std::visit(shared::helper::Overloaded
+			shared::AddressVector recvd;
+			if (auto err = res->Get(recvd))
+			{
+				Log::HandleResponse(err, "Collect Ports");
+				current = CollectSamplesStep::StartWait;
+			}
+			else
+			{
+				if (recvd.address_vector.empty())
 				{
-					[&](const shared::AddressVector& av)
-					{
-						if (av.address_vector.empty())
-						{
-							Log::Error("Failed to get any ports");
-							current = CollectSamplesStep::StartWait;
-						}
-						else
-						{
-							Log::Info("%s : Received %d remote address samples",
-								shared::helper::CreateTimeStampNow().c_str(),
-								av.address_vector.size());
-							collected_nat_data = av.address_vector;
-							current = CollectSamplesStep::StartWaitUpload;
-						}
-					},
-					[&](const shared::ServerResponse& sr)
-					{
-						Log::HandleResponse(sr, "Collect NAT Samples Server Response");
-						current = CollectSamplesStep::StartWait;
-					}
+					Log::Error("Failed to get any ports");
+					current = CollectSamplesStep::StartWait;
 				}
-			, *res);
+				else
+				{
+					Log::Info("%s : Received %d remote address samples",
+						shared::helper::CreateTimeStampNow().c_str(),
+						recvd.address_vector.size());
+					collected_nat_data = recvd.address_vector;
+					current = CollectSamplesStep::StartWaitUpload;
+				}
+			}
 		}
 		break;
 	}
@@ -173,20 +169,21 @@ void GlobCollectSamples::UpdateGlobState(class Application* app)
 	{
 		Log::Info( "Started upload to DB");
 		using namespace shared;
-		using Factory = RequestFactory<RequestType::INSERT_MONGO>;
 
 		// Create Object
 		NATSample sampleToInsert{ client_meta_data, readable_time_stamp, NAT_COLLECT_REQUEST_DELAY_MS,
 								  connect_type, collected_nat_data, NAT_COLLECT_SAMPLE_DELAY_MS };
-		auto request = Factory::Create(sampleToInsert, MONGO_DB_NAME, MONGO_NAT_SAMPLES_COLL_NAME);
+		DataPackage pkg = DataPackage::Create(&sampleToInsert, Transaction::SERVER_INSERT_MONGO)
+			.Add<std::string>(MetaDataField::DB_NAME, MONGO_DB_NAME)
+			.Add<std::string>(MetaDataField::COLL_NAME, MONGO_NAT_SAMPLES_COLL_NAME);
 
-		upload_nat_sample = std::async(TCPTask::ServerTransaction,std::move(request), SERVER_IP, SERVER_TRANSACTION_TCP_PORT);
+		upload_nat_sample = std::async(TCPTask::ServerTransaction, pkg, SERVER_IP, SERVER_TRANSACTION_TCP_PORT);
 		current = CollectSamplesStep::UpdateUploadDB;
 		break;
 	}
 	case CollectSamplesStep::UpdateUploadDB:
 	{
-		if (auto res = utilities::TryGetFuture<shared::ServerResponse::Helper>(upload_nat_sample))
+		if (auto res = utilities::TryGetFuture<DataPackage>(upload_nat_sample))
 		{
 			Log::HandleResponse(*res, "Insert NAT sample to DB");
 			// Even if we fail, we will try again later

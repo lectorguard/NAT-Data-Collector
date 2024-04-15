@@ -84,7 +84,7 @@ void AwakeManager::FlipDarkMode(android_app* state, Application* app)
 	}
 }
 
-shared::ServerResponse AwakeManager::TurnScreenOn(struct android_app* state)
+shared::Error AwakeManager::TurnScreenOn(struct android_app* state)
 {
 	return utilities::ActivateWakeLock(state,
 		{ "FULL_WAKE_LOCK", "ACQUIRE_CAUSES_WAKEUP", "ON_AFTER_RELEASE" },

@@ -17,7 +17,7 @@
 }
 
 
- shared::Result<shared::AddressVector> UDPCollectTask::StartCollectTask(const CollectInfo& collect_info)
+ shared::DataPackage UDPCollectTask::StartCollectTask(const CollectInfo& collect_info)
  {
 	 Log::Info("--- Metadata Collect NAT Samples ---");
 	 Log::Info("Server Address     :  %s", collect_info.remote_address.c_str());
@@ -29,7 +29,7 @@
 	 return start_task_internal([&collect_info](asio::io_service& io) { return UDPCollectTask(collect_info, io); });
  }
 
- shared::Result<shared::AddressVector> UDPCollectTask::StartNatTypeTask(const NatTypeInfo& collect_info)
+ shared::DataPackage UDPCollectTask::StartNatTypeTask(const NatTypeInfo& collect_info)
  {
 	 // Print request details
 // 	 Log::Info("--- Metadata Nat Identification ---");
@@ -50,7 +50,7 @@
 		// Each socket binds new port
 		createSocket = 
 			[&io_service]() {return std::make_shared<asio::ip::udp::socket>(io_service, asio::ip::udp::endpoint{ asio::ip::udp::v4(), 0 }); };
-		bUsesSingleSocket = false;
+		_bUsesSingleSocket = false;
 	}
 	else
 	{
@@ -58,23 +58,23 @@
 		auto shared_local_socket = 
 			std::make_shared<asio::ip::udp::socket>(io_service, asio::ip::udp::endpoint{ asio::ip::udp::v4(), info.local_port });
 		createSocket = [shared_local_socket]() {return shared_local_socket; };
-		bUsesSingleSocket = true;
+		_bUsesSingleSocket = true;
 	}
 
-	socket_list.reserve(info.amount_ports);
+	_socket_list.reserve(info.amount_ports);
 	for (uint16_t index = 0; index < info.amount_ports; ++index)
 	{
-		socket_list.emplace_back(Socket{ index,
+		_socket_list.emplace_back(Socket{ index,
 								nullptr, // create socket when it is used
 								asio::system_timer(io_service)
 			});
 
 
-		socket_list[index].timer.expires_from_now(std::chrono::milliseconds(index * info.time_between_requests_ms));
-		socket_list[index].timer.async_wait([this, &info, &io_service, createSocket, index](auto error)
+		_socket_list[index].timer.expires_from_now(std::chrono::milliseconds(index * info.time_between_requests_ms));
+		_socket_list[index].timer.async_wait([this, &info, &io_service, createSocket, index](auto error)
 			{
 
-				if (system_error_state != SystemErrorStates::NO_ERROR)
+				if (_system_error_state != SystemErrorStates::NO_ERROR)
 				{
 					return;
 				}
@@ -84,38 +84,37 @@
 				const shared::ConnectionType ct = info.conn_type.load();
 				if (ct == shared::ConnectionType::WIFI || ct == shared::ConnectionType::NOT_CONNECTED)
 				{
-					stored_response = shared::ServerResponse::Error({"Abort Collecting Ports, entered WIFI or Disconnect"});
+					_error = Error(ErrorType::ERROR, {"Abort Collecting Ports, entered WIFI or Disconnect"});
 					io_service.stop();
 					return; 
 				}
 #endif
 				asio::error_code ec;
 				auto address = asio::ip::make_address(info.remote_address, ec);
-				stored_response = shared::helper::HandleAsioError(ec, "Make Address");
-				if (!stored_response) return;
+				if (auto err = Error::FromAsio(ec, "Make Adress")) return;
 
 				auto remote_endpoint = std::make_shared<asio::ip::udp::endpoint>(address, info.remote_port);
 				try
 				{
-					socket_list[index].socket = createSocket();
+					_socket_list[index].socket = createSocket();
 				}
 				catch (const asio::system_error& ec)
 				{
 					// Could indicate Hardware Limitation in creation of sockets
 					// Stop sending requests
-					system_error_state = SystemErrorStates::SOCKETS_EXHAUSTED;
+					_system_error_state = SystemErrorStates::SOCKETS_EXHAUSTED;
 					Log::Warning("Creation of Sockets is exhausted due to Hardware Limitations.");
 					Log::Warning("Successful created sockets : %d", index + 1);
 					return;
 				}
 				catch (std::exception* e)
 				{
-					system_error_state = SystemErrorStates::SOCKETS_EXHAUSTED;
+					_system_error_state = SystemErrorStates::SOCKETS_EXHAUSTED;
 					Log::Warning("Creation of Sockets is exhausted due to Hardware Limitations.");
 					Log::Warning("Successful created sockets : %d", index + 1);
 					return;
 				}
-				send_request(socket_list[index], io_service, remote_endpoint, error);
+				send_request(_socket_list[index], io_service, remote_endpoint, error);
 			});
 	}
 }
@@ -124,40 +123,37 @@ UDPCollectTask::UDPCollectTask(const NatTypeInfo& info, asio::io_service& io_ser
 {
 	// Single socket single port
 	auto shared_local_socket = std::make_shared<asio::ip::udp::socket>(io_service, asio::ip::udp::endpoint{ asio::ip::udp::v4(), 0 });
-	bUsesSingleSocket = true;
+	_bUsesSingleSocket = true;
 
-	socket_list.reserve(2);
+	_socket_list.reserve(2);
 	std::vector<uint16_t> ports = {info.first_remote_port, info.second_remote_port};
 	for (uint16_t index = 0; index < 2; ++index)
 	{
 		try
 		{
-			socket_list.emplace_back(Socket{ index,
+			_socket_list.emplace_back(Socket{ index,
 										shared_local_socket, // we only create 2 sockets, do it immediately
 										asio::system_timer(io_service)
 				});
 		}
 		catch (const asio::system_error& ec)
 		{
-			stored_response = shared::ServerResponse::Error({ "Socket creation failed at index " + std::to_string(index), ec.what() });
+			_error = Error(ErrorType::ERROR, { "Socket creation failed at index " + std::to_string(index), ec.what() });
 			return;
 		}
 		catch (std::exception* e)
 		{
-			stored_response = shared::ServerResponse::Error({ "Socket creation failed at index " + std::to_string(index), e->what() });
+			_error = Error(ErrorType::ERROR, { "Socket creation failed at index " + std::to_string(index), e->what() });
 			return;
 		}
 
-		
-
-		socket_list[index].timer.expires_from_now(std::chrono::milliseconds(index * info.time_between_requests_ms));
-		socket_list[index].timer.async_wait([this, info, port = ports[index], &sock = socket_list[index], &io_service](auto error)
+		_socket_list[index].timer.expires_from_now(std::chrono::milliseconds(index * info.time_between_requests_ms));
+		_socket_list[index].timer.async_wait([this, info, port = ports[index], &sock = _socket_list[index], &io_service](auto error)
 			{
 				
 				asio::error_code ec;
 				auto address = asio::ip::make_address(info.remote_address, ec);
-				stored_response = shared::helper::HandleAsioError(ec, "Make Address");
-				if (!stored_response) return;
+				if (auto err = Error::FromAsio(ec, "Make Address")) return;
 
 				auto remote_endpoint = std::make_shared<asio::ip::udp::endpoint>(address, port);
 				send_request(sock, io_service, remote_endpoint, error);
@@ -165,25 +161,22 @@ UDPCollectTask::UDPCollectTask(const NatTypeInfo& info, asio::io_service& io_ser
 	}
 }
 
-shared::Result<shared::AddressVector> UDPCollectTask::start_task_internal(std::function<UDPCollectTask(asio::io_service&)> createCollectTask)
+DataPackage UDPCollectTask::start_task_internal(std::function<UDPCollectTask(asio::io_service&)> createCollectTask)
 {
 	asio::io_service io_service;
 	UDPCollectTask collectTask{ createCollectTask(io_service) };
 
-	if (!collectTask.stored_response)
-	{
-		return std::move(collectTask.stored_response);
-	}
+	if (collectTask._error) return DataPackage::Create(collectTask._error);
 
 	asio::error_code ec;
 	io_service.run(ec);
 	if (ec)
 	{
-		return shared::ServerResponse::Error({ "Asio IO service failed during UDP Collect Nat Data attempt" , ec.message() });
+		return DataPackage::Create<ErrorType::ERROR>({ "Asio IO service failed during UDP Collect Nat Data attempt" , ec.message() });
 	}
 
 	// Shutdown created sockets
- 	for (Socket& sock : collectTask.socket_list)
+ 	for (Socket& sock : collectTask._socket_list)
  	{
 		if (sock.socket && sock.socket->is_open())
 		{
@@ -192,16 +185,16 @@ shared::Result<shared::AddressVector> UDPCollectTask::start_task_internal(std::f
  	}
 
 
-	if (collectTask.stored_response)
+	if (collectTask._error)
 	{
-		// Sort ports found
-		auto& address_vector = collectTask.stored_natsample.address_vector;
-		std::sort(address_vector.begin(), address_vector.end(), [](auto l, auto r) {return l.index < r.index; });
-		return collectTask.stored_natsample;
+		return DataPackage::Create(collectTask._error);
 	}
 	else
 	{
-		return std::move(collectTask.stored_response);
+		// Sort ports found
+		auto& address_vector = collectTask._stored_natsample.address_vector;
+		std::sort(address_vector.begin(), address_vector.end(), [](auto l, auto r) {return l.index < r.index; });
+		return DataPackage::Create(&collectTask._stored_natsample, Transaction::NO_TRANSACTION);
 	}
 }
 
@@ -210,8 +203,8 @@ void UDPCollectTask::send_request(Socket& local_socket, asio::io_service& io_ser
 {
 	if (ec && ec != asio::error::message_size)
 	{
-		stored_response.resp_type = shared::ResponseType::ERROR;
-		stored_response.messages.push_back(ec.message());
+		_error.error = ErrorType::ERROR;
+		_error.messages.push_back(ec.message());
 		io_service.stop();
 		return;
 	}
@@ -223,8 +216,8 @@ void UDPCollectTask::send_request(Socket& local_socket, asio::io_service& io_ser
 	{
 		auto error_string_list = shared::helper::JserErrorToString(jser_errors);
 		error_string_list.push_back("Failed to serialize single Address during UDP Collect task");
-		stored_response.resp_type = shared::ResponseType::ERROR;
-		stored_response.messages.insert(stored_response.messages.end(), error_string_list.begin(), error_string_list.end());
+		_error.error = ErrorType::ERROR;
+		_error.messages.insert(_error.messages.end(), error_string_list.begin(), error_string_list.end());
 		io_service.stop();
 		return;
 	}
@@ -242,8 +235,8 @@ void UDPCollectTask::start_receive(Socket& local_socket, asio::io_service& io_se
 {
 	if (ec && ec != asio::error::message_size)
 	{
-		stored_response.resp_type = shared::ResponseType::ERROR;
-		stored_response.messages.push_back(ec.message());
+		_error.error = shared::ErrorType::ERROR;
+		_error.messages.push_back(ec.message());
 		io_service.stop();
 		return;
 	}
@@ -253,14 +246,14 @@ void UDPCollectTask::start_receive(Socket& local_socket, asio::io_service& io_se
 	auto deadline_timer = std::make_shared<asio::system_timer>(CreateDeadline(io_service, local_socket.socket));
 	// Create a queue of deadline timer
 	// Pending async receive calls, which packages were dropped will get killed by the deadline at the end
-	if (bUsesSingleSocket)
+	if (_bUsesSingleSocket)
 	{
-		deadline_queue.push(deadline_timer);
+		_deadline_queue.push(deadline_timer);
 		local_socket.socket->async_receive_from(
 			asio::buffer(*shared_buffer), remote_endpoint,
 			[this, &io_service, shared_buffer](const std::error_code& ec, std::size_t bytesTransferred)
 			{
-				deadline_queue.pop(); // cancel oldest deadline on receive
+				_deadline_queue.pop(); // cancel oldest deadline on receive
 				handle_receive(shared_buffer, bytesTransferred, io_service, ec);
 			});
 	}
@@ -287,8 +280,8 @@ void UDPCollectTask::handle_receive(std::shared_ptr<AddressBuffer> buffer, std::
 
 	if (ec && ec != asio::error::message_size)
 	{
-		stored_response.resp_type = shared::ResponseType::ERROR;
-		stored_response.messages.push_back(ec.message());
+		_error.error = shared::ErrorType::ERROR;
+		_error.messages.push_back(ec.message());
 		io_service.stop();
 		return;
 	}
@@ -313,12 +306,12 @@ void UDPCollectTask::handle_receive(std::shared_ptr<AddressBuffer> buffer, std::
 	{
 		auto error_string_list = shared::helper::JserErrorToString(jser_errors);
 		error_string_list.push_back("Failed to serialize single Address during UDP Collect task");
-		stored_response = shared::ServerResponse::Error(error_string_list);
+		_error = Error{ ErrorType::ERROR, error_string_list };
 		io_service.stop();
 		return;
 	}
 	address.rtt_ms = (uint16_t)std::abs((int32_t)shared::helper::CreateTimeStampOnlyMS() - (int32_t)address.rtt_ms);
-	stored_natsample.address_vector.push_back(address);
+	_stored_natsample.address_vector.push_back(address);
 }
 
 asio::system_timer UDPCollectTask::CreateDeadline(asio::io_service& service, std::shared_ptr<asio::ip::udp::socket> socket)

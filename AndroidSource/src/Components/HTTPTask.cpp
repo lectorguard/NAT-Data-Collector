@@ -4,12 +4,12 @@
 #include "Application/Application.h"
 #include "SharedHelpers.h"
 
-shared::Result<std::string> HTTPTask::SimpleHttpRequest(std::string_view request, std::string url, bool ignoreRespondHeader, std::string port)
+std::variant<shared::Error, std::string> HTTPTask::SimpleHttpRequest(std::string_view request, std::string url, bool ignoreRespondHeader, std::string port)
 {
 	using asio_tcp = asio::ip::tcp;
 	using namespace shared;
 
-	ServerResponse response = ServerResponse::OK();
+	Error err{ErrorType::OK};
 	asio::io_context io_context;
 	asio_tcp::resolver resolver{ io_context };
 	asio_tcp::socket sock{ io_context };
@@ -20,28 +20,29 @@ shared::Result<std::string> HTTPTask::SimpleHttpRequest(std::string_view request
 
 		asio_tcp::resolver::query query(url, port);
 		auto resolved_query = resolver.resolve(query, asio_error);
-		response = shared::helper::HandleAsioError(asio_error, "Resolve HTTP URL");
-		if (!response) break;
+		if ((err = Error::FromAsio(asio_error, "Resolve HTTP URL"))) break;
 
 		asio::connect(sock, resolved_query, asio_error);
-		response = shared::helper::HandleAsioError(asio_error, "Connect to HTTP Server failed");
-		if (!response) break;
+		if ((err = Error::FromAsio(asio_error, "Connect to HTTP Server failed"))) break;
 
 		asio::write(sock, asio::buffer(request), asio_error);		
-		response = shared::helper::HandleAsioError(asio_error, "Write HTTP Server GET Request");
-		if (!response) break;
+		if ((err = Error::FromAsio(asio_error, "Write HTTP Server GET Request"))) break;
 
 		char buf[4096];
 		std::size_t len = sock.read_some(asio::buffer(buf), asio_error);
-		response = shared::helper::HandleAsioError(asio_error, "Read Answer from HTTP Server Request");
-		if (!response) break;
+		if ((err = Error::FromAsio(asio_error, "Read Answer from HTTP Server Request"))) break;
 
 		result = std::string(buf, len);
 		break;
 	}
 	asio::error_code toIgnore;
 	utilities::ShutdownTCPSocket(sock, toIgnore);
-	if (response)
+	if (err)
+	{
+		return err;
+		
+	}
+	else
 	{
 		if (ignoreRespondHeader)
 		{
@@ -51,9 +52,5 @@ shared::Result<std::string> HTTPTask::SimpleHttpRequest(std::string_view request
 			}
 		}
 		return result;
-	}
-	else
-	{
-		return response;
 	}
 }

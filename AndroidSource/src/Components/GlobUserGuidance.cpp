@@ -5,7 +5,6 @@
 #include "SharedProtocol.h"
 #include "Data/Address.h"
 #include "Data/WindowData.h"
-#include "RequestFactories/RequestFactoryHelper.h"
 #include <variant>
 #include "HTTPTask.h"
 #include "Data/IPMetaData.h"
@@ -131,33 +130,34 @@ void GlobUserGuidance::UpdateGlobState(Application* app)
 		Log::Info("Check Version Update");
 
 		using namespace shared;
-		using Factory = RequestFactory<RequestType::GET_VERSION_DATA>;
 
-		auto request = Factory::Create(MONGO_DB_NAME, MONGO_VERSION_COLL_NAME, APP_VERSION);
-		version_update = std::async(TCPTask::ServerTransaction, std::move(request), SERVER_IP, SERVER_TRANSACTION_TCP_PORT);
+		DataPackage pkg = DataPackage::Create(nullptr, Transaction::SERVER_GET_VERSION_DATA)
+			.Add<std::string>(MetaDataField::DB_NAME, MONGO_DB_NAME)
+			.Add<std::string>(MetaDataField::COLL_NAME, MONGO_VERSION_COLL_NAME)
+			.Add<std::string>(MetaDataField::CURR_VERSION, APP_VERSION);
+
+		version_update = std::async(TCPTask::ServerTransaction, pkg, SERVER_IP, SERVER_TRANSACTION_TCP_PORT);
 		current = UserGuidanceStep::UpdateVersionUpdate;
 		break;
 	}
 	case UserGuidanceStep::UpdateVersionUpdate:
 	{
-		if (auto result_ready = utilities::TryGetFuture<shared::ServerResponse::Helper>(version_update))
+		if (auto result_ready = utilities::TryGetFuture<DataPackage>(version_update))
 		{
 			UserData::Information& user_info = app->_components.Get<UserData>().info;
-			std::visit(shared::helper::Overloaded
+			VersionUpdate rcvd;
+			if (auto error = result_ready->Get(rcvd))
+			{
+				Log::HandleResponse(error, "Check new version available");
+			}
+			else
+			{
+				version_update_info = rcvd;
+				if (user_info.version_update != version_update_info.latest_version)
 				{
-					[this, user_info, &nat_model](shared::VersionUpdate vu)
-					{
-						version_update_info = vu;
-						if (user_info.version_update != version_update_info.latest_version)
-						{
-							nat_model.PushPopUpState(NatCollectorPopUpState::VersionUpdateWindow);
-						}
-					},
-					[](shared::ServerResponse resp)
-					{
-						Log::HandleResponse(resp, "Check new version available");
-					}
-				}, utilities::TryGetObjectFromResponse<shared::VersionUpdate>(*result_ready));
+					nat_model.PushPopUpState(NatCollectorPopUpState::VersionUpdateWindow);
+				}
+			}
 			current = UserGuidanceStep::StartInformationUpdate;
 		}
 		break;
@@ -167,33 +167,34 @@ void GlobUserGuidance::UpdateGlobState(Application* app)
 		Log::Info("Check information update");
 
 		using namespace shared;
-		using Factory = RequestFactory<RequestType::GET_INFORMATION_DATA>;
 
 		UserData::Information& info = app->_components.Get<UserData>().info;
-		auto request = Factory::Create(MONGO_DB_NAME, MONGO_INFORMATION_COLL_NAME, info.information_identifier);
-		information_update = std::async(TCPTask::ServerTransaction, std::move(request), SERVER_IP, SERVER_TRANSACTION_TCP_PORT);
+		DataPackage pkg = DataPackage::Create(nullptr, Transaction::SERVER_GET_INFORMATION_DATA)
+			.Add<std::string>(MetaDataField::DB_NAME, MONGO_DB_NAME)
+			.Add<std::string>(MetaDataField::COLL_NAME, MONGO_INFORMATION_COLL_NAME)
+			.Add<std::string>(MetaDataField::IDENTIFIER, info.information_identifier);
+
+		information_update = std::async(TCPTask::ServerTransaction, pkg, SERVER_IP, SERVER_TRANSACTION_TCP_PORT);
 		current = UserGuidanceStep::UpdateInformationUpdate;
 		break;
 	}
 	case UserGuidanceStep::UpdateInformationUpdate:
 	{
-		if (auto result_ready = utilities::TryGetFuture<shared::ServerResponse::Helper>(information_update))
+		if (auto result_ready = utilities::TryGetFuture<DataPackage>(information_update))
 		{
-			std::visit(shared::helper::Overloaded
+			InformationUpdate rcvd;
+			if (auto error = result_ready->Get(rcvd))
+			{
+				Log::HandleResponse(error, "New information availability check");
+			}
+			else
+			{
+				information_update_info = rcvd;
+				if (user_data.info.information_identifier != information_update_info.identifier)
 				{
-					[this, user_data, &nat_model](shared::InformationUpdate iu)
-					{
-						information_update_info = iu;
-						if (user_data.info.information_identifier != information_update_info.identifier)
-						{
-							nat_model.PushPopUpState(NatCollectorPopUpState::InformationUpdateWindow);
-						}
-					},
-					[](shared::ServerResponse resp)
-					{
-						Log::HandleResponse(resp, "New information availability check");
-					}
-				}, utilities::TryGetObjectFromResponse<shared::InformationUpdate>(*result_ready));
+					nat_model.PushPopUpState(NatCollectorPopUpState::InformationUpdateWindow);
+				}
+			}
 			current = UserGuidanceStep::WaitForDialogsToClose;
 		}
 		break;
@@ -219,7 +220,7 @@ void GlobUserGuidance::UpdateGlobState(Application* app)
 	}
 	case UserGuidanceStep::UpdateIPInfo:
 	{
-		if (auto res = utilities::TryGetFuture<shared::Result<std::string>>(ip_info_task))
+		if (auto res = utilities::TryGetFuture<std::variant<Error, std::string>>(ip_info_task))
 		{
 			if (auto apiAnswer = std::get_if<std::string>(&*res))
 			{
@@ -228,7 +229,8 @@ void GlobUserGuidance::UpdateGlobState(Application* app)
 				metaData.DeserializeObject(*apiAnswer, std::back_inserter(jser_errors));
 				if (jser_errors.size() > 0)
 				{
-					Log::HandleResponse(shared::helper::HandleJserError(jser_errors, "Deserialize Meta Data"), "Deserialize IP Address Metadata from Server");
+					Error err{ ErrorType::ERROR, helper::JserErrorToString(jser_errors) };
+					Log::HandleResponse(err, "Deserialize IP Address Metadata from Service");
 					current = UserGuidanceStep::FinishUserGuidance;
 					break;
 				}
@@ -244,7 +246,7 @@ void GlobUserGuidance::UpdateGlobState(Application* app)
 			}
 			else
 			{
-				Log::HandleResponse(std::get<shared::ServerResponse>(*res), "Get IP Address Metadata from Server");
+				Log::HandleResponse(std::get<Error>(*res), "Get IP Address Metadata from Server");
 				current = UserGuidanceStep::FinishUserGuidance;
 				break;
 			}
@@ -254,18 +256,18 @@ void GlobUserGuidance::UpdateGlobState(Application* app)
 	case UserGuidanceStep::StartNATInfo:
 	{
 		Log::Info("Start classifying NAT");
-		shared::ServerResponse resp = nat_classifier.AsyncClassifyNat(NAT_IDENT_AMOUNT_SAMPLES_USED);
-		Log::HandleResponse(resp, "Classify NAT");
-		current = resp ? UserGuidanceStep::UpdateNATInfo : UserGuidanceStep::FinishUserGuidance;
+		Error error = nat_classifier.AsyncClassifyNat(NAT_IDENT_AMOUNT_SAMPLES_USED);
+		Log::HandleResponse(error, "Classify NAT");
+		current = error ? UserGuidanceStep::FinishUserGuidance : UserGuidanceStep::UpdateNATInfo;
 		break;
 	}
 	case UserGuidanceStep::UpdateNATInfo:
 	{
-		std::vector<shared::ServerResponse> all_responses;
-		if (auto nat_type = nat_classifier.TryGetAsyncClassifyNatResult(all_responses))
+		Error errors;
+		if (auto nat_type = nat_classifier.TryGetAsyncClassifyNatResult(errors))
 		{
 			nat_model.client_meta_data.nat_type = *nat_type;
-			Log::HandleResponse(all_responses);
+			Log::HandleResponse(errors, "Classify NAT");
 			Log::Info("Identified NAT type %s", shared::nat_to_string.at(nat_model.client_meta_data.nat_type).c_str());
 
 #if RANDOM_SYM_NAT_REQUIRED

@@ -10,36 +10,44 @@ void UserData::Activate(class Application* app)
 	std::visit(shared::helper::Overloaded
 		{
 			[this](std::string dir) { external_files_dir = dir; },
-			[](shared::ServerResponse resp) { Log::HandleResponse(resp, "Try retrieving external files directory from JNI"); }
+			[](shared::Error err) { Log::HandleResponse(err, "Failed to retrieve external files directory from JNI"); }
 		}, GetExternalFilesDir(app->android_state));
 
-	std::visit(shared::helper::Overloaded
-		{
-			[this](Information user_info) { info = user_info; Log::Info("Read user data from disc"); },
-			[](shared::ServerResponse resp) { Log::HandleResponse(resp, "Read User Data from Disc"); }
-		}, ReadFromDisc());
-}
-
-shared::ServerResponse UserData::ValidateUsername()
-{
-	if (!info.username.empty() && info.username.length() < maxUsernameLength)
+	if (auto err = ReadFromDisc().Get(info))
 	{
-		return shared::ServerResponse::OK();
+		Log::HandleResponse(err, "Read User Data from Disc");
 	}
 	else
 	{
-		return shared::ServerResponse::Warning({ "Please enter valid username first.",
-			"Username must have at least 1 and max" + std::to_string(maxUsernameLength) + " characters." });
+		Log::Info("Read user data from disc");
+	}
+}
+
+shared::Error UserData::ValidateUsername()
+{
+	if (!info.username.empty() && info.username.length() < maxUsernameLength)
+	{
+		return Error{ ErrorType::OK };
+	}
+	else
+	{
+		return Error{ 
+			ErrorType::WARNING, 
+			{ 
+				"Please enter valid username first.",
+				"Username must have at least 1 and max" + std::to_string(maxUsernameLength) + " characters." 
+			} 
+		};
 	}
 }
 
 
-std::variant<UserData::Information, shared::ServerResponse> UserData::ReadFromDisc()
+shared::DataPackage UserData::ReadFromDisc()
 {
 	const auto user_data_path = GetAbsoluteUserDataPath();
 	if (!user_data_path)
 	{
-		return shared::ServerResponse::Error({ "Absolute Android User Data Path is invalid" });
+		return DataPackage::Create<ErrorType::ERROR>({ "Absolute Android User Data Path is invalid" });
 	}
 
 	if (FILE* appConfigFile = std::fopen(user_data_path->c_str(), "r+"))
@@ -56,22 +64,22 @@ std::variant<UserData::Information, shared::ServerResponse> UserData::ReadFromDi
 		std::vector<jser::JSerError> jser_errors;
 		UserData::Information user_info;
 		user_info.DeserializeObject(file_data, std::back_inserter(jser_errors));
-
 		if (jser_errors.size() > 0)
 		{
-			return shared::helper::HandleJserError(jser_errors, "Read User data from disc");
+			auto messages = helper::JserErrorToString(jser_errors);
+			messages.push_back("Read User data from disc");
+			return DataPackage::Create<ErrorType::ERROR>(messages);
 		}
-		return user_info;
+		return DataPackage::Create(&user_info, Transaction::NO_TRANSACTION);
 	}
 	else
 	{
 		// Failed to open user data file, file might not exist yet
-		return shared::ServerResponse::OK();
+		return DataPackage::Create<ErrorType::OK>();
 	}
-	
 }
 
-shared::ServerResponse UserData::WriteToDisc()
+shared::Error UserData::WriteToDisc()
 {
 	Log::Info("Write User Data to Disc");
 	// Deserialize user data
@@ -79,31 +87,33 @@ shared::ServerResponse UserData::WriteToDisc()
 	const std::string user_info = info.SerializeObjectString(std::back_inserter(jser_errors));
 	if (jser_errors.size() > 0)
 	{
-		return shared::helper::HandleJserError(jser_errors, "Write to disc : Serialize user data"); 
+		auto messages = helper::JserErrorToString(jser_errors);
+		messages.push_back("Read User data from disc");
+		return Error{ ErrorType::ERROR,messages };
 	}
 
 	const auto user_data_path = GetAbsoluteUserDataPath();
 	if (!user_data_path)
 	{
-		return shared::ServerResponse::Error({ "Absolute Android User Data Path is invalid" });
+		return Error(ErrorType::ERROR, { "Absolute Android User Data Path is invalid" });
 	}
 
 	// Write to file
-	shared::ServerResponse result = shared::ServerResponse::OK();
+	Error err{ ErrorType::OK };
 	if (FILE* appConfigFile = std::fopen(user_data_path->c_str(), "w+"))
 	{
 		auto res = std::fwrite(user_info.c_str(), sizeof(char), user_info.size(), appConfigFile);
 		if (res != user_info.size())
 		{
-			result = shared::ServerResponse::Error({ "Failed to write User Info to disc, write error" });
+			err.Add({ ErrorType::ERROR, { "Failed to write User Info to disc, write error" } });
 		}
 		std::fclose(appConfigFile);
 	}
 	else
 	{
-		result = shared::ServerResponse::Error({ "Failed to open user data file : " + *user_data_path });
+		err.Add({ ErrorType::ERROR, { "Failed to open user data file : " + *user_data_path } });
 	}
-	return result;
+	return err;
 }
 
 
@@ -113,11 +123,11 @@ std::optional<std::string> UserData::GetAbsoluteUserDataPath() const
 	return external_files_dir ? *external_files_dir + "/" + user_data_file : external_files_dir;
 }
 
-std::variant<shared::ServerResponse, std::string> UserData::GetExternalFilesDir(struct android_app* native_app) const
+std::variant<shared::Error, std::string> UserData::GetExternalFilesDir(struct android_app* native_app) const
 {
 	if (!native_app)
 	{
-		return shared::ServerResponse::Error({ "Passed android native app pointer is invalid" });
+		return Error(ErrorType::ERROR, { "Passed android native app pointer is invalid" });
 	}
 
 	jint lResult;
@@ -133,12 +143,12 @@ std::variant<shared::ServerResponse, std::string> UserData::GetExternalFilesDir(
 	lResult = lJavaVM->AttachCurrentThread(&lJNIEnv, &lJavaVMAttachArgs);
 	if (lResult == JNI_ERR)
 	{
-		return shared::ServerResponse::Error({ "Failed to attach to JNI thread from native activity" });
+		return Error(ErrorType::ERROR, { "Failed to attach to JNI thread from native activity" });
 	}
 
 	// Return information
 	std::string result_id{};
-	shared::ServerResponse response = shared::ServerResponse::OK();
+	shared::Error error{ErrorType::OK};
 
 	// Retrieves NativeActivity.
 	jobject lNativeActivity = native_app->activity->clazz;
@@ -167,16 +177,10 @@ std::variant<shared::ServerResponse, std::string> UserData::GetExternalFilesDir(
 	}
 	else
 	{
-		response = shared::ServerResponse::Error({ "Failed retrieving ExternalFilesDirObject from JNI" });
+		error = Error(ErrorType::ERROR, { "Failed retrieving ExternalFilesDirObject from JNI" });
 	}
 	// Make sure to detach always
 	lJavaVM->DetachCurrentThread();
-	if (response)
-	{
-		return result_id;
-	}
-	else
-	{
-		return response;
-	}
+	if (error) return error;
+	else return result_id;
 }
