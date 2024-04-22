@@ -17,6 +17,11 @@ namespace MainScreenConst
 	inline const float BotWinCursor = TabWinCursor + TabWinSize;
 }
 
+namespace TraversalWindowConst
+{
+	inline const uint16_t lobbies_per_line = 2u;
+}
+
 namespace ButtonColors
 {
 	inline const ImVec4 Unselected	= { 82 / 255.0f, 82 / 255.0f, 82 / 255.0f, 1.0f };

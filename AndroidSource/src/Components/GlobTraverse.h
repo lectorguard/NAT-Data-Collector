@@ -1,4 +1,5 @@
 #pragma once
+#include "Data/Traversal.h"
 
 class Application;
 
@@ -26,6 +27,7 @@ public:
 	void Deactivate(class Application* app) {};
 
 	TraverseStep GetTraversalState() const { return currentTraversalStep; }
+	GetAllLobbies all_lobbies{};
 private:
 	TraverseStep currentTraversalStep = TraverseStep::Idle;
 	void OnJoinLobby(uint16_t lobbyIndex);

@@ -35,18 +35,15 @@ void TraversalWindow::Draw(Application* app)
 	else
 	{
 		ImGui::PushFont(Renderer::med_large_font);
-		const uint16_t buttons_per_line = 2u;
-		const uint16_t total_buttons = 40u;
-		button_colors.resize(total_buttons, ImVec4{});
-		for (size_t i = 0; i < total_buttons; ++i)
+		button_colors.resize(traverse_impl.all_lobbies.lobbies.size(), ImVec4{});
+		uint16_t count = 0;
+		for (const auto& [sess, lobby] : traverse_impl.all_lobbies.lobbies)
 		{
-			std::stringstream ss;
-			ss << i + 1 << "default-user";
-			if (utilities::StyledButton(ss.str().c_str(), button_colors.at(i)))
+			if (utilities::StyledButton(lobby.owner.username.c_str(), button_colors.at(count)))
 			{
-				model.JoinLobby(i);
+				model.JoinLobby(sess);
 			}
-			if (i % buttons_per_line != buttons_per_line - 1)
+			if (count % TraversalWindowConst::lobbies_per_line != TraversalWindowConst::lobbies_per_line - 1)
 			{
 				ImGui::SameLine();
 			}
@@ -54,6 +51,7 @@ void TraversalWindow::Draw(Application* app)
 			{
 				ImGui::Dummy(ImVec2(0, Renderer::CentimeterToPixel(0.05f)));
 			}
+			++count;
 		}
 	}
 	ImGui::End();

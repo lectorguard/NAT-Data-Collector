@@ -81,7 +81,7 @@ public:
 	void SubscribeRecalculateNAT(std::function<void(bool)> cb);
 
 	//Traversal
-	void JoinLobby(uint16_t lobby_index) { OnJoinLobby.Publish(lobby_index); }
+	void JoinLobby(uint64_t lobby_index) { OnJoinLobby.Publish(lobby_index); }
 	void SubscribeJoinLobby(std::function<void(uint16_t)> cb) { OnJoinLobby.Subscribe(cb); }
 
 
@@ -114,5 +114,5 @@ private:
 	Event<bool> OnRecalculateNAT;
 
 	//Traversal
-	Event<uint16_t> OnJoinLobby;
+	Event<uint64_t> OnJoinLobby;
 };
