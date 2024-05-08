@@ -32,7 +32,7 @@ shared::Error UserData::ValidateUsername()
 	else
 	{
 		return Error{ 
-			ErrorType::WARNING, 
+			ErrorType::ERROR, 
 			{ 
 				"Please enter valid username first.",
 				"Username must have at least 1 and max" + std::to_string(maxUsernameLength) + " characters." 

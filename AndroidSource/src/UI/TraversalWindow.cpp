@@ -27,7 +27,7 @@ void TraversalWindow::Draw(Application* app)
 	
 	ImGui::PushStyleVar(ImGuiStyleVar_ScrollbarSize, Renderer::CentimeterToPixel(StyleConst::ScrollbarSizeCM));
 	ImGui::Begin("Traverse", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoTitleBar);
-	if (traverse_impl.GetTraversalState() == TraverseStep::StartJoinLobby)
+	if (traverse_impl.GetTraversalState() == TraverseStep::JoinLobby)
 	{
 		ImGui::PushFont(Renderer::small_font);
 		ImGui::TextUnformatted("Join lobby. Wait for user confirmation.");

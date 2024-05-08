@@ -21,3 +21,14 @@ struct ServerHandler<shared::Transaction::SERVER_CREATE_LOBBY>
 		return DataPackage::Create<ErrorType::OK>();
 	}
 };
+
+
+template<>
+struct ServerHandler<shared::Transaction::SERVER_JOIN_LOBBY>
+{
+	static const shared::DataPackage Handle(shared::DataPackage pkg, Server* ref, uint64_t session_hash)
+	{
+		return DataPackage::Create<ErrorType::OK>();
+	}
+};
+

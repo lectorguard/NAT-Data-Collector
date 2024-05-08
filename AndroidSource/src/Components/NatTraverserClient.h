@@ -22,7 +22,8 @@ public:
 	Error ConnectServer(std::string_view server_addr, uint16_t server_port);
 	Error Disconnect();
 	Error RegisterUser(std::string const& username);
-	bool HasResponse();
+	Error JoinLobby(uint16_t join_session_key, uint16_t user_session_key);
+	std::optional<DataPackage> TryGetResponse();
 
 
 private:
@@ -39,6 +40,8 @@ private:
 	static void write_loop(TraversalInfo const& info, asio::ip::tcp::socket& socket);
 	static void read_loop(TraversalInfo const& info, asio::ip::tcp::socket& socket);
 	static void push_error(Error error, AsyncQueue read_queue);
+
+	Error push_package(DataPackage& pkg);
 
 
 	AsyncQueue write_queue = nullptr;

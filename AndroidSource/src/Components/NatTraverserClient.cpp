@@ -46,6 +46,24 @@ Error NatTraverserClient::Disconnect()
 	return response;
 }
 
+Error NatTraverserClient::push_package(DataPackage& pkg)
+{
+	if (auto buffer = pkg.Compress())
+	{
+		if (write_queue)
+		{
+			write_queue->Push(std::move(*buffer));
+			return Error{ ErrorType::OK };
+		}
+		else
+		{
+			return Error{ ErrorType::ERROR, {"Write Queue is Null. NatTraverserClient was not initialized correctly" } };
+		}
+	}
+	return Error{ ErrorType::ERROR, {"Failed to compress data package"} };
+}
+
+
 Error NatTraverserClient::RegisterUser(std::string const& username)
 {
 	if (!rw_future.valid())
@@ -57,29 +75,33 @@ Error NatTraverserClient::RegisterUser(std::string const& username)
 		DataPackage::Create(nullptr, Transaction::SERVER_CREATE_LOBBY)
 		.Add(MetaDataField::USERNAME, username);
 
-	if (auto buffer = data_package.Compress())
-	{
-		if (write_queue)
-		{
-			write_queue->Push(std::move(*buffer));
-			return Error{ ErrorType::OK };
-		}
-		else
-		{
-			return Error{ ErrorType::ERROR, {"Write Queue is Null. NatTraverserClient was not initialized correctly" }};
-		}
-	}
-	return Error{ ErrorType::ERROR, {"Failed to compress data package for lobby creation"} };
+	return push_package(data_package);
 }
 
-bool NatTraverserClient::HasResponse()
+Error NatTraverserClient::JoinLobby(uint16_t join_session_key, uint16_t user_session_key)
 {
-	if (read_queue)
+	if (!rw_future.valid())
 	{
-		return read_queue->Size() > 0;
+		return Error(ErrorType::ERROR, { "Please call connect before any othe action" });
 	}
-	return false;
-	
+
+	auto data_package =
+		DataPackage::Create(nullptr, Transaction::SERVER_JOIN_LOBBY)
+		.Add(MetaDataField::JOIN_SESSION_KEY, join_session_key)
+		.Add(MetaDataField::USER_SESSION_KEY, user_session_key);
+
+	return push_package(data_package);
+}
+
+std::optional<DataPackage> NatTraverserClient::TryGetResponse()
+{
+	if (!read_queue)return std::nullopt;
+	std::vector<uint8_t> buf;
+	if (read_queue->TryPop(buf))
+	{
+		return DataPackage::Decompress(buf);
+	}
+	return std::nullopt;
 }
 
 Error NatTraverserClient::connect_internal(TraversalInfo const& info)
@@ -126,7 +148,7 @@ void NatTraverserClient::write_loop(TraversalInfo const& info, asio::ip::tcp::so
 
 	for (;;)
 	{
-		if (info.shutdown)
+		if (info.shutdown && *info.shutdown)
 		{
 			break;
 		}
@@ -152,7 +174,7 @@ void NatTraverserClient::read_loop(TraversalInfo const& info, asio::ip::tcp::soc
 	using namespace shared::helper;
 	for (;;)
 	{
-		if (info.shutdown)
+		if (info.shutdown && *info.shutdown)
 		{
 			break;
 		}

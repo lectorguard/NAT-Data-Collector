@@ -26,6 +26,7 @@ namespace shared
 		SERVER_GET_VERSION_DATA,
 		SERVER_GET_INFORMATION_DATA,
 		SERVER_CREATE_LOBBY,
+		SERVER_JOIN_LOBBY,
 		SERVER_END
 	};
 
@@ -38,7 +39,9 @@ namespace shared
 		ANDROID_ID,
 		USERS_COLL_NAME,
 		DATA_COLL_NAME,
-		USERNAME
+		USERNAME,
+		JOIN_SESSION_KEY,
+		USER_SESSION_KEY
 	};
 
 	inline const std::map<MetaDataField, std::string> meta_data_to_string{
@@ -49,7 +52,9 @@ namespace shared
 		{MetaDataField::ANDROID_ID, "android_id"},
 		{MetaDataField::USERS_COLL_NAME, "users_coll_name"},
 		{MetaDataField::DATA_COLL_NAME, "data_coll_name"},
-		{MetaDataField::USERNAME, "username"}
+		{MetaDataField::USERNAME, "username"},
+		{MetaDataField::JOIN_SESSION_KEY, "join_session_key"},
+		{MetaDataField::USER_SESSION_KEY, "user_session_key"}
 	};
 
 	enum class NATType : uint8_t
