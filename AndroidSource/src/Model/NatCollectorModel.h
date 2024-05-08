@@ -4,6 +4,7 @@
 #include "CustomCollections/Event.h"
 #include "Components/ConnectionReader.h"
 #include "Data/IPMetaData.h"
+#include "Data/Traversal.h"
 
 
 enum class NatCollectorGlobalState : uint8_t
@@ -29,6 +30,7 @@ enum class NatCollectorPopUpState : uint16_t
 	NatInfoWindow,
 	VersionUpdateWindow,
 	InformationUpdateWindow,
+	JoinLobbyPopUpWindow,
 	Wait
 };
 
@@ -81,8 +83,12 @@ public:
 	void SubscribeRecalculateNAT(std::function<void(bool)> cb);
 
 	//Traversal
-	void JoinLobby(uint64_t lobby_index) { OnJoinLobby.Publish(lobby_index); }
-	void SubscribeJoinLobby(std::function<void(uint16_t)> cb) { OnJoinLobby.Subscribe(cb); }
+	void JoinLobby(uint64_t owner_session) { OnJoinLobby.Publish(owner_session); }
+	void SubscribeJoinLobby(std::function<void(uint64_t)> cb) { OnJoinLobby.Subscribe(cb); }
+	void ConfirmJoinLobby(shared::Lobby lobby) { OnConfirmJoinLobby.Publish(lobby); }
+	void SubscribeConfirmJoinLobby(std::function<void(shared::Lobby)> cb) { OnConfirmJoinLobby.Subscribe(cb); }
+	void CancelJoinLobby(Application* app) { OnCancelJoinLobby.Publish(app); }
+	void SubscribeCancelJoinLobby(std::function<void(Application*)> cb) { OnCancelJoinLobby.Subscribe(cb); }
 
 
 	// General
@@ -115,4 +121,6 @@ private:
 
 	//Traversal
 	Event<uint64_t> OnJoinLobby;
+	Event<shared::Lobby> OnConfirmJoinLobby;
+	Event<Application*> OnCancelJoinLobby;
 };

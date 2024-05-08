@@ -9,7 +9,9 @@ void GlobTraverse::Activate(Application* app)
 		[this, app](auto s) { StartDraw(app); },
 		[this](auto app, auto s) { Update(app); },
 		[this, app](auto s) { EndDraw(app); });
-	nat_model.SubscribeJoinLobby([this, app](uint16_t i) {JoinLobby(app,i); });
+	nat_model.SubscribeJoinLobby([this, app](uint64_t i) {JoinLobby(app,i); });
+	nat_model.SubscribeCancelJoinLobby([this](Application* app) {Shutdown(app); });
+	nat_model.SubscribeConfirmJoinLobby([this](Lobby l) {OnJoinLobbyAccept(l); });
 }
 
 void GlobTraverse::StartDraw(Application* app)
@@ -53,26 +55,36 @@ void GlobTraverse::Update(Application* app)
 
 	if (auto data_package = traversal_client.TryGetResponse())
 	{
-		HandlePackage(*data_package);
+		HandlePackage(app,*data_package);
 	}
 
 }
 
-void GlobTraverse::HandlePackage(DataPackage& data_package)
+void GlobTraverse::HandlePackage(Application* app, DataPackage& data_package)
 {
 	switch (data_package.transaction)
 	{
 	case Transaction::CLIENT_RECEIVE_LOBBIES:
 	{
-		GetAllLobbies rcvd_lobbies;
-		if (auto err = data_package.Get<GetAllLobbies>(rcvd_lobbies))
+		if (auto err = data_package.Get<GetAllLobbies>(all_lobbies))
 		{
 			Log::HandleResponse(data_package, "Client Receive Lobbies");
-			traversal_client.Disconnect();
-			currentTraversalStep = TraverseStep::Idle;
+			Shutdown(app);
 			break;
 		}
-		all_lobbies = rcvd_lobbies;
+		break;
+	}
+	case Transaction::CLIENT_CONFIRM_JOIN_LOBBY:
+	{
+		if (auto err = data_package.Get<Lobby>(confirm_lobby))
+		{
+			Log::HandleResponse(data_package, "Client Confirm Lobby");
+			Shutdown(app);
+			break;
+		}
+		Log::Info("Start Confirm Lobby");
+		currentTraversalStep = TraverseStep::ConfirmLobby;
+		app->_components.Get<NatCollectorModel>().PushPopUpState(NatCollectorPopUpState::JoinLobbyPopUpWindow);
 		break;
 	}
 	default:
@@ -80,46 +92,61 @@ void GlobTraverse::HandlePackage(DataPackage& data_package)
 		Log::HandleResponse(data_package.error, "Traversal try get response");
 		if (data_package.error)
 		{
-			traversal_client.Disconnect();
-			currentTraversalStep = TraverseStep::Idle;
+			Shutdown(app);
 		}
 		break;
 	}
 	}
 }
 
-void GlobTraverse::JoinLobby(Application* app, uint16_t join_sesssion)
+void GlobTraverse::JoinLobby(Application* app, uint64_t join_sesssion)
 {
-	const std::string username = app->_components.Get<UserData>().info.username;
-	uint16_t current_session{};
-	std::any_of(all_lobbies.lobbies.begin(), all_lobbies.lobbies.end(),
-		[&current_session, username](auto tuple)
-		{
-			if (tuple.second.owner.username == username)
-			{
-				current_session = tuple.first;
-				return true;
-			};
-			return false;
-		});
-	if (current_session)
+	if (currentTraversalStep != TraverseStep::Connected)
 	{
-		Log::Info("join Session %d, remove current session %d of user %s", join_sesssion, current_session, username.c_str());
+		Log::Warning("You can not join a lobby in your current state.");
+		return;
+	}
+
+	const std::string username = app->_components.Get<UserData>().info.username;
+	uint64_t user_session;
+	if (auto err = NatTraverserClient::FindUserSession(username, all_lobbies, user_session))
+	{
+		Log::HandleResponse(err, "Join Traversal Lobby");
+		Shutdown(app);
+	}
+	
+	if (auto err = traversal_client.JoinLobby(join_sesssion, user_session))
+	{
+		Log::HandleResponse(err, "Join Traversal Lobby");
+		Shutdown(app);
 	}
 	else
 	{
-		traversal_client.Disconnect();
-		currentTraversalStep = TraverseStep::Idle;
+		Log::Info("Start joining lobby");
+		currentTraversalStep = TraverseStep::JoinLobby;
+		app->_components.Get<NatCollectorModel>().PushPopUpState(NatCollectorPopUpState::JoinLobbyPopUpWindow);
 	}
+}
+
+void GlobTraverse::OnJoinLobbyAccept(Lobby join_lobby)
+{
+	Log::Info("Lobby accepted");
 }
 
 
 void GlobTraverse::EndDraw(Application* app)
 {
-	NatCollectorModel& nat_model = app->_components.Get<NatCollectorModel>();
-	// Switch tab if trversal is not selected
-	if (nat_model.GetTabState() == NatCollectorTabState::Traversal)
-		nat_model.SetTabState(NatCollectorTabState::Log);
+	if (auto err = traversal_client.Disconnect())
+	{
+		Log::HandleResponse(err, "Switch glob tab state traverse");
+	}
+}
 
-	// switchs state to unregister lobby if possible
+void GlobTraverse::Shutdown(Application* app)
+{
+	confirm_lobby = Lobby{};
+	all_lobbies = GetAllLobbies{};
+	traversal_client.Disconnect();
+	currentTraversalStep = TraverseStep::Idle;
+	app->_components.Get<NatCollectorModel>().SetNextGlobalState(NatCollectorGlobalState::Idle);
 }

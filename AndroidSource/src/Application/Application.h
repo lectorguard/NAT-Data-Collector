@@ -16,6 +16,7 @@
 #include "UI/WrongNatTypeWindow.h"
 #include "UI/VersionUpdateWindow.h"
 #include "UI/InformationUpdateWindow.h"
+#include "UI/JoinLobbyWindow.h"
 #include "Components/ConnectionReader.h"
 #include "Components/GlobCollectSamples.h"
 #include "Components/GlobUserGuidance.h"
@@ -30,7 +31,12 @@
 
 class Application
 {
-	using ComponentsType = ComponentManager<SensorManager, Renderer, InputManager, Scoreboard, UserData, AwakeManager, NatCollectorModel, MainScreen, LogWindow, ScoreboardWindow, PopUpWindow, WrongNatTypeWindow, VersionUpdateWindow, InformationUpdateWindow, ConnectionReader, GlobCollectSamples, GlobUserGuidance, GlobIdle, CopyLog, GlobTraverse, TraversalWindow>;
+	using ComponentsType = 
+		ComponentManager<SensorManager, Renderer, InputManager, Scoreboard, 
+		UserData, AwakeManager, NatCollectorModel, MainScreen, LogWindow, 
+		ScoreboardWindow, PopUpWindow, WrongNatTypeWindow, VersionUpdateWindow,
+		InformationUpdateWindow, ConnectionReader, GlobCollectSamples, GlobUserGuidance,
+		GlobIdle, CopyLog, GlobTraverse, TraversalWindow, JoinLobbyWindow>;
 
 public:
 	Application() {};

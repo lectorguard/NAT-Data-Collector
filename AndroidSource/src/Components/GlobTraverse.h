@@ -1,5 +1,4 @@
 #pragma once
-#include "Data/Traversal.h"
 #include "NatTraverserClient.h"
 
 class Application;
@@ -9,6 +8,7 @@ enum class TraverseStep
 	Idle = 0,
 	Connected,
 	JoinLobby,
+	ConfirmLobby
 };
 
 
@@ -20,13 +20,16 @@ public:
 
 	TraverseStep GetTraversalState() const { return currentTraversalStep; }
 	GetAllLobbies all_lobbies{};
+	Lobby confirm_lobby{};
 private:
 	NatTraverserClient traversal_client{};
 	TraverseStep currentTraversalStep = TraverseStep::Idle;
 
-	void HandlePackage(DataPackage& data_package);
-	void JoinLobby(Application* app, uint16_t join_sesssion);
+	void OnJoinLobbyAccept(Lobby join_lobby);
+	void HandlePackage(Application* app, DataPackage& data_package);
+	void JoinLobby(Application* app, uint64_t join_sesssion);
 	void StartDraw(Application* app);
 	void Update(Application* app);
 	void EndDraw(Application* app);
+	void Shutdown(Application* app);
 };

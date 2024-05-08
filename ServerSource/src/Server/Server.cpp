@@ -53,6 +53,30 @@ void Server::send_lobby_owners_if(shared::DataPackage data, std::function<bool(c
 		});
 }
 
+void Server::send_session(shared::DataPackage data, uint64_t session)
+{
+	auto buffer = data.Compress();
+	if (!buffer)
+	{
+		std::cout << "Failed to serialize response to all lobby owners" << std::endl;
+		return;
+	}
+
+	post(acceptor_.get_executor(),
+		[this, resp = *buffer, session]() mutable
+		{
+			if (_sessions.contains(session))
+			{
+				if (auto const sess = _sessions[session].lock())
+				{
+					sess->write(resp);
+				}
+			}
+		});
+}
+
+
+
 uint64_t Server::calcSocketHash(asio::ip::tcp::socket& s)
 {
 	const std::string remote_addr = s.remote_endpoint().address().to_string();

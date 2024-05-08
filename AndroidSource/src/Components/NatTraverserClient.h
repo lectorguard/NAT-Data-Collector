@@ -22,9 +22,10 @@ public:
 	Error ConnectServer(std::string_view server_addr, uint16_t server_port);
 	Error Disconnect();
 	Error RegisterUser(std::string const& username);
-	Error JoinLobby(uint16_t join_session_key, uint16_t user_session_key);
+	Error JoinLobby(uint64_t join_session_key, uint64_t user_session_key);
 	std::optional<DataPackage> TryGetResponse();
 
+	static Error FindUserSession(const std::string& username, const GetAllLobbies& lobbies, uint64_t& found_session);
 
 private:
 	struct TraversalInfo

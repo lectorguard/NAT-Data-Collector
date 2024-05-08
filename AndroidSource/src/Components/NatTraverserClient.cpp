@@ -78,7 +78,7 @@ Error NatTraverserClient::RegisterUser(std::string const& username)
 	return push_package(data_package);
 }
 
-Error NatTraverserClient::JoinLobby(uint16_t join_session_key, uint16_t user_session_key)
+Error NatTraverserClient::JoinLobby(uint64_t join_session_key, uint64_t user_session_key)
 {
 	if (!rw_future.valid())
 	{
@@ -86,7 +86,7 @@ Error NatTraverserClient::JoinLobby(uint16_t join_session_key, uint16_t user_ses
 	}
 
 	auto data_package =
-		DataPackage::Create(nullptr, Transaction::SERVER_JOIN_LOBBY)
+		DataPackage::Create(nullptr, Transaction::SERVER_ASK_JOIN_LOBBY)
 		.Add(MetaDataField::JOIN_SESSION_KEY, join_session_key)
 		.Add(MetaDataField::USER_SESSION_KEY, user_session_key);
 
@@ -102,6 +102,28 @@ std::optional<DataPackage> NatTraverserClient::TryGetResponse()
 		return DataPackage::Decompress(buf);
 	}
 	return std::nullopt;
+}
+
+Error NatTraverserClient::FindUserSession(const std::string& username, const GetAllLobbies& lobbies, uint64_t& found_session)
+{
+	const bool success = std::any_of(lobbies.lobbies.begin(), lobbies.lobbies.end(),
+		[&found_session, username](auto tuple)
+		{
+			if (tuple.second.owner.username == username)
+			{
+				found_session = tuple.first;
+				return true;
+			};
+			return false;
+		});
+	if (success)
+	{
+		return Error(ErrorType::OK);
+	}
+	else
+	{
+		return Error(ErrorType::ERROR, { "Can not find session associated to this user" });
+	}
 }
 
 Error NatTraverserClient::connect_internal(TraversalInfo const& info)
