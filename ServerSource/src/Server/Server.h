@@ -24,6 +24,8 @@ public:
 	void remove_lobby(User owner);
 	void remove_member(User owner, std::vector<User> members_to_remove);
 	const std::map<uint64_t, Lobby> GetLobbies();
+
+
 private:
 	std::mutex lobby_mutex{};
 
@@ -38,4 +40,9 @@ private:
 	// Contains currently online lobbies, auto cleared on socket disconnect
 	std::map<uint64_t, Lobby> _lobbies;
 	asio::ip::tcp::acceptor acceptor_;
+	asio::system_timer expired_timer;
+
+
+	friend class Session;
+	void expired_session_loop();
 };

@@ -38,8 +38,7 @@ private:
 	};
 
 	static Error connect_internal(TraversalInfo const& info);
-	static void write_loop(TraversalInfo const& info, asio::ip::tcp::socket& socket);
-	static void read_loop(TraversalInfo const& info, asio::ip::tcp::socket& socket);
+	static void async_read_msg_length(TraversalInfo const& info, asio::ip::tcp::socket& s);
 	static void push_error(Error error, AsyncQueue read_queue);
 
 	Error push_package(DataPackage& pkg);
@@ -50,4 +49,8 @@ private:
 	ShutdownSignal shutdown_flag = nullptr;
 	ReadWriteFuture rw_future;
 
+	
+	static void async_read_msg(uint32_t msg_len, asio::ip::tcp::socket& s, TraversalInfo const& info);
+	static void async_write_msg(TraversalInfo const& info, asio::ip::tcp::socket& s);
+	static void write_loop(asio::io_service& s, asio::system_timer& timer, TraversalInfo const& info, asio::ip::tcp::socket& socket);
 };

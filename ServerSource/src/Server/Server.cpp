@@ -2,12 +2,33 @@
 #include "SharedProtocol.h"
 
 Server::Server(asio::io_service& io_service, uint16_t port) : 
-	acceptor_(asio::make_strand(io_service), asio::ip::tcp::endpoint(asio::ip::tcp::v4(), port))
+	acceptor_(asio::make_strand(io_service), asio::ip::tcp::endpoint(asio::ip::tcp::v4(), port)),
+	expired_timer(asio::system_timer(io_service))
 {
 	std::cout << "Start TCP Transaction Server on local port : " << port << std::endl;
 	acceptor_.listen();
 	do_accept();
+
+	expired_session_loop();
 }
+
+
+void Server::expired_session_loop()
+{
+	expired_timer.expires_from_now(std::chrono::milliseconds(500));
+	expired_timer.async_wait(
+		[this](auto error)
+		{
+			// If timer activates without abortion, we close the socket
+			if (error != asio::error::operation_aborted)
+			{
+				remove_expired_sessions();
+				expired_session_loop();
+			}
+		}
+	);
+}
+
 
 void Server::send_all(char const* msg, size_t length)
 {
@@ -94,8 +115,6 @@ void Server::do_accept()
 				auto sess = std::make_shared<Session>(std::move(s), hash, this);
 				_sessions[hash] = sess;
 				sess->start();
-				// clean old unused sessions.
-				remove_expired_sessions();
 			}
 			do_accept();
 		});
@@ -109,6 +128,7 @@ void Server::remove_expired_sessions()
 				auto const& [key, handle] = item;
 				return handle.expired();
 			});
+	if (removed_sessions == 0) return;
 	std::atomic<bool> needsUpdate = false;
 	std::atomic<uint64_t> removed_lobbies = 0;
 	{

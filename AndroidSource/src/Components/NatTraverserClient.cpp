@@ -33,9 +33,11 @@ Error NatTraverserClient::ConnectServer(std::string_view server_addr, uint16_t s
 
 Error NatTraverserClient::Disconnect()
 {
+	
 	auto response = Error{ErrorType::OK};
 	if (write_queue && read_queue && shutdown_flag)
 	{
+		Log::Info("Disconnected from NAT Traversal service");
 		*shutdown_flag = true;
 		rw_future.wait();
 		response = rw_future.get();
@@ -62,7 +64,6 @@ Error NatTraverserClient::push_package(DataPackage& pkg)
 	}
 	return Error{ ErrorType::ERROR, {"Failed to compress data package"} };
 }
-
 
 Error NatTraverserClient::RegisterUser(std::string const& username)
 {
@@ -147,95 +148,132 @@ Error NatTraverserClient::connect_internal(TraversalInfo const& info)
 	{
 		return error;
 	}
-	
-	std::thread write
+
+	async_read_msg_length(info, socket);
+	auto timer = asio::system_timer(io_context);
+	write_loop(io_context, timer, info, socket);
+
+	io_context.run(asio_error);
+	asio::error_code shutdown_error;
+	utilities::ShutdownTCPSocket(socket, shutdown_error);
+	if (asio_error)
 	{
-		[info, &socket]() { NatTraverserClient::write_loop(info, socket); }
-	};
-
-	std::thread read
+		return Error::FromAsio(asio_error);
+	}
+	else
 	{
-		[info, &socket]() { NatTraverserClient::read_loop(info, socket); }
-	};
-
-	read.join();
-	write.join();
-	utilities::ShutdownTCPSocket(socket, asio_error);
-	return Error::FromAsio(asio_error, "Shutdown Socket");
-}
-
-void NatTraverserClient::write_loop(TraversalInfo const& info, asio::ip::tcp::socket& socket)
-{
-	using namespace shared::helper;
-
-	for (;;)
-	{
-		if (info.shutdown && *info.shutdown)
-		{
-			break;
-		}
-
-		std::vector<uint8_t> buf;
-		if (info.write_queue->TryPop(buf))
-		{
-			asio::error_code ec;
-			asio::write(socket, asio::buffer(buf), ec);
-			if (auto err = Error::FromAsio(ec, "Write message to server"))
-			{
-				push_error(err, info.read_queue);
-			}
-		}
-		// Reduce battery drain
-		std::this_thread::sleep_for(std::chrono::milliseconds(1));
+		return Error::FromAsio(shutdown_error);
 	}
 }
 
-void NatTraverserClient::read_loop(TraversalInfo const& info, asio::ip::tcp::socket& socket)
+
+void NatTraverserClient::write_loop(asio::io_service& s, asio::system_timer& timer, TraversalInfo const& info, asio::ip::tcp::socket& socket)
 {
+	timer.expires_from_now(std::chrono::milliseconds(1));
+	timer.async_wait(
+		[&s, &timer, info, &socket](auto error)
+		{
+			// If timer activates without abortion, we close the socket
+			if (error != asio::error::operation_aborted)
+			{
+				async_write_msg(info, socket);
+				write_loop(s, timer, info, socket);
+			}
+		}
+	);
 
-	using namespace shared::helper;
-	for (;;)
+	if (info.shutdown && *info.shutdown)
 	{
-		if (info.shutdown && *info.shutdown)
-		{
-			break;
-		}
+		s.stop();
+	}
+}
 
-		asio::error_code ec;
-		uint8_t len_buffer[MAX_MSG_LENGTH_DECIMALS] = { 0 };
-		std::size_t len = asio::read(socket, asio::buffer(len_buffer), asio::transfer_exactly(MAX_MSG_LENGTH_DECIMALS), ec);
-		if (auto error = Error::FromAsio(ec, "Read length of server answer"))
+void NatTraverserClient::async_read_msg_length(TraversalInfo const& info, asio::ip::tcp::socket& s)
+{
+	auto buffer_data = std::make_unique<std::uint8_t[]>(MAX_MSG_LENGTH_DECIMALS);
+	auto buffer = asio::buffer(buffer_data.get(), MAX_MSG_LENGTH_DECIMALS);
+	async_read(s, buffer,
+		asio::transfer_exactly(MAX_MSG_LENGTH_DECIMALS),
+		[buf = std::move(buffer_data), info, &s](asio::error_code ec, size_t length)
 		{
-			push_error(error, info.read_queue);
-		}
-		else
-		{
-			if (len != MAX_MSG_LENGTH_DECIMALS) continue;
-			uint32_t next_msg_len{}; 
-			try
-			{
-				next_msg_len = std::stoi(std::string(len_buffer, len_buffer + MAX_MSG_LENGTH_DECIMALS));
-			}
-			catch (...)
-			{
-				// handle situation when wrong protocol is sent
-				// throw all read data to garbage
-				uint8_t buf[1000000];
-				asio::read(socket, asio::buffer(buf), ec);
-				break;
-			}
-			std::vector<uint8_t> buf;
-			buf.resize(next_msg_len);
-			asio::read(socket, asio::buffer(buf), asio::transfer_exactly(next_msg_len), ec);
-			if (auto error = Error::FromAsio(ec, "Read Answer from Server Request"))
+			if (auto error = Error::FromAsio(ec, "Read length of server answer"))
 			{
 				push_error(error, info.read_queue);
 			}
+			else if (length != MAX_MSG_LENGTH_DECIMALS)
+			{
+				push_error(Error(ErrorType::WARNING, { "Received invalid message length when reading msg length" }), info.read_queue);
+				async_read_msg_length(info, s);
+			}
 			else
 			{
-				info.read_queue->Push(std::move(buf));
+				uint32_t next_msg_len{};
+				try
+				{
+					next_msg_len = std::stoi(std::string(buf.get(), buf.get() + MAX_MSG_LENGTH_DECIMALS));
+				}
+				catch (...)
+				{
+					// handle situation when wrong protocol is sent
+					// throw all read data to garbage
+					uint8_t to_discard[1000000];
+					asio::read(s, asio::buffer(to_discard), ec);
+					async_read_msg_length(info, s);
+					return;
+				}
+				async_read_msg(next_msg_len, s, info);
 			}
-		}
+		});
+}
+
+
+void NatTraverserClient::async_read_msg(uint32_t msg_len, asio::ip::tcp::socket& s, TraversalInfo const& info)
+{
+	auto buffer_data = std::make_unique<std::uint8_t[]>(msg_len);
+	auto buffer = asio::buffer(buffer_data.get(), msg_len);
+	async_read(s, buffer, asio::transfer_exactly(msg_len),
+		[buf = std::move(buffer_data), msg_len, &s, info](asio::error_code ec, size_t length)
+		{
+			if (auto error = Error::FromAsio(ec, "Read server answer"))
+			{
+				push_error(error, info.read_queue);
+			}
+			else if (length != msg_len)
+			{
+				push_error(Error(ErrorType::WARNING, { "Received invalid message length when reading message" }), info.read_queue);
+				async_read_msg_length(info, s);
+			}
+			else
+			{
+				// alloc answer memory
+				std::vector<uint8_t> serv_answer{ buf.get(), buf.get() + length };
+				info.read_queue->Push(std::move(serv_answer));
+				async_read_msg_length(info, s);
+			}
+		});
+}
+
+
+void NatTraverserClient::async_write_msg(TraversalInfo const& info, asio::ip::tcp::socket& s)
+{
+	if (info.write_queue->Size() == 0)
+		return;
+
+	std::vector<uint8_t> buf;
+	if (info.write_queue->TryPop(buf))
+	{
+		async_write(s, asio::buffer(buf),
+			[info, &s](asio::error_code ec, size_t length)
+			{
+				if (auto error = Error::FromAsio(ec, "Write message"))
+				{
+					push_error(error, info.read_queue);
+				}
+				else
+				{
+					async_write_msg(info, s);
+				}
+			});
 	}
 }
 
