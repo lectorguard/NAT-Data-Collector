@@ -30,28 +30,18 @@ void Server::expired_session_loop()
 }
 
 
-void Server::send_all(char const* msg, size_t length)
+void Server::send_all(std::vector<uint8_t> data)
 {
-	post(acceptor_.get_executor(), [this, msg = std::string(msg, length)]() mutable {
+	post(acceptor_.get_executor(), [this, data]() mutable {
 		for (auto const& [key, handle] : _sessions)
 			if (auto const sess = handle.lock())
-				sess->write(shared::stringToVector(msg));
+				sess->write(data);
 		});
 }
 
-void Server::send_lobby_owners_if(shared::DataPackage data, std::function<bool(const Lobby&)> pred)
+void Server::send_all_lobbies(shared::DataPackage pkg)
 {
-	auto lobbies = GetLobbies();
-	std::vector<uint64_t> toSend{};
-	for (auto const& [key, lobby] : lobbies)
-	{
-		if (pred(lobby))
-		{
-			toSend.push_back(key);
-		}
-	}
-
-	auto buffer = data.Compress();
+	auto buffer = pkg.Compress();
 	if (!buffer)
 	{
 		std::cout << "Failed to serialize response to all lobby owners" << std::endl;
@@ -59,9 +49,9 @@ void Server::send_lobby_owners_if(shared::DataPackage data, std::function<bool(c
 	}
 
 	post(acceptor_.get_executor(), 
-		[this, resp = *buffer, toSend]() mutable 
+		[this, resp = *buffer, lobbies = GetLobbies()]() mutable 
 		{
-			for (uint64_t hash : toSend)
+			for (auto const [hash, lobby] : lobbies)
 			{
 				if (_sessions.contains(hash))
 				{
@@ -72,6 +62,17 @@ void Server::send_lobby_owners_if(shared::DataPackage data, std::function<bool(c
 				}
 			}
 		});
+}
+
+GetAllLobbies Server::GetEmptyLobbies()
+{
+	GetAllLobbies lobbies = GetLobbies();
+	std::erase_if(lobbies.lobbies, [](auto kv)
+		{
+			auto const [sess, lobby] = kv;
+	return lobby.joined.size() > 0;
+		});
+	return lobbies;
 }
 
 void Server::send_session(shared::DataPackage data, uint64_t session)
@@ -157,13 +158,8 @@ void Server::remove_expired_sessions()
 	
 	if (needsUpdate)
 	{
-		// Only update empty lobbies
-		auto lobbies{ GetAllLobbies(GetLobbies()) };
-		send_lobby_owners_if(shared::DataPackage::Create(&lobbies, Transaction::CLIENT_RECEIVE_LOBBIES),
-			[](Lobby const& lobby)
-			{
-				return lobby.joined.size() == 0;
-			});
+		auto emptyLobbies = GetEmptyLobbies();
+		send_all_lobbies(DataPackage::Create(&emptyLobbies, Transaction::CLIENT_RECEIVE_LOBBIES));
 	}
 
 	std::cout << "Removed sessions : " 

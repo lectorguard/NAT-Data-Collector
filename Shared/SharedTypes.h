@@ -20,6 +20,7 @@ namespace shared
 		CLIENT_START,
 		CLIENT_RECEIVE_LOBBIES,
 		CLIENT_CONFIRM_JOIN_LOBBY,
+		CLIENT_START_ANALYZE_NAT,
 		CLIENT_END,
 		SERVER_START,
 		SERVER_INSERT_MONGO,
@@ -28,7 +29,7 @@ namespace shared
 		SERVER_GET_INFORMATION_DATA,
 		SERVER_CREATE_LOBBY,
 		SERVER_ASK_JOIN_LOBBY,
-		SERVER_CONFIRM_LOBBY_START_TRAVERSE,
+		SERVER_CONFIRM_LOBBY,
 		SERVER_END
 	};
 
@@ -42,6 +43,7 @@ namespace shared
 		USERS_COLL_NAME,
 		DATA_COLL_NAME,
 		USERNAME,
+		SESSION,
 		JOIN_SESSION_KEY,
 		USER_SESSION_KEY
 	};
@@ -55,6 +57,7 @@ namespace shared
 		{MetaDataField::USERS_COLL_NAME, "users_coll_name"},
 		{MetaDataField::DATA_COLL_NAME, "data_coll_name"},
 		{MetaDataField::USERNAME, "username"},
+		{MetaDataField::SESSION, "session"},
 		{MetaDataField::JOIN_SESSION_KEY, "join_session_key"},
 		{MetaDataField::USER_SESSION_KEY, "user_session_key"}
 	};

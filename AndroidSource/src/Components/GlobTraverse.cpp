@@ -11,13 +11,11 @@ void GlobTraverse::Activate(Application* app)
 		[this, app](auto s) { EndDraw(app); });
 	nat_model.SubscribeJoinLobby([this, app](uint64_t i) {JoinLobby(app,i); });
 	nat_model.SubscribeCancelJoinLobby([this](Application* app) {Shutdown(app); });
-	nat_model.SubscribeConfirmJoinLobby([this](Lobby l) {OnJoinLobbyAccept(l); });
+	nat_model.SubscribeConfirmJoinLobby([this, app](Lobby l) {OnJoinLobbyAccept(app,l); });
 }
 
 void GlobTraverse::StartDraw(Application* app)
 {
-	// Request Server
-	Log::Info("Start Traverse");
 	//Validate username
 	auto& user_data = app->_components.Get<UserData>();
 	if (auto err = user_data.ValidateUsername())
@@ -41,16 +39,35 @@ void GlobTraverse::StartDraw(Application* app)
 		Log::HandleResponse(err, "Start Traversal");
 		return;
 	}
+
 	currentTraversalStep = TraverseStep::Connected;
+	// Open Traversal Tab
+	app->_components.Get<NatCollectorModel>().SetTabState(NatCollectorTabState::Traversal);
 }
 
 void GlobTraverse::Update(Application* app)
 {
 	NatCollectorModel& model = app->_components.Get<NatCollectorModel>();
-	if (currentTraversalStep == TraverseStep::Idle)
+	switch (currentTraversalStep)
+	{
+	case TraverseStep::Idle:
 	{
 		model.TrySwitchGlobState();
 		return;
+	}
+	case TraverseStep::Connected:
+	{
+		if (model.TrySwitchGlobState())
+		{
+			Shutdown(app);
+			return;
+		}
+		break;
+	}
+	case TraverseStep::AnalyzeNAT:
+		break;
+	default:
+		break;
 	}
 
 	if (auto data_package = traversal_client.TryGetResponse())
@@ -62,6 +79,8 @@ void GlobTraverse::Update(Application* app)
 
 void GlobTraverse::HandlePackage(Application* app, DataPackage& data_package)
 {
+
+	NatCollectorModel& model = app->_components.Get<NatCollectorModel>();
 	switch (data_package.transaction)
 	{
 	case Transaction::CLIENT_RECEIVE_LOBBIES:
@@ -84,8 +103,28 @@ void GlobTraverse::HandlePackage(Application* app, DataPackage& data_package)
 		}
 		Log::Info("Start Confirm Lobby");
 		currentTraversalStep = TraverseStep::ConfirmLobby;
-		app->_components.Get<NatCollectorModel>().PushPopUpState(NatCollectorPopUpState::JoinLobbyPopUpWindow);
+		model.PushPopUpState(NatCollectorPopUpState::JoinLobbyPopUpWindow);
 		break;
+	}
+	case Transaction::CLIENT_START_ANALYZE_NAT:
+	{
+		if (data_package.error)
+		{
+			Log::HandleResponse(data_package.error, "Start Analyze NAT");
+			Shutdown(app);
+		}
+
+		uint64_t session = data_package.Get<uint64_t>(MetaDataField::SESSION);
+		// Remove all pending popups
+		while(!model.IsPopUpQueueEmpty())
+		{
+			model.PopPopUpState();
+		}
+		// Remaining information will be handled in Log
+		model.SetTabState(NatCollectorTabState::Log);
+
+		Log::Info("Start Analyze NAT");
+		currentTraversalStep = TraverseStep::AnalyzeNAT;
 	}
 	default:
 	{
@@ -115,7 +154,7 @@ void GlobTraverse::JoinLobby(Application* app, uint64_t join_sesssion)
 		Shutdown(app);
 	}
 	
-	if (auto err = traversal_client.JoinLobby(join_sesssion, user_session))
+	if (auto err = traversal_client.AskJoinLobby(join_sesssion, user_session))
 	{
 		Log::HandleResponse(err, "Join Traversal Lobby");
 		Shutdown(app);
@@ -128,9 +167,22 @@ void GlobTraverse::JoinLobby(Application* app, uint64_t join_sesssion)
 	}
 }
 
-void GlobTraverse::OnJoinLobbyAccept(Lobby join_lobby)
+void GlobTraverse::OnJoinLobbyAccept(Application* app, Lobby join_lobby)
 {
+	if (join_lobby.joined.size() != 1)
+	{
+		Log::Error("Invalid lobby to accept");
+		Shutdown(app);
+	}
+
 	Log::Info("Lobby accepted");
+
+	currentTraversalStep = TraverseStep::ConfirmLobby;
+	if (auto err = traversal_client.ConfirmLobby(join_lobby))
+	{
+		Log::HandleResponse(err, "Confirm Lobby");
+		Shutdown(app);
+	}
 }
 
 
@@ -139,6 +191,12 @@ void GlobTraverse::EndDraw(Application* app)
 	if (auto err = traversal_client.Disconnect())
 	{
 		Log::HandleResponse(err, "Switch glob tab state traverse");
+	}
+	// Switch Traversal tab when glob state changes
+	auto& model = app->_components.Get<NatCollectorModel>();
+	if (model.GetTabState() == NatCollectorTabState::Traversal)
+	{
+		model.SetTabState(NatCollectorTabState::Log);
 	}
 }
 

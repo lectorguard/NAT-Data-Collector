@@ -8,7 +8,8 @@ enum class TraverseStep
 	Idle = 0,
 	Connected,
 	JoinLobby,
-	ConfirmLobby
+	ConfirmLobby,
+	AnalyzeNAT,
 };
 
 
@@ -25,7 +26,7 @@ private:
 	NatTraverserClient traversal_client{};
 	TraverseStep currentTraversalStep = TraverseStep::Idle;
 
-	void OnJoinLobbyAccept(Lobby join_lobby);
+	void OnJoinLobbyAccept(Application* app, Lobby join_lobby);
 	void HandlePackage(Application* app, DataPackage& data_package);
 	void JoinLobby(Application* app, uint64_t join_sesssion);
 	void StartDraw(Application* app);

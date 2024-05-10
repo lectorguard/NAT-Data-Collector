@@ -136,11 +136,9 @@ void MainScreen::Draw(Application* app)
 	for (auto& tab: context_tabs)
 	{
 		// Ignore traversal tab when not traversing
-		if (modelRef.GetCurrentGlobState() != NatCollectorGlobalState::Traverse &&
+		if (modelRef.GetCurrentGlobState() != NatCollectorGlobalState::Traverse && 
 			tab.state == NatCollectorTabState::Traversal)
-		{
 			continue;
-		}
 
 		if (utilities::StyledButton(tab.label.data(), tab.button_color, modelRef.GetTabState() == tab.state))
 		{
