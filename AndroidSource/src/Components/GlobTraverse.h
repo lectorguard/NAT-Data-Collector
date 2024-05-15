@@ -12,17 +12,26 @@ enum class TraverseStep
 	AnalyzeNAT,
 };
 
+struct JoinLobbyInfo
+{
+	uint64_t other_session{};
+	Lobby merged_lobby{};
+};
+
 
 class GlobTraverse
 {
 public:
+
 	void Activate(Application* app);
 	void Deactivate(class Application* app) {};
 
 	TraverseStep GetTraversalState() const { return currentTraversalStep; }
 	GetAllLobbies all_lobbies{};
-	Lobby confirm_lobby{};
+	// Either join lobby id or new merged lobby
+	JoinLobbyInfo join_info;
 private:
+
 	NatTraverserClient traversal_client{};
 	TraverseStep currentTraversalStep = TraverseStep::Idle;
 

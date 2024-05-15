@@ -117,9 +117,9 @@ std::optional<DataPackage> NatTraverserClient::TryGetResponse()
 	return std::nullopt;
 }
 
-Error NatTraverserClient::FindUserSession(const std::string& username, const GetAllLobbies& lobbies, uint64_t& found_session)
+bool NatTraverserClient::TryGetUserSession(const std::string& username, const GetAllLobbies& lobbies, uint64_t& found_session)
 {
-	const bool success = std::any_of(lobbies.lobbies.begin(), lobbies.lobbies.end(),
+	return std::any_of(lobbies.lobbies.begin(), lobbies.lobbies.end(),
 		[&found_session, username](auto tuple)
 		{
 			if (tuple.second.owner.username == username)
@@ -129,14 +129,6 @@ Error NatTraverserClient::FindUserSession(const std::string& username, const Get
 			};
 			return false;
 		});
-	if (success)
-	{
-		return Error(ErrorType::OK);
-	}
-	else
-	{
-		return Error(ErrorType::ERROR, { "Can not find session associated to this user" });
-	}
 }
 
 Error NatTraverserClient::connect_internal(TraversalInfo const& info)

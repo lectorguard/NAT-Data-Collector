@@ -5,6 +5,7 @@
 #include "Data/Address.h"
 #include "misc/cpp/imgui_stdlib.h"
 #include "string"
+#include "variant"
 
 
 void JoinLobbyWindow::Activate(Application* app)
@@ -19,7 +20,7 @@ void JoinLobbyWindow::Draw(class Application* app)
 	auto& model = app->_components.Get<NatCollectorModel>();
 	auto& glob_traverse = app->_components.Get<GlobTraverse>();
 	const TraverseStep step = glob_traverse.GetTraversalState();
-	const auto confirm_lobby = glob_traverse.confirm_lobby;
+	const auto confirm_lobby = glob_traverse.join_info.merged_lobby;
 
 	ImGuiIO& io = ImGui::GetIO();
 
@@ -30,6 +31,7 @@ void JoinLobbyWindow::Draw(class Application* app)
 
 	if (step == TraverseStep::ConfirmLobby)
 	{
+		
 		if (confirm_lobby.joined.size() != 1) return;
 
 		const std::string header = "Join Request from " + confirm_lobby.joined[0].username;

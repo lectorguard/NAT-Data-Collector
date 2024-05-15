@@ -83,6 +83,7 @@ void GlobTraverse::HandlePackage(Application* app, DataPackage& data_package)
 	NatCollectorModel& model = app->_components.Get<NatCollectorModel>();
 	switch (data_package.transaction)
 	{
+	// Updated on disconnect
 	case Transaction::CLIENT_RECEIVE_LOBBIES:
 	{
 		if (auto err = data_package.Get<GetAllLobbies>(all_lobbies))
@@ -91,16 +92,35 @@ void GlobTraverse::HandlePackage(Application* app, DataPackage& data_package)
 			Shutdown(app);
 			break;
 		}
+		if (currentTraversalStep == TraverseStep::JoinLobby ||
+			currentTraversalStep == TraverseStep::ConfirmLobby)
+		{
+			// If other session to join is dropped, close window
+			if (!all_lobbies.lobbies.contains(join_info.other_session))
+			{
+				model.PopPopUpState();
+				Log::Warning("Lobby not available");
+				currentTraversalStep = TraverseStep::Connected;
+			}
+		}
 		break;
 	}
 	case Transaction::CLIENT_CONFIRM_JOIN_LOBBY:
 	{
-		if (auto err = data_package.Get<Lobby>(confirm_lobby))
+		if (auto err = data_package.Get<Lobby>(join_info.merged_lobby))
 		{
 			Log::HandleResponse(data_package, "Client Confirm Lobby");
 			Shutdown(app);
 			break;
 		}
+		if (join_info.merged_lobby.joined.size() == 0)
+		{
+			Log::Error("Received invalid lobby to confirm from server");
+			Shutdown(app);
+			break;
+		}
+		join_info.other_session = join_info.merged_lobby.joined[0].session;
+
 		Log::Info("Start Confirm Lobby");
 		currentTraversalStep = TraverseStep::ConfirmLobby;
 		model.PushPopUpState(NatCollectorPopUpState::JoinLobbyPopUpWindow);
@@ -148,10 +168,11 @@ void GlobTraverse::JoinLobby(Application* app, uint64_t join_sesssion)
 
 	const std::string username = app->_components.Get<UserData>().info.username;
 	uint64_t user_session;
-	if (auto err = NatTraverserClient::FindUserSession(username, all_lobbies, user_session))
+	if (!NatTraverserClient::TryGetUserSession(username, all_lobbies, user_session))
 	{
-		Log::HandleResponse(err, "Join Traversal Lobby");
+		Log::Error("Failed to find user session during join lobby process");
 		Shutdown(app);
+		return;
 	}
 	
 	if (auto err = traversal_client.AskJoinLobby(join_sesssion, user_session))
@@ -164,6 +185,7 @@ void GlobTraverse::JoinLobby(Application* app, uint64_t join_sesssion)
 		Log::Info("Start joining lobby");
 		currentTraversalStep = TraverseStep::JoinLobby;
 		app->_components.Get<NatCollectorModel>().PushPopUpState(NatCollectorPopUpState::JoinLobbyPopUpWindow);
+		join_info.other_session = join_sesssion;
 	}
 }
 
@@ -202,8 +224,8 @@ void GlobTraverse::EndDraw(Application* app)
 
 void GlobTraverse::Shutdown(Application* app)
 {
-	confirm_lobby = Lobby{};
 	all_lobbies = GetAllLobbies{};
+	join_info = JoinLobbyInfo{};
 	traversal_client.Disconnect();
 	currentTraversalStep = TraverseStep::Idle;
 	app->_components.Get<NatCollectorModel>().SetNextGlobalState(NatCollectorGlobalState::Idle);

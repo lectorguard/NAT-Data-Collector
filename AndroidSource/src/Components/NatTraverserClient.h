@@ -26,7 +26,7 @@ public:
 	Error ConfirmLobby(Lobby lobby);
 	std::optional<DataPackage> TryGetResponse();
 
-	static Error FindUserSession(const std::string& username, const GetAllLobbies& lobbies, uint64_t& found_session);
+	static bool TryGetUserSession(const std::string& username, const GetAllLobbies& lobbies, uint64_t& found_session);
 
 private:
 	struct TraversalInfo

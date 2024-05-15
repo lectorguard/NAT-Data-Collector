@@ -85,19 +85,20 @@ struct ServerHandler<shared::Transaction::SERVER_CONFIRM_LOBBY>
 		ref->add_lobby(toConfirm.owner, toConfirm.joined);
 		std::cout << "Created lobby with owner " << toConfirm.owner.username << " and joined user " << toConfirm.joined[0].username << std::endl;
 
- 		// Inform clients
+		// Start Analyzing phase
+		auto analyze_nat_pkg =
+			DataPackage::Create(nullptr, Transaction::CLIENT_START_ANALYZE_NAT)
+			.Add<uint64_t>(MetaDataField::SESSION, toConfirm.owner.session);
+		ref->send_session(analyze_nat_pkg, toConfirm.joined[0].session);
+		ref->send_session(analyze_nat_pkg, toConfirm.owner.session);
+
+		// Inform clients about updated empty lobbies
 		auto empty_lobbies = ref->GetEmptyLobbies();
 		auto toSend = DataPackage::Create(&empty_lobbies, Transaction::CLIENT_RECEIVE_LOBBIES);
 		ref->send_all_lobbies(toSend);
 		ref->send_session(toSend, toConfirm.joined[0].session); // Send also to removed session the remaining clients
 
-		// Start Analyzing phase
-		auto analyze_nat_pkg =
-			DataPackage::Create(nullptr, Transaction::CLIENT_START_ANALYZE_NAT)
-			.Add<uint64_t>(MetaDataField::SESSION, toConfirm.owner.session);
-
-		ref->send_session(analyze_nat_pkg, toConfirm.joined[0].session);
-		return analyze_nat_pkg;
+		return DataPackage::Create<ErrorType::OK>();
 	}
 };
 
