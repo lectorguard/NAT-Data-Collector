@@ -147,12 +147,12 @@ mongoexport --uri="mongodb://<mongo-user>:<mongo-user-password>@<mongo-server-ip
 * Set Target System from **local machine** to **WSL 22.04**
 * Set StartUp Item to **server-app** (It can take a while until it shows up)
 
-# Debuggig android
+## Debuggig android
 
 * Under tools->Android Tools->logcat, you can see LOGI and LOGW. Filter for native-activity.
 * Under windows make sure, to accept windows firewall window
 
-## Read crash reports from phone directly
+### Read crash reports from phone directly
 
 * After crash happens connect phone to PC
 * Copy the log into a file using (make sure adb.exe is environment variable or navigate to exe)
@@ -167,7 +167,7 @@ mongoexport --uri="mongodb://<mongo-user>:<mongo-user-password>@<mongo-server-ip
 * You can simply run `DeobfuscateStackTrace.bat` inside the `BuildScripts` to save the log into a file and show the deobfiscated stacktrace if existant
 	* Android device must be connected to execute
 
-## Interpret crash reports 
+### Interpret crash reports 
 
 
 ```
@@ -227,15 +227,15 @@ db.InformationUpdate.insertOne({"identifier":"test","information_details":"There
 ```
 
 
-# Troubleshooting
+## Troubleshooting
 
-## Windows Defender blocks socket communication between WSL server app and android app (silent failure)
+### Windows Defender blocks socket communication between WSL server app and android app (silent failure)
 
-### Solution 1: 
+#### Solution 1: 
 
 * Rerun `GenerateServerVisualStudioProject.bat` to delete old Windows Defender Rules
 
-### Solution 2:
+#### Solution 2:
 
 * Delete `bin` folder and select `Project/Delete Cache and Reconfigure` in the cmake server VS project
 * Rebuild and Run the server project
@@ -248,12 +248,12 @@ db.InformationUpdate.insertOne({"identifier":"test","information_details":"There
 	* Delete all `server-app` entries and repeat from above
 
 
-## Android debugging error : Device is invalid or not running
+### Android debugging error : Device is invalid or not running
 
 * Go to properties of the NAT android packaging project (NAT) in Visual Studio
 * Check in the `Configuration Properties` under `Debugging` if the Debug Target is the correct android device (dropdown)
 
-# The package manager failed to install the apk: '/data/local/tmp/NativeAndroidActivity.apk' with the error code: 'Unknown'
+### The package manager failed to install the apk: '/data/local/tmp/NativeAndroidActivity.apk' with the error code: 'Unknown'
 
 * Uninstall previous versions of the app from the phone
 * Problem when previously installing the app in a different configuration (Debug/Release)
