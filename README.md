@@ -75,7 +75,7 @@ Apache Ant :
 ```
 * In case `Java SE Development Kit` is missing, you can install it from [here](https://aka.ms/download-jdk/microsoft-jdk-11.0.12.7.1-windows-x64.msi) 
 * Execute `GenerateAndroidVisualStudioProject.bat`
-* Set `AndroidPackaging `as Startup project
+* Set `AndroidPackaging (NAT)` as Startup project
 * Run the application on the android device
 
 ## How to set up Mongo DB on Ubuntu
@@ -147,12 +147,12 @@ mongoexport --uri="mongodb://<mongo-user>:<mongo-user-password>@<mongo-server-ip
 * Set Target System from **local machine** to **WSL 22.04**
 * Set StartUp Item to **server-app** (It can take a while until it shows up)
 
-# Debuggig android
+## Debuggig android
 
 * Under tools->Android Tools->logcat, you can see LOGI and LOGW. Filter for native-activity.
 * Under windows make sure, to accept windows firewall window
 
-## Read crash reports from phone directly
+### Read crash reports from phone directly
 
 * After crash happens connect phone to PC
 * Copy the log into a file using (make sure adb.exe is environment variable or navigate to exe)
@@ -167,7 +167,7 @@ mongoexport --uri="mongodb://<mongo-user>:<mongo-user-password>@<mongo-server-ip
 * You can simply run `DeobfuscateStackTrace.bat` inside the `BuildScripts` to save the log into a file and show the deobfiscated stacktrace if existant
 	* Android device must be connected to execute
 
-## Interpret crash reports 
+### Interpret crash reports 
 
 
 ```
@@ -208,27 +208,6 @@ DEBUG   :     #01 pc 0000001d  <unknown>
 .\llvm-addr2line.exe -C -f -e "<project origin>/AndroidPackaging\ARM\Debug\NativeAndroidActivity\lib\armeabi-v7a\libnative-activity.so" 001610ac
 ```
 
-
-# Issues 
-
-## Windows Defender blocks socket communication between WSL server app and android app (silent failure)
-
-### Solution 1: 
-
-* Rerun `GenerateServerVisualStudioProject.bat` to delete old Windows Defender Rules
-
-### Solution 2:
-
-* Delete `bin` folder and select `Project/Delete Cache and Reconfigure` in the cmake server VS project
-* Rebuild and Run the server project
-* If `Windows Security Alert` **shows** and access is allowed, everything is correctly configured
-* If `Windows Security Alert` does not show
-	* Type `Advanced Security Windows Defender` in the windows search
-	* Select `Windows Defender Firewall with Advanced Security`
-	* Select `Inbound Rules`
-	* Search for `server-app`, if not found try click `refresh` button on the right
-	* Delete all `server-app` entries and repeat from above
-
 ## Notify users about new version
 
 * Connect to mongo db via mongosh
@@ -246,5 +225,43 @@ db.VersionUpdate.insertOne({"download_link":"https://github.com/lectorguard/NAT-
 ```
 db.InformationUpdate.insertOne({"identifier":"test","information_details":"There are very important information available.","information_header":"New Information"})
 ```
+
+
+## Troubleshooting
+
+### Windows Defender blocks socket communication between WSL server app and android app (silent failure)
+
+#### Solution 1: 
+
+* Rerun `GenerateServerVisualStudioProject.bat` to delete old Windows Defender Rules
+
+#### Solution 2:
+
+* Delete `bin` folder and select `Project/Delete Cache and Reconfigure` in the cmake server VS project
+* Rebuild and Run the server project
+* If `Windows Security Alert` **shows** and access is allowed, everything is correctly configured
+* If `Windows Security Alert` does not show
+	* Type `Advanced Security Windows Defender` in the windows search
+	* Select `Windows Defender Firewall with Advanced Security`
+	* Select `Inbound Rules`
+	* Search for `server-app`, if not found try click `refresh` button on the right
+	* Delete all `server-app` entries and repeat from above
+
+
+### Android debugging error : Device is invalid or not running
+
+* Go to properties of the NAT android packaging project (NAT) in Visual Studio
+* Check in the `Configuration Properties` under `Debugging` if the Debug Target is the correct android device (dropdown)
+
+### The package manager failed to install the apk: '/data/local/tmp/NativeAndroidActivity.apk' with the error code: 'Unknown'
+
+* Uninstall previous versions of the app from the phone
+* Problem when previously installing the app in a different configuration (Debug/Release)
+
+
+
+
+
+
 
 
