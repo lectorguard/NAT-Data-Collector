@@ -75,7 +75,7 @@ Apache Ant :
 ```
 * In case `Java SE Development Kit` is missing, you can install it from [here](https://aka.ms/download-jdk/microsoft-jdk-11.0.12.7.1-windows-x64.msi) 
 * Execute `GenerateAndroidVisualStudioProject.bat`
-* Set `AndroidPackaging `as Startup project
+* Set `AndroidPackaging (NAT)` as Startup project
 * Run the application on the android device
 
 ## How to set up Mongo DB on Ubuntu
@@ -208,8 +208,26 @@ DEBUG   :     #01 pc 0000001d  <unknown>
 .\llvm-addr2line.exe -C -f -e "<project origin>/AndroidPackaging\ARM\Debug\NativeAndroidActivity\lib\armeabi-v7a\libnative-activity.so" 001610ac
 ```
 
+## Notify users about new version
 
-# Issues 
+* Connect to mongo db via mongosh
+* Drop old entries (only first one is used) `db.VersionUpdate.drop()`
+* Add new entry
+```
+db.VersionUpdate.insertOne({"download_link":"https://github.com/lectorguard/NAT-Data-Collector/releases","latest_version":"v0.0.2","version_details":"A new version of the NAT Collector is available. Please copy the link below, delete this version and download the new version. You progress in the scoreboard will be maintained. :) Thank you.","version_header":"New Version 0.0.2"})
+```
+
+## Notify user about new general informationen
+
+* Connect to mongo db via mongosh
+* Drop old entries (only first one is used) `db.InformationUpdate.drop()`
+* Add new entry
+```
+db.InformationUpdate.insertOne({"identifier":"test","information_details":"There are very important information available.","information_header":"New Information"})
+```
+
+
+# Troubleshooting
 
 ## Windows Defender blocks socket communication between WSL server app and android app (silent failure)
 
@@ -229,22 +247,21 @@ DEBUG   :     #01 pc 0000001d  <unknown>
 	* Search for `server-app`, if not found try click `refresh` button on the right
 	* Delete all `server-app` entries and repeat from above
 
-## Notify users about new version
 
-* Connect to mongo db via mongosh
-* Drop old entries (only first one is used) `db.VersionUpdate.drop()`
-* Add new entry
-```
-db.VersionUpdate.insertOne({"download_link":"https://github.com/lectorguard/NAT-Data-Collector/releases","latest_version":"v0.0.2","version_details":"A new version of the NAT Collector is available. Please copy the link below, delete this version and download the new version. You progress in the scoreboard will be maintained. :) Thank you.","version_header":"New Version 0.0.2"})
-```
+## Android debugging error : Device is invalid or not running
 
-## Notify user about new general informationen
+* Go to properties of the NAT android packaging project (NAT) in Visual Studio
+* Check in the `Configuration Properties` under `Debugging` if the Debug Target is the correct android device (dropdown)
 
-* Connect to mongo db via mongosh
-* Drop old entries (only first one is used) `db.InformationUpdate.drop()`
-* Add new entry
-```
-db.InformationUpdate.insertOne({"identifier":"test","information_details":"There are very important information available.","information_header":"New Information"})
-```
+# The package manager failed to install the apk: '/data/local/tmp/NativeAndroidActivity.apk' with the error code: 'Unknown'
+
+* Uninstall previous versions of the app from the phone
+* Problem when previously installing the app in a different configuration (Debug/Release)
+
+
+
+
+
+
 
 
