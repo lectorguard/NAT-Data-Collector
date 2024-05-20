@@ -7,7 +7,7 @@
 #include <thread>
 
 
-Error NatTraverserClient::ConnectServer(std::string_view server_addr, uint16_t server_port)
+shared::Error NatTraverserClient::Connect(std::string_view server_addr, uint16_t server_port)
 {
 	if (write_queue && read_queue && shutdown_flag)
 	{
@@ -104,6 +104,11 @@ Error NatTraverserClient::ConfirmLobby(Lobby lobby)
 	auto data_package = DataPackage::Create(&lobby, Transaction::SERVER_CONFIRM_LOBBY);
 
 	return push_package(data_package);
+}
+
+Error NatTraverserClient::AnalyzeNAT(UDPCollectTask::CollectInfo info)
+{
+	return Error();
 }
 
 std::optional<DataPackage> NatTraverserClient::TryGetResponse()

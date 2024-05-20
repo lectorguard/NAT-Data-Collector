@@ -21,15 +21,17 @@ void GlobTraverse::StartDraw(Application* app)
 	if (auto err = user_data.ValidateUsername())
 	{
 		Log::HandleResponse(err, "Start Traversal");
+		Shutdown(app);
 		return;
 	}
 
 	// Start Traversal
 	if (GetTraversalState() != TraverseStep::Idle) return;
 	// Connect to Server
-	if (auto err = traversal_client.ConnectServer(SERVER_IP, SERVER_TRANSACTION_TCP_PORT))
+	if (auto err = traversal_client.Connect(SERVER_IP, SERVER_TRANSACTION_TCP_PORT))
 	{
 		Log::HandleResponse(err, "Start Traversal");
+		Shutdown(app);
 		return;
 	}
 
@@ -37,6 +39,7 @@ void GlobTraverse::StartDraw(Application* app)
 	if (auto err = traversal_client.RegisterUser(user_data.info.username))
 	{
 		Log::HandleResponse(err, "Start Traversal");
+		Shutdown(app);
 		return;
 	}
 

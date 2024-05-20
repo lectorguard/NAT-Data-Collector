@@ -90,6 +90,8 @@ void GlobCollectSamples::UpdateGlobState(class Application* app)
 	{
 		Log::Info("%s : Started collecting Ports", shared::helper::CreateTimeStampNow().c_str());
 		
+		//Reset flag
+		collect_shutdown_flag = false;
 		//Start Collecting
 		const UDPCollectTask::CollectInfo collect_config
 		{
@@ -98,7 +100,7 @@ void GlobCollectSamples::UpdateGlobState(class Application* app)
 			/* local port */					0,
 			/* amount of ports */				NAT_COLLECT_PORTS_PER_SAMPLE,
 			/* time between requests in ms */	NAT_COLLECT_REQUEST_DELAY_MS,
-			connect_type
+			collect_shutdown_flag
 		};
 		nat_collect_task = std::async(UDPCollectTask::StartCollectTask, collect_config);
 		// Create Timestamp
@@ -110,6 +112,21 @@ void GlobCollectSamples::UpdateGlobState(class Application* app)
 	}
 	case CollectSamplesStep::UpdateCollectPorts:
 	{
+
+		if (connect_type == shared::ConnectionType::NOT_CONNECTED
+#if RANDOM_SYM_NAT_REQUIRED		
+			|| connect_type == shared::ConnectionType::WIFI 
+#endif			
+			)
+		{
+			bool oldValue;
+			do
+			{
+				oldValue = collect_shutdown_flag.load();
+			}
+			while (!collect_shutdown_flag.compare_exchange_strong(oldValue, true));
+		}
+
 		if (auto res = utilities::TryGetFuture<DataPackage>(nat_collect_task))
 		{
 			// if true, phone was sleeping in background

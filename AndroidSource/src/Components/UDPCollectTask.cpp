@@ -79,16 +79,13 @@
 					return;
 				}
 
-#if RANDOM_SYM_NAT_REQUIRED
-				// Check if user connects to wifi during collection step
-				const shared::ConnectionType ct = info.conn_type.load();
-				if (ct == shared::ConnectionType::WIFI || ct == shared::ConnectionType::NOT_CONNECTED)
+				if (info.shutdown_flag.load())
 				{
-					_error = Error(ErrorType::ERROR, {"Abort Collecting Ports, entered WIFI or Disconnect"});
+					_error = Error(ErrorType::ERROR, { "Abort Collecting Ports, shutdown requested from main thread" });
 					io_service.stop();
-					return; 
+					return;
 				}
-#endif
+
 				asio::error_code ec;
 				auto address = asio::ip::make_address(info.remote_address, ec);
 				if (auto err = Error::FromAsio(ec, "Make Adress")) return;

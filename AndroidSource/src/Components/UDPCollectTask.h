@@ -16,11 +16,11 @@ public:
 	struct CollectInfo
 	{
 		std::string remote_address;
-		uint16_t remote_port;
-		uint16_t local_port;
-		uint16_t amount_ports;
-		uint16_t time_between_requests_ms;
-		std::atomic<shared::ConnectionType>& conn_type;
+		uint16_t remote_port{};
+		uint16_t local_port{};
+		uint16_t amount_ports{};
+		uint16_t time_between_requests_ms{};
+		std::atomic<bool>& shutdown_flag;
 	};
 
 	struct NatTypeInfo

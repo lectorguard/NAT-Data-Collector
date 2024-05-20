@@ -3,6 +3,7 @@
 #include "Data/Traversal.h"
 #include "asio.hpp"
 #include "deque"
+#include "Components/UDPCollectTask.h"
 
 
 using namespace asio::ip;
@@ -19,11 +20,12 @@ public:
 	NatTraverserClient() {};
 
 	// Must be called first
-	Error ConnectServer(std::string_view server_addr, uint16_t server_port);
+	Error Connect(std::string_view server_addr, uint16_t server_port);
 	Error Disconnect();
 	Error RegisterUser(std::string const& username);
 	Error AskJoinLobby(uint64_t join_session_key, uint64_t user_session_key);
 	Error ConfirmLobby(Lobby lobby);
+	Error AnalyzeNAT(UDPCollectTask::CollectInfo info);
 	std::optional<DataPackage> TryGetResponse();
 
 	static bool TryGetUserSession(const std::string& username, const GetAllLobbies& lobbies, uint64_t& found_session);

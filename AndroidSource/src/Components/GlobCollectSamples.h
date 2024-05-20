@@ -48,6 +48,9 @@ private:
 	SimpleTimer wait_upload_timer{};
 	SimpleTimer collect_samples_timer{};
 
+	// Flags
+	std::atomic<bool> collect_shutdown_flag = false;
+
 	// Tasks
 	NATCollectTask nat_collect_task;
 	NatClassifier nat_classifier;
