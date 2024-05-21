@@ -17,16 +17,16 @@
 }
 
 
- shared::DataPackage UDPCollectTask::StartCollectTask(const CollectInfo& collect_info)
+ shared::DataPackage UDPCollectTask::StartCollectTask(const CollectInfo& collect_info, std::atomic<bool>& shutdown_flag)
  {
 	 Log::Info("--- Metadata Collect NAT Samples ---");
-	 Log::Info("Server Address     :  %s", collect_info.remote_address.c_str());
-	 Log::Info("Server Port        :  %d", collect_info.remote_port);
+	 Log::Info("Server Address     :  %s", collect_info.server_address.c_str());
+	 Log::Info("Server Port        :  %d", collect_info.server_port);
 	 Log::Info("Local Port         :  %d", collect_info.local_port);
-	 Log::Info("Amount of Ports    :  %d", collect_info.amount_ports);
-	 Log::Info("Request Delta Time :  %d ms", collect_info.time_between_requests_ms);
+	 Log::Info("Amount of Ports    :  %d", collect_info.sample_size);
+	 Log::Info("Request Delta Time :  %d ms", collect_info.sample_rate_ms);
 
-	 return start_task_internal([&collect_info](asio::io_service& io) { return UDPCollectTask(collect_info, io); });
+	 return start_task_internal([&collect_info, &shutdown_flag](asio::io_service& io) { return UDPCollectTask(collect_info,shutdown_flag, io); });
  }
 
  shared::DataPackage UDPCollectTask::StartNatTypeTask(const NatTypeInfo& collect_info)
@@ -42,7 +42,7 @@
 	 return start_task_internal([collect_info](asio::io_service& io) { return UDPCollectTask(collect_info, io); });
  }
 
- UDPCollectTask::UDPCollectTask(const CollectInfo& info, asio::io_service& io_service)
+ UDPCollectTask::UDPCollectTask(const CollectInfo& info, std::atomic<bool>& shutdown_flag, asio::io_service& io_service)
 {
 	std::function<std::shared_ptr<asio::ip::udp::socket>()> createSocket = nullptr;
 	if (info.local_port == 0)
@@ -61,8 +61,8 @@
 		_bUsesSingleSocket = true;
 	}
 
-	_socket_list.reserve(info.amount_ports);
-	for (uint16_t index = 0; index < info.amount_ports; ++index)
+	_socket_list.reserve(info.sample_size);
+	for (uint16_t index = 0; index < info.sample_size; ++index)
 	{
 		_socket_list.emplace_back(Socket{ index,
 								nullptr, // create socket when it is used
@@ -70,8 +70,8 @@
 			});
 
 
-		_socket_list[index].timer.expires_from_now(std::chrono::milliseconds(index * info.time_between_requests_ms));
-		_socket_list[index].timer.async_wait([this, &info, &io_service, createSocket, index](auto error)
+		_socket_list[index].timer.expires_from_now(std::chrono::milliseconds(index * info.sample_rate_ms));
+		_socket_list[index].timer.async_wait([this, &info, &io_service, createSocket, index, &shutdown_flag](auto error)
 			{
 
 				if (_system_error_state != SystemErrorStates::NO_ERROR)
@@ -79,7 +79,7 @@
 					return;
 				}
 
-				if (info.shutdown_flag.load())
+				if (shutdown_flag.load())
 				{
 					_error = Error(ErrorType::ERROR, { "Abort Collecting Ports, shutdown requested from main thread" });
 					io_service.stop();
@@ -87,10 +87,10 @@
 				}
 
 				asio::error_code ec;
-				auto address = asio::ip::make_address(info.remote_address, ec);
+				auto address = asio::ip::make_address(info.server_address, ec);
 				if (auto err = Error::FromAsio(ec, "Make Adress")) return;
 
-				auto remote_endpoint = std::make_shared<asio::ip::udp::endpoint>(address, info.remote_port);
+				auto remote_endpoint = std::make_shared<asio::ip::udp::endpoint>(address, info.server_port);
 				try
 				{
 					_socket_list[index].socket = createSocket();
@@ -191,7 +191,7 @@ DataPackage UDPCollectTask::start_task_internal(std::function<UDPCollectTask(asi
 		// Sort ports found
 		auto& address_vector = collectTask._stored_natsample.address_vector;
 		std::sort(address_vector.begin(), address_vector.end(), [](auto l, auto r) {return l.index < r.index; });
-		return DataPackage::Create(&collectTask._stored_natsample, Transaction::NO_TRANSACTION);
+		return DataPackage::Create(&collectTask._stored_natsample, Transaction::CLIENT_RECEIVE_COLLECTED_PORTS);
 	}
 }
 

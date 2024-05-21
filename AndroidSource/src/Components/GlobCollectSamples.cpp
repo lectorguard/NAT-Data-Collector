@@ -100,9 +100,8 @@ void GlobCollectSamples::UpdateGlobState(class Application* app)
 			/* local port */					0,
 			/* amount of ports */				NAT_COLLECT_PORTS_PER_SAMPLE,
 			/* time between requests in ms */	NAT_COLLECT_REQUEST_DELAY_MS,
-			collect_shutdown_flag
 		};
-		nat_collect_task = std::async(UDPCollectTask::StartCollectTask, collect_config);
+		nat_collect_task = std::async(UDPCollectTask::StartCollectTask, collect_config, std::ref(collect_shutdown_flag));
 		// Create Timestamp
 		const long long max_duration_ms = NAT_COLLECT_PORTS_PER_SAMPLE * NAT_COLLECT_REQUEST_DELAY_MS + NAT_COLLECT_EXTRA_TIME_MS;
 		collect_samples_timer.ExpiresFromNow(std::chrono::milliseconds(max_duration_ms));

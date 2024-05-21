@@ -42,6 +42,11 @@ Error NatTraverserClient::Disconnect()
 		rw_future.wait();
 		response = rw_future.get();
 	}
+	if (analyze_nat_future.valid())
+	{
+		analyze_nat_future.wait();
+		response.Add(analyze_nat_future.get());
+	}
 	write_queue = nullptr;
 	read_queue = nullptr;
 	shutdown_flag = nullptr;
@@ -83,7 +88,7 @@ Error NatTraverserClient::AskJoinLobby(uint64_t join_session_key, uint64_t user_
 {
 	if (!rw_future.valid())
 	{
-		return Error(ErrorType::ERROR, { "Please call connect before any othe action" });
+		return Error(ErrorType::ERROR, { "Please call connect before any other action" });
 	}
 
 	auto data_package =
@@ -98,7 +103,7 @@ Error NatTraverserClient::ConfirmLobby(Lobby lobby)
 {
 	if (!rw_future.valid())
 	{
-		return Error(ErrorType::ERROR, { "Please call connect before any othe action" });
+		return Error(ErrorType::ERROR, { "Please call connect before any other action" });
 	}
 
 	auto data_package = DataPackage::Create(&lobby, Transaction::SERVER_CONFIRM_LOBBY);
@@ -106,18 +111,69 @@ Error NatTraverserClient::ConfirmLobby(Lobby lobby)
 	return push_package(data_package);
 }
 
-Error NatTraverserClient::AnalyzeNAT(UDPCollectTask::CollectInfo info)
+shared::Error NatTraverserClient::AnalyzeNAT(UDPCollectTask::CollectInfo info)
 {
-	return Error();
+	if (analyze_nat_future.valid())
+	{
+		return Error(ErrorType::ERROR, { "Please wait until previous analyze NAT call has finished" });
+	}
+
+	if (!read_queue)
+	{
+		return Error(ErrorType::ERROR, { "Read queue is invalid, can not push result on analyze NAT" });
+	}
+
+	if (!shutdown_flag)
+	{
+		return Error(ErrorType::ERROR, { "shutdown flag is invalid, abort" });
+	}
+
+	assert(info.local_port == 0 && "To analyze NAT each request must come from a different port");
+
+	analyze_nat_future = std::async(NatTraverserClient::analyze_nat_internal, info, read_queue, shutdown_flag);
+	return Error{ ErrorType::OK };
 }
+
+Error NatTraverserClient::analyze_nat_internal(UDPCollectTask::CollectInfo info, AsyncQueue read_queue, ShutdownSignal shutdown)
+{
+	DataPackage result_pkg = UDPCollectTask::StartCollectTask(info, *shutdown);
+
+	if (!read_queue)
+	{
+		Error err{ ErrorType::ERROR, { "shutdown flag is invalid, abort" } };
+		Log::HandleResponse(err, "");
+		return err;
+	}
+
+	if (auto buf = result_pkg.Compress(false))
+	{
+		read_queue->Push(std::move(*buf));
+	}
+	else
+	{
+		return Error(ErrorType::ERROR, { "Failed to compress collect task response" });
+	}
+	return Error{ ErrorType::OK };
+}
+
+
 
 std::optional<DataPackage> NatTraverserClient::TryGetResponse()
 {
 	if (!read_queue)return std::nullopt;
-	std::vector<uint8_t> buf;
+	std::vector<uint8_t> buf{};
 	if (read_queue->TryPop(buf))
 	{
-		return DataPackage::Decompress(buf);
+		auto pkg = DataPackage::Decompress(buf);
+		if (pkg.transaction == Transaction::CLIENT_RECEIVE_COLLECTED_PORTS)
+		{
+			analyze_nat_future.wait();
+			if (auto err = analyze_nat_future.get())
+			{
+				return DataPackage::Create(err);
+			}
+		}
+		return pkg;
 	}
 	return std::nullopt;
 }
@@ -174,7 +230,6 @@ Error NatTraverserClient::connect_internal(TraversalInfo const& info)
 		return Error::FromAsio(shutdown_error);
 	}
 }
-
 
 void NatTraverserClient::write_loop(asio::io_service& s, asio::system_timer& timer, TraversalInfo const& info, asio::ip::tcp::socket& socket)
 {
@@ -288,14 +343,14 @@ void NatTraverserClient::async_write_msg(TraversalInfo const& info, asio::ip::tc
 
 void NatTraverserClient::push_error(Error error, AsyncQueue read_queue)
 {
-	if (auto compressed_data = DataPackage::Create(error).Compress())
+	if (auto compressed_data = DataPackage::Create(error).Compress(false))
 	{
 		read_queue->Push(std::move(*compressed_data));
 	}
 	else
 	{
 		Error compress_error{ ErrorType::ERROR, {"Failed to compress push error : " + (error.messages.empty() ? "" : error.messages[0]) } };
-		if (auto compressed_data = DataPackage::Create(compress_error).Compress())
+		if (auto compressed_data = DataPackage::Create(compress_error).Compress(false))
 		{
 			read_queue->Push(std::move(*compressed_data));
 		}

@@ -15,12 +15,11 @@ class UDPCollectTask
 public:
 	struct CollectInfo
 	{
-		std::string remote_address;
-		uint16_t remote_port{};
+		std::string server_address;
+		uint16_t server_port{};
 		uint16_t local_port{};
-		uint16_t amount_ports{};
-		uint16_t time_between_requests_ms{};
-		std::atomic<bool>& shutdown_flag;
+		uint16_t sample_size{};
+		uint16_t sample_rate_ms{};
 	};
 
 	struct NatTypeInfo
@@ -37,11 +36,11 @@ public:
 		SOCKETS_EXHAUSTED
 	};
 
-	static DataPackage StartCollectTask(const CollectInfo& collect_info);
+	static DataPackage StartCollectTask(const CollectInfo& collect_info, std::atomic<bool>& shutdown_flag);
 	static DataPackage StartNatTypeTask(const NatTypeInfo& collect_info);
 
 	// Normal Collect Task
-	UDPCollectTask(const CollectInfo& info, asio::io_service& io_service);
+	UDPCollectTask(const CollectInfo& info, std::atomic<bool>& shutdown_flag, asio::io_service& io_service);
 	UDPCollectTask(const NatTypeInfo& info, asio::io_service& io_service);
 
 	SystemErrorStates GetSystemErrorState(){ return _system_error_state; }

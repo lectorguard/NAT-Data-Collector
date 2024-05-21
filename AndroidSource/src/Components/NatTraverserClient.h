@@ -4,6 +4,8 @@
 #include "asio.hpp"
 #include "deque"
 #include "Components/UDPCollectTask.h"
+#include "JSerializer.h"
+#include "SharedProtocol.h"
 
 
 using namespace asio::ip;
@@ -14,7 +16,7 @@ class NatTraverserClient
 public:
 	using AsyncQueue = std::shared_ptr<ConcurrentQueue<std::vector<uint8_t>>>;
 	using ShutdownSignal = std::shared_ptr<std::atomic<bool>>;
-	using ReadWriteFuture = std::future<Error>;
+	using Future = std::future<Error>;
 	using SharedContext = std::shared_ptr<asio::io_context>;
 
 	NatTraverserClient() {};
@@ -41,6 +43,7 @@ private:
 	};
 
 	static Error connect_internal(TraversalInfo const& info);
+	static Error analyze_nat_internal(UDPCollectTask::CollectInfo info, AsyncQueue read_queue, ShutdownSignal shutdown);
 	static void async_read_msg_length(TraversalInfo const& info, asio::ip::tcp::socket& s);
 	static void push_error(Error error, AsyncQueue read_queue);
 
@@ -50,7 +53,8 @@ private:
 	AsyncQueue write_queue = nullptr;
 	AsyncQueue read_queue = nullptr;
 	ShutdownSignal shutdown_flag = nullptr;
-	ReadWriteFuture rw_future;
+	Future rw_future;
+	Future analyze_nat_future;
 
 	
 	static void async_read_msg(uint32_t msg_len, asio::ip::tcp::socket& s, TraversalInfo const& info);

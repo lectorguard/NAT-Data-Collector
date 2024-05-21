@@ -147,7 +147,31 @@ void GlobTraverse::HandlePackage(Application* app, DataPackage& data_package)
 		model.SetTabState(NatCollectorTabState::Log);
 
 		Log::Info("Start Analyze NAT");
+		const UDPCollectTask::CollectInfo collect_config
+		{
+			/* server address */				SERVER_IP,
+			/* server port */					SERVER_NAT_UDP_PORT_2,
+			/* local port */					0,
+			/* sample size */					500,
+			/* sample rate in ms */				1,
+		};
+		traversal_client.AnalyzeNAT(collect_config);
 		currentTraversalStep = TraverseStep::AnalyzeNAT;
+		break;
+	}
+	case Transaction::CLIENT_RECEIVE_COLLECTED_PORTS:
+	{
+		Log::Warning("Received collected ports");
+		if (data_package)
+		{
+			Log::Warning("%s", data_package.data.dump().c_str());
+		}
+		else
+		{
+			Log::HandleResponse(data_package.error, "Error");
+			Shutdown(app);
+		}
+		break;
 	}
 	default:
 	{

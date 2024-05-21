@@ -165,7 +165,7 @@ namespace shared
 			return !error;
 		}
 
-		std::optional<std::vector<uint8_t>> Compress()
+		std::optional<std::vector<uint8_t>> Compress(bool prepend_msg_length = true)
 		{
 			std::vector<jser::JSerError> jser_errors;
 			const nlohmann::json response_json = SerializeObjectJson(std::back_inserter(jser_errors));
@@ -174,11 +174,19 @@ namespace shared
 				std::cout << "Failed to deserialize request answer" << std::endl;
 				return std::nullopt;
 			}
+
 			std::vector<uint8_t> data_compressed = shared::compressZstd(nlohmann::json::to_msgpack(response_json));
-			data_compressed.reserve(MAX_MSG_LENGTH_DECIMALS);
-			std::vector<uint8_t> data_length = shared::stringToVector(shared::encodeMsgLength(data_compressed.size()));
-			data_compressed.insert(data_compressed.begin(), data_length.begin(), data_length.end());
-			return data_compressed;
+			if (!prepend_msg_length)
+			{
+				return data_compressed;
+			}
+			else
+			{
+				data_compressed.reserve(MAX_MSG_LENGTH_DECIMALS);
+				std::vector<uint8_t> data_length = shared::stringToVector(shared::encodeMsgLength(data_compressed.size()));
+				data_compressed.insert(data_compressed.begin(), data_length.begin(), data_length.end());
+				return data_compressed;
+			}
 		}
 
 		static DataPackage Decompress(const std::vector<uint8_t>& data)
