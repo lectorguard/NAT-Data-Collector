@@ -135,6 +135,7 @@ void GlobTraverse::HandlePackage(Application* app, DataPackage& data_package)
 		{
 			Log::HandleResponse(data_package.error, "Start Analyze NAT");
 			Shutdown(app);
+			break;
 		}
 
 		uint64_t session = data_package.Get<uint64_t>(MetaDataField::SESSION);
@@ -152,30 +153,54 @@ void GlobTraverse::HandlePackage(Application* app, DataPackage& data_package)
 			/* server address */				SERVER_IP,
 			/* server port */					SERVER_NAT_UDP_PORT_2,
 			/* local port */					0,
-			/* sample size */					500,
+			/* sample size */					25,
 			/* sample rate in ms */				1,
 		};
-		traversal_client.AnalyzeNAT(collect_config);
+		traversal_client.CollectPorts(collect_config);
 		currentTraversalStep = TraverseStep::AnalyzeNAT;
 		break;
 	}
 	case Transaction::CLIENT_RECEIVE_COLLECTED_PORTS:
 	{
-		Log::Warning("Received collected ports");
-		if (data_package)
+		Log::Info("Received collected ports");
+		AddressVector rcvd_address_vector;
+		if (auto err = data_package.Get<AddressVector>(rcvd_address_vector))
 		{
-			Log::Warning("%s", data_package.data.dump().c_str());
+			Log::HandleResponse(err, "Receive collected ports during traversal");
+			Shutdown(app);
+			break;
+		}
+
+		// Predict port based on address vector
+		if (auto addr = NatTraverserClient::PredictPort(rcvd_address_vector, PredictionStrategy::HIGHEST_FREQUENCY))
+		{
+			Log::Info("Exchange port prediction for other peer : port %d", addr->port);
+			traversal_client.ExchangePrediction(*addr);
 		}
 		else
 		{
-			Log::HandleResponse(data_package.error, "Error");
+			Log::Error("Failed to predict port");
 			Shutdown(app);
+			break;
 		}
+		break;
+	}
+	case Transaction::CLIENT_START_TRAVERSAL:
+	{
+		Log::Info("Start Holepunching");
+		Address prediction;
+		if (auto err = data_package.Get<Address>(prediction))
+		{
+			Log::HandleResponse(err, "Read predicted Address for traversal");
+			Shutdown(app);
+			break;
+		}
+		Log::Info("Predicted Address : %s:%d", prediction.ip_address.c_str(), prediction.port);
 		break;
 	}
 	default:
 	{
-		Log::HandleResponse(data_package.error, "Traversal try get response");
+		Log::HandleResponse(data_package.error, "Server Response");
 		if (data_package.error)
 		{
 			Shutdown(app);

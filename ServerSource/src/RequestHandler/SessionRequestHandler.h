@@ -2,6 +2,7 @@
 #include "Utils/DBUtils.h"
 #include "BaseRequestHandler.h"
 #include "Data/Traversal.h"
+#include "Data/Address.h"
 #include "Server/Server.h"
 
 template<>
@@ -82,6 +83,8 @@ struct ServerHandler<shared::Transaction::SERVER_CONFIRM_LOBBY>
 
 		// Update global lobby state
 		ref->remove_lobby(toConfirm.joined[0]);
+		toConfirm.owner.prediction = Address{};		// Make sure prediction is empty
+		toConfirm.joined[0].prediction = Address{}; // Make sure prediction is empty
 		ref->add_lobby(toConfirm.owner, toConfirm.joined);
 		std::cout << "Created lobby with owner " << toConfirm.owner.username << " and joined user " << toConfirm.joined[0].username << std::endl;
 
@@ -102,3 +105,61 @@ struct ServerHandler<shared::Transaction::SERVER_CONFIRM_LOBBY>
 	}
 };
 
+
+template<>
+struct ServerHandler<shared::Transaction::SERVER_EXCHANGE_PREDICTION>
+{
+	static const shared::DataPackage Handle(shared::DataPackage pkg, Server* ref, uint64_t session_hash)
+	{
+		using namespace shared;
+		// Read received prediction
+		Address rcvd_prediction;
+		if (auto err = pkg.Get<Address>(rcvd_prediction))
+		{
+			return DataPackage::Create(err);
+		}
+
+		// Find the related lobby
+		auto lobbies = ref->GetLobbies();
+		auto result = std::find_if(lobbies.begin(), lobbies.end(),
+			[session_hash](auto elem)
+			{
+				auto const& lobby = elem.second;
+				if (lobby.owner.session == session_hash || (lobby.joined.size() == 1 && lobby.joined[0].session == session_hash))
+				{
+					return true;
+				}
+				return false;
+			});
+		if (result == lobbies.end())
+		{
+			return DataPackage::Create<ErrorType::ERROR>({ "Can not find associated lobby to exchange prediction" });
+		}
+		if (result->second.joined.size() != 1)
+		{
+			return DataPackage::Create<ErrorType::ERROR>({ "Can not find associated lobby to exchange prediction" });
+		}
+
+		// Update the prediction
+		auto [hash, lobby] = *result;
+		if (lobby.owner.session == session_hash)
+		{
+			lobby.joined[0].prediction = rcvd_prediction;
+		}
+		else
+		{
+			lobby.owner.prediction = rcvd_prediction;
+		}
+		ref->add_lobby(lobby.owner, lobby.joined);
+
+		// Traverse if both predictions are received
+		if (lobby.owner.prediction.port != 0 && lobby.joined[0].prediction.port != 0)
+		{
+			DataPackage prediction_owner = DataPackage::Create(&lobby.owner.prediction, Transaction::CLIENT_START_TRAVERSAL);
+			DataPackage prediction_joined = DataPackage::Create(&lobby.joined[0].prediction, Transaction::CLIENT_START_TRAVERSAL);
+			ref->send_session(prediction_owner, lobby.owner.session);
+			ref->send_session(prediction_joined, lobby.joined[0].session);
+		}
+		return DataPackage::Create<ErrorType::OK>();
+	}
+};

@@ -2,6 +2,7 @@
 #include "JSerializer.h"
 #include "SharedProtocol.h"
 #include <vector>
+#include "Data/Address.h"
 
 namespace shared
 {
@@ -16,10 +17,11 @@ namespace shared
 		
 		uint64_t session;
 		std::string username;
+		Address prediction;
 
 		jser::JserChunkAppender AddItem() override
 		{
-			return JSerializable::AddItem().Append(JSER_ADD(SerializeManagerType,session, username));
+			return JSerializable::AddItem().Append(JSER_ADD(SerializeManagerType,session, username, prediction));
 		}
 	};
 

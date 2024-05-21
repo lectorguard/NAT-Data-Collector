@@ -11,6 +11,13 @@
 using namespace asio::ip;
 using namespace shared;
 
+enum class PredictionStrategy : uint8_t
+{
+	RANDOM=0,
+	HIGHEST_FREQUENCY,
+	MINIMUM_DELTA,
+};
+
 class NatTraverserClient
 {
 public:
@@ -21,16 +28,45 @@ public:
 
 	NatTraverserClient() {};
 
-	// Must be called first
+	// Must be initally called, connects to Server
 	Error Connect(std::string_view server_addr, uint16_t server_port);
+
+	// Must be called on shutdown
 	Error Disconnect();
+
+	// Registers user at server
+	// Triggers response of all available lobbies (CLIENT_RECEIVE_LOBBIES)
 	Error RegisterUser(std::string const& username);
+
+	// Ask to join an existing lobby, which is not full
+	// Triggers response to other client to confirm lobby (CLIENT_CONFIRM_JOIN_LOBBY)
+	// Optional
 	Error AskJoinLobby(uint64_t join_session_key, uint64_t user_session_key);
+
+	// Confirms a requested lobby
+	// Triggers update of available lobbies (CLIENT_RECEIVE_LOBBIES)
+	// Triggers initiation of analyzing phase for lobby members (CLIENT_START_ANALYZE_NAT)
 	Error ConfirmLobby(Lobby lobby);
-	Error AnalyzeNAT(UDPCollectTask::CollectInfo info);
+
+	// Collects port translations of NAT device
+	// Should be part of analyzing phase
+	// Fill the CollectInfo config file, local port must be 0
+	// Triggers response of collected ports (CLIENT_RECEIVE_COLLECTED_PORTS)
+	Error CollectPorts(UDPCollectTask::CollectInfo info);
+
+	// Forwards prediction to other peer
+	// Triggers traversal response when both clients have sent their prediction (CLIENT_START_TRAVERSAL)
+	Error ExchangePrediction(Address prediction_other_client);
+
+	// All server responses can be accessed via this function
 	std::optional<DataPackage> TryGetResponse();
 
+	// Search session id, based on username and received lobbies
 	static bool TryGetUserSession(const std::string& username, const GetAllLobbies& lobbies, uint64_t& found_session);
+	
+	// Performs a port prediction using the pre-implemented strategies
+	// Custom predictions can be implemented based on the AddressVector
+	static std::optional<Address> PredictPort(const AddressVector& address_vector, PredictionStrategy strategy);
 
 private:
 	struct TraversalInfo
