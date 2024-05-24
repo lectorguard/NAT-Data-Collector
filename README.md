@@ -160,6 +160,9 @@ mongoexport --uri="mongodb://<mongo-user>:<mongo-user-password>@<mongo-server-ip
 
 ```
 .\adb.exe logcat > "log.txt"
+
+// Thombstones
+abd bugreport
 ```
 * Crashes are marked fatal in log (**F**) and contain string **DEBUG**
 * Simply search for `native-activity` to get app related logs

@@ -7,6 +7,8 @@
 #include <condition_variable>
 #include <queue>
 #include <utility>
+#include "SharedProtocol.h"
+#include "CustomCollections/Log.h"
 
 template<class T>
 class ConcurrentQueue {
@@ -108,4 +110,24 @@ public:
 
 	}
 
+	void push_error(shared::Error error)
+	{
+		using namespace shared;
+		if (auto compressed_data = DataPackage::Create(error).Compress(false))
+		{
+			Push(std::move(*compressed_data));
+		}
+		else
+		{
+			Error compress_error{ ErrorType::ERROR, {"Failed to compress push error : " + (error.messages.empty() ? "" : error.messages[0]) } };
+			if (auto compressed_data = DataPackage::Create(compress_error).Compress(false))
+			{
+				Push(std::move(*compressed_data));
+			}
+			else
+			{
+				Log::Error("Unable to compress error :  %s", error.messages.empty() ? "" : error.messages[0].c_str());
+			}
+		}
+	}
 };

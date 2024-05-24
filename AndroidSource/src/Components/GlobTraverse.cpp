@@ -67,7 +67,7 @@ void GlobTraverse::Update(Application* app)
 		}
 		break;
 	}
-	case TraverseStep::AnalyzeNAT:
+	case TraverseStep::NonInterruptable:
 		break;
 	default:
 		break;
@@ -138,7 +138,6 @@ void GlobTraverse::HandlePackage(Application* app, DataPackage& data_package)
 			break;
 		}
 
-		uint64_t session = data_package.Get<uint64_t>(MetaDataField::SESSION);
 		// Remove all pending popups
 		while(!model.IsPopUpQueueEmpty())
 		{
@@ -157,7 +156,7 @@ void GlobTraverse::HandlePackage(Application* app, DataPackage& data_package)
 			/* sample rate in ms */				1,
 		};
 		traversal_client.CollectPorts(collect_config);
-		currentTraversalStep = TraverseStep::AnalyzeNAT;
+		currentTraversalStep = TraverseStep::NonInterruptable;
 		break;
 	}
 	case Transaction::CLIENT_RECEIVE_COLLECTED_PORTS:
@@ -196,6 +195,35 @@ void GlobTraverse::HandlePackage(Application* app, DataPackage& data_package)
 			break;
 		}
 		Log::Info("Predicted Address : %s:%d", prediction.ip_address.c_str(), prediction.port);
+
+		const HolepunchRole role = data_package.Get<HolepunchRole>(MetaDataField::HOLEPUNCH_ROLE);
+		const UDPHolepunching::RandomInfo config
+		{
+			prediction, // Address
+			60'000u,		// Traversal Attempts
+			10'000u,	// Deadline duration	
+			role,		// Role
+			io
+		};
+		if (auto err = traversal_client.TraverseClient(config))
+		{
+			Log::HandleResponse(err, "Call Traverse Client");
+			Shutdown(app);
+			break;
+		}
+		break;
+	}
+	case Transaction::CLIENT_TRAVERSAL_RESULT:
+	{
+		Log::HandleResponse(data_package, "Traversal Result");
+		if (data_package)
+		{
+			auto res = traversal_client.GetTraversalResultBlocking();
+			if (res.socket)res.socket->close();
+			Log::Info("Traversal Succeeded");
+		}
+		Log::Info("Done");
+		Shutdown(app);
 		break;
 	}
 	default:

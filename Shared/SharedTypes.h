@@ -23,6 +23,7 @@ namespace shared
 		CLIENT_START_ANALYZE_NAT,
 		CLIENT_RECEIVE_COLLECTED_PORTS,
 		CLIENT_START_TRAVERSAL,
+		CLIENT_TRAVERSAL_RESULT,
 		CLIENT_END,
 		SERVER_START,
 		SERVER_INSERT_MONGO,
@@ -48,7 +49,8 @@ namespace shared
 		USERNAME,
 		SESSION,
 		JOIN_SESSION_KEY,
-		USER_SESSION_KEY
+		USER_SESSION_KEY,
+		HOLEPUNCH_ROLE
 	};
 
 	inline const std::map<MetaDataField, std::string> meta_data_to_string{
@@ -62,7 +64,28 @@ namespace shared
 		{MetaDataField::USERNAME, "username"},
 		{MetaDataField::SESSION, "session"},
 		{MetaDataField::JOIN_SESSION_KEY, "join_session_key"},
-		{MetaDataField::USER_SESSION_KEY, "user_session_key"}
+		{MetaDataField::USER_SESSION_KEY, "user_session_key"},
+		{MetaDataField::HOLEPUNCH_ROLE, "holepunch_role"},
+	};
+
+	enum class HolepunchRole : uint8_t
+	{
+		PUNCH_HOLES = 0,
+		TARGET_HOLES
+	};
+
+	inline const std::map<HolepunchRole, std::string> holepunch_role_to_string
+	{
+		{HolepunchRole::PUNCH_HOLES, "Punch Holes"},
+		{HolepunchRole::TARGET_HOLES, "Target Holes"}
+	};
+
+
+
+	enum class PhysicalDeviceError
+	{
+		NO_ERROR,
+		SOCKETS_EXHAUSTED
 	};
 
 	enum class NATType : uint8_t

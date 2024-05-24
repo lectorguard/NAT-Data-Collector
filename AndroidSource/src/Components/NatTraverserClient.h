@@ -4,6 +4,7 @@
 #include "asio.hpp"
 #include "deque"
 #include "Components/UDPCollectTask.h"
+#include "Components/UDPHolepunching.h"
 #include "JSerializer.h"
 #include "SharedProtocol.h"
 
@@ -58,6 +59,11 @@ public:
 	// Triggers traversal response when both clients have sent their prediction (CLIENT_START_TRAVERSAL)
 	Error ExchangePrediction(Address prediction_other_client);
 
+	// Tries to establish communication with other peer 
+	Error TraverseClient(UDPHolepunching::RandomInfo const& info);
+
+	UDPHolepunching::Result GetTraversalResultBlocking();
+
 	// All server responses can be accessed via this function
 	std::optional<DataPackage> TryGetResponse();
 
@@ -81,17 +87,15 @@ private:
 	static Error connect_internal(TraversalInfo const& info);
 	static Error analyze_nat_internal(UDPCollectTask::CollectInfo info, AsyncQueue read_queue, ShutdownSignal shutdown);
 	static void async_read_msg_length(TraversalInfo const& info, asio::ip::tcp::socket& s);
-	static void push_error(Error error, AsyncQueue read_queue);
 
 	Error push_package(DataPackage& pkg);
-
 
 	AsyncQueue write_queue = nullptr;
 	AsyncQueue read_queue = nullptr;
 	ShutdownSignal shutdown_flag = nullptr;
 	Future rw_future;
 	Future analyze_nat_future;
-
+	std::future<UDPHolepunching::Result> establish_communication_future;
 	
 	static void async_read_msg(uint32_t msg_len, asio::ip::tcp::socket& s, TraversalInfo const& info);
 	static void async_write_msg(TraversalInfo const& info, asio::ip::tcp::socket& s);

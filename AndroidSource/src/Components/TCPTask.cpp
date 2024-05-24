@@ -14,12 +14,18 @@ DataPackage TCPTask::ServerTransaction(DataPackage&& pkg, std::string server_add
 	asio::io_context io_context;
 	asio_tcp::resolver resolver{ io_context };
 	asio_tcp::socket socket{ io_context };
+
+	asio::error_code asio_error;
+	socket.open(asio::ip::tcp::v4(), asio_error);
+	if (asio_error)
+	{
+		return DataPackage::Create(Error::FromAsio(asio_error, "Opening socket for server transaction"));
+	}
+
 	Error error{ ErrorType::OK };
 	DataPackage rcvd{};
 	for (;;)
 	{
-		asio::error_code asio_error;
-
 		// Connect to Server
 		auto resolved = resolver.resolve(server_addr, std::to_string(server_port), asio_error);
 		if ((error = Error::FromAsio(asio_error, "Resolve address")))break;

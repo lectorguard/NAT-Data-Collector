@@ -35,7 +35,7 @@ namespace shared
 		return ss.str();
 	}
 
-	inline std::vector<uint8_t> stringToVector(const std::string& msg)
+	inline static std::vector<uint8_t> stringToVector(const std::string& msg)
 	{
 		std::vector<uint8_t> buffer;
 		buffer.resize(msg.size());

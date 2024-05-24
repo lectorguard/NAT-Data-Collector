@@ -30,20 +30,12 @@ public:
 		uint16_t time_between_requests_ms;
 	};
 
-	enum class SystemErrorStates
-	{
-		NO_ERROR,
-		SOCKETS_EXHAUSTED
-	};
-
 	static DataPackage StartCollectTask(const CollectInfo& collect_info, std::atomic<bool>& shutdown_flag);
 	static DataPackage StartNatTypeTask(const NatTypeInfo& collect_info);
 
 	// Normal Collect Task
 	UDPCollectTask(const CollectInfo& info, std::atomic<bool>& shutdown_flag, asio::io_service& io_service);
 	UDPCollectTask(const NatTypeInfo& info, asio::io_service& io_service);
-
-	SystemErrorStates GetSystemErrorState(){ return _system_error_state; }
 
 private:
 	struct Socket
@@ -52,6 +44,13 @@ private:
 		std::shared_ptr<asio::ip::udp::socket> socket;
 		asio::system_timer timer;
 	};
+
+	enum class PhysicalDeviceError
+	{
+		NO_ERROR,
+		SOCKETS_EXHAUSTED
+	};
+
 
 	static DataPackage start_task_internal(std::function<UDPCollectTask(asio::io_service&)> createCollectTask);
 	void send_request(Socket& local_socket, asio::io_service& io_service, SharedEndpoint remote_endpoint, const std::error_code& ec);
@@ -67,5 +66,5 @@ private:
 
 
 
-	SystemErrorStates _system_error_state = SystemErrorStates::NO_ERROR;
+	PhysicalDeviceError _system_error_state = PhysicalDeviceError::NO_ERROR;
 };

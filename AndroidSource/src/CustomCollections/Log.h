@@ -4,6 +4,7 @@
 #include "android/log.h"
 #include "SharedProtocol.h"
 #include "Utilities/NetworkHelpers.h"
+#include "mutex"
 
 #define FORCE_LOG(x, ...) ((void)__android_log_buf_print(LOG_ID_CRASH, ANDROID_LOG_ERROR, "native-activity", x, __VA_ARGS__))
 
@@ -13,6 +14,8 @@ enum LogWarn
 	Log_WARNING,
 	Log_ERROR
 };
+
+
 
 struct Log
 {
@@ -105,9 +108,15 @@ public:
 		}
 	}
 
-	 static const std::vector<Entry>& GetLog() { return log_buffer; }
+	 static const std::vector<Entry>& GetLog() 
+	 {
+		 std::scoped_lock lock{ log_mutex };
+		 return log_buffer; 
+	 }
 	 static bool PopScrolltoBottom()
 	 {
+		 std::scoped_lock lock{ log_mutex };
+
 		 auto last = scrollToBottom;
 		 scrollToBottom = false;
 		 return last;
@@ -129,6 +138,7 @@ private:
 
 	static void Log_Internal(const Entry& helper)
 	{
+		std::scoped_lock lock{ log_mutex };
 		switch (helper.level)
 		{
 		case Log_INFO:
@@ -154,4 +164,5 @@ private:
 
 	inline static std::vector<Entry> log_buffer{};
 	inline static bool scrollToBottom = false;
+	inline static std::mutex log_mutex{};
 };

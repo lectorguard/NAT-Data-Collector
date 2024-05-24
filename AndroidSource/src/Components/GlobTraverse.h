@@ -9,7 +9,7 @@ enum class TraverseStep
 	Connected,
 	JoinLobby,
 	ConfirmLobby,
-	AnalyzeNAT,
+	NonInterruptable,
 };
 
 struct JoinLobbyInfo
@@ -42,4 +42,6 @@ private:
 	void Update(Application* app);
 	void EndDraw(Application* app);
 	void Shutdown(Application* app);
+
+	asio::io_service io;
 };

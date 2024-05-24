@@ -141,7 +141,7 @@ Error NatTraverserClient::analyze_nat_internal(UDPCollectTask::CollectInfo info,
 
 	if (!read_queue)
 	{
-		Error err{ ErrorType::ERROR, { "shutdown flag is invalid, abort" } };
+		Error err{ ErrorType::ERROR, { "read queue is invalid during analyze nat, abort" } };
 		Log::HandleResponse(err, "");
 		return err;
 	}
@@ -169,6 +169,34 @@ Error NatTraverserClient::ExchangePrediction(Address prediction_other_client)
 	return push_package(data_package);
 }
 
+shared::Error NatTraverserClient::TraverseClient(UDPHolepunching::RandomInfo const& info)
+{
+	if (establish_communication_future.valid())
+	{
+		return Error(ErrorType::ERROR, { "Please wait until previous call for establishing a communication has finished" });
+	}
+
+	if (!read_queue)
+	{
+		return Error(ErrorType::ERROR, { "Read queue is invalid, can not push result on analyze NAT" });
+	}
+
+	if (!shutdown_flag)
+	{
+		return Error(ErrorType::ERROR, { "shutdown flag is invalid, abort" });
+	}
+
+	establish_communication_future = std::async(UDPHolepunching::StartHolepunching, info, read_queue);
+	return Error{ ErrorType::OK };
+}
+
+UDPHolepunching::Result NatTraverserClient::GetTraversalResultBlocking()
+{
+	establish_communication_future.wait();
+	return establish_communication_future.get();
+}
+
+
 std::optional<Address> NatTraverserClient::PredictPort(const AddressVector& address_vector, PredictionStrategy strategy)
 {
 	const std::vector<Address> addresses = address_vector.address_vector;
@@ -188,7 +216,7 @@ std::optional<Address> NatTraverserClient::PredictPort(const AddressVector& addr
 	case PredictionStrategy::HIGHEST_FREQUENCY:
 	{
 		std::map<uint16_t, std::vector<Address>> port_occurence_map{};
-		for (auto const addr : addresses)
+		for (auto const& addr : addresses)
 		{
 			if (port_occurence_map.contains(addr.port))
 			{
@@ -216,7 +244,7 @@ std::optional<Address> NatTraverserClient::PredictPort(const AddressVector& addr
 	case PredictionStrategy::MINIMUM_DELTA:
 	{
 		std::map<uint16_t, std::vector<Address>> port_occurence_map{};
-		for (auto const addr : addresses)
+		for (auto const& addr : addresses)
 		{
 			if (port_occurence_map.contains(addr.port))
 			{
@@ -292,6 +320,11 @@ std::optional<DataPackage> NatTraverserClient::TryGetResponse()
 				return DataPackage::Create(err);
 			}
 		}
+		else if (pkg.transaction == Transaction::CLIENT_TRAVERSAL_RESULT && pkg.error)
+		{
+			// Discard future result
+			GetTraversalResultBlocking();
+		}
 		return pkg;
 	}
 	return std::nullopt;
@@ -321,6 +354,14 @@ Error NatTraverserClient::connect_internal(TraversalInfo const& info)
 	tcp::socket socket{ io_context };
 
 	asio::error_code asio_error;
+
+	socket.open(asio::ip::tcp::v4(), asio_error);
+	if (asio_error)
+	{
+		return Error::FromAsio(asio_error, "Opening socket for NAT Traversal Client");
+	}
+		
+
 	auto resolved = resolver.resolve(info.server_addr, std::to_string(info.server_port), asio_error);
 	if (auto error = Error::FromAsio(asio_error, "Resolve address"))
 	{
@@ -381,11 +422,12 @@ void NatTraverserClient::async_read_msg_length(TraversalInfo const& info, asio::
 		{
 			if (auto error = Error::FromAsio(ec, "Read length of server answer"))
 			{
-				push_error(error, info.read_queue);
+				
+				info.read_queue->push_error(error);
 			}
 			else if (length != MAX_MSG_LENGTH_DECIMALS)
 			{
-				push_error(Error(ErrorType::WARNING, { "Received invalid message length when reading msg length" }), info.read_queue);
+				info.read_queue->push_error(Error(ErrorType::WARNING, { "Received invalid message length when reading msg length" }));
 				async_read_msg_length(info, s);
 			}
 			else
@@ -419,11 +461,11 @@ void NatTraverserClient::async_read_msg(uint32_t msg_len, asio::ip::tcp::socket&
 		{
 			if (auto error = Error::FromAsio(ec, "Read server answer"))
 			{
-				push_error(error, info.read_queue);
+				info.read_queue->push_error(error);
 			}
 			else if (length != msg_len)
 			{
-				push_error(Error(ErrorType::WARNING, { "Received invalid message length when reading message" }), info.read_queue);
+				info.read_queue->push_error(Error(ErrorType::WARNING, { "Received invalid message length when reading message" }));
 				async_read_msg_length(info, s);
 			}
 			else
@@ -450,32 +492,12 @@ void NatTraverserClient::async_write_msg(TraversalInfo const& info, asio::ip::tc
 			{
 				if (auto error = Error::FromAsio(ec, "Write message"))
 				{
-					push_error(error, info.read_queue);
+					info.read_queue->push_error(error);
 				}
 				else
 				{
 					async_write_msg(info, s);
 				}
 			});
-	}
-}
-
-void NatTraverserClient::push_error(Error error, AsyncQueue read_queue)
-{
-	if (auto compressed_data = DataPackage::Create(error).Compress(false))
-	{
-		read_queue->Push(std::move(*compressed_data));
-	}
-	else
-	{
-		Error compress_error{ ErrorType::ERROR, {"Failed to compress push error : " + (error.messages.empty() ? "" : error.messages[0]) } };
-		if (auto compressed_data = DataPackage::Create(compress_error).Compress(false))
-		{
-			read_queue->Push(std::move(*compressed_data));
-		}
-		else
-		{
-			Log::Error("Unable to compress error :  %s", error.messages.empty() ? "" : error.messages[0].c_str());
-		}
 	}
 }

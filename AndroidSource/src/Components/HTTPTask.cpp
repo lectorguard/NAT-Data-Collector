@@ -14,10 +14,16 @@ std::variant<shared::Error, std::string> HTTPTask::SimpleHttpRequest(std::string
 	asio_tcp::resolver resolver{ io_context };
 	asio_tcp::socket sock{ io_context };
 	std::string result;
+	
+	asio::error_code asio_error;
+	// Check open error
+	sock.open(asio::ip::tcp::v4(), asio_error);
+	if (asio_error)
+	{
+		return Error::FromAsio(asio_error, "Opening socket for HTTP request");
+	}
 	for (;;)
 	{
- 		asio::error_code asio_error;
-
 		asio_tcp::resolver::query query(url, port);
 		auto resolved_query = resolver.resolve(query, asio_error);
 		if ((err = Error::FromAsio(asio_error, "Resolve HTTP URL"))) break;

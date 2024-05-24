@@ -7,9 +7,82 @@
 #include "jni.h"
 #include "UI/StyleConstants.h"
 #include "android_native_app_glue.h"
+#include <cstdio>
+#include <cstring>
+#include <dirent.h>
+#include <unistd.h>
 
 namespace utilities
 {
+	using namespace shared;
+
+	inline std::optional<uint32_t> GetMaxOpenFiles()
+	{
+		FILE* file = std::fopen("/proc/self/limits", "r");
+		if (!file) {
+			return std::nullopt;
+		}
+
+		char line[256];
+		std::optional<uint32_t> max_fds = std::nullopt;
+
+		while (std::fgets(line, sizeof(line), file)) {
+			if (std::strstr(line, "Max open files")) {
+				char* token = std::strtok(line, " ");
+				for (int i = 0; i < 3 && token != nullptr; ++i) {
+					token = std::strtok(nullptr, " ");
+				}
+				if (token) {
+					max_fds = std::atoi(token);
+				}
+				break;
+			}
+		}
+		std::fclose(file);
+		return max_fds;
+	}
+
+	inline std::optional<uint32_t> GetCurrentOpenFiles()
+	{
+		uint32_t count = 0;
+		DIR* dirp = opendir("/proc/self/fd");
+		if (dirp) {
+			struct dirent* entry;
+			while ((entry = readdir(dirp)) != nullptr) {
+				if (entry->d_type == DT_LNK) {
+					count++;
+				}
+			}
+			closedir(dirp);
+			return count;
+		}
+		return std::nullopt;
+	}
+
+	// Only produces warning
+	inline Error ClampIfNotEnoughFiles(uint16_t& sample_size)
+	{
+		auto max_files = GetMaxOpenFiles();
+		auto curr_files = GetCurrentOpenFiles();
+		if (max_files && curr_files)
+		{
+			uint32_t rem95 = (*max_files - *curr_files) * 0.95f;
+			if (sample_size > rem95)
+			{
+				Error err{ ErrorType::WARNING,
+					{
+						"Device runs out of file descriptors for sockets",
+						"Requested size : " + std::to_string(sample_size) + " Remaining files : " + std::to_string(rem95),
+						"Overriding requested size with " + std::to_string(rem95)
+					}
+				};
+				sample_size = rem95;
+				return err;
+			}
+		}
+		return Error{ ErrorType::OK };
+	}
+
 	inline void ShutdownTCPSocket(asio::ip::tcp::socket& socket, asio::error_code& ec)
 	{
 		socket.shutdown(asio::ip::tcp::socket::shutdown_both, ec);

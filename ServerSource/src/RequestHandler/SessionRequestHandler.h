@@ -155,8 +155,12 @@ struct ServerHandler<shared::Transaction::SERVER_EXCHANGE_PREDICTION>
 		// Traverse if both predictions are received
 		if (lobby.owner.prediction.port != 0 && lobby.joined[0].prediction.port != 0)
 		{
-			DataPackage prediction_owner = DataPackage::Create(&lobby.owner.prediction, Transaction::CLIENT_START_TRAVERSAL);
-			DataPackage prediction_joined = DataPackage::Create(&lobby.joined[0].prediction, Transaction::CLIENT_START_TRAVERSAL);
+			DataPackage prediction_owner = 
+				DataPackage::Create(&lobby.owner.prediction, Transaction::CLIENT_START_TRAVERSAL)
+				.Add(MetaDataField::HOLEPUNCH_ROLE, HolepunchRole::PUNCH_HOLES);
+			DataPackage prediction_joined = 
+				DataPackage::Create(&lobby.joined[0].prediction, Transaction::CLIENT_START_TRAVERSAL)
+				.Add(MetaDataField::HOLEPUNCH_ROLE, HolepunchRole::TARGET_HOLES);
 			ref->send_session(prediction_owner, lobby.owner.session);
 			ref->send_session(prediction_joined, lobby.joined[0].session);
 		}
