@@ -152,8 +152,8 @@ void GlobTraverse::HandlePackage(Application* app, DataPackage& data_package)
 			/* server address */				SERVER_IP,
 			/* server port */					SERVER_NAT_UDP_PORT_2,
 			/* local port */					0,
-			/* sample size */					25,
-			/* sample rate in ms */				1,
+			/* sample size */					NAT_TRAVERSE_ANALYZE_PORTS,
+			/* sample rate in ms */				NAT_COLLECT_REQUEST_DELAY_MS,
 		};
 		traversal_client.CollectPorts(collect_config);
 		currentTraversalStep = TraverseStep::NonInterruptable;
@@ -199,8 +199,8 @@ void GlobTraverse::HandlePackage(Application* app, DataPackage& data_package)
 		const UDPHolepunching::RandomInfo config
 		{
 			predicted_address, // Address
-			60'000u,		// Traversal Attempts
-			10'000u,	// Deadline duration	
+			NAT_TRAVERSE_ATTEMPTS,		// Traversal Attempts
+			NAT_TRAVERSE_DEADLINE_MS,	// Deadline duration	
 			role,		// Role
 			io
 		};
@@ -230,13 +230,13 @@ void GlobTraverse::HandlePackage(Application* app, DataPackage& data_package)
 		TraversalClient toSend
 		{
 			result_index, //success index if exist
-			60'000u,
+			NAT_TRAVERSE_ATTEMPTS,
 			app->_components.Get<ConnectionReader>().Get(),
 			predicted_address,
 			start_traversal_timestamp,
 			model.client_meta_data
 		};
-		if (auto err = traversal_client.UploadTraversalResult(success, toSend, MONGO_DB_NAME, "traversal"))
+		if (auto err = traversal_client.UploadTraversalResult(success, toSend, MONGO_DB_NAME, MONGO_NAT_TRAVERSAL_COLL_NAME))
 		{
 			Log::HandleResponse(err, "Start upload traversal result");
 			Shutdown(app);

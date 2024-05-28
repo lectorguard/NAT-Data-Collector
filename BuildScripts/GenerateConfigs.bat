@@ -23,8 +23,12 @@ echo set(NAT_COLLECT_PORTS_PER_SAMPLE 60000) # Total amount of ports requested d
 echo set(NAT_COLLECT_EXTRA_TIME_MS 60000) # Request delay * ports per sample + extra time = max duration for collection step >> ..\android.config
 echo set(NAT_COLLECT_SAMPLE_DELAY_MS 180000) # Delay between two consecutive NAT collection steps >> ..\android.config
 echo set(NAT_COLLECT_UPLOAD_DELAY_MS 30000) # Delay before sample is uploaded to database >> ..\android.config
+echo set(NAT_TRAVERSE_ANALYZE_PORTS 1000) # Amount of ports collected during analyze phase >> ..\android.config
+echo set(NAT_TRAVERSE_ATTEMPTS 7000) # Number of traversal attempts/created sockets during traversal >> ..\android.config
+echo set(NAT_TRAVERSE_DEADLINE_MS 9000) # Deadline, after which traversal attempt counts as failure >> ..\android.config
 echo set(MONGO_DB_NAME "NatInfo") # Mongo db name, where collected NAT Samples will be stored >> ..\android.config
-echo set(MONGO_NAT_SAMPLES_COLL_NAME "data") # Monog collection name, where collected NAT Samples will be stored >> ..\android.config
+echo set(MONGO_NAT_TRAVERSAL_COLL_NAME "traversal") # Mongo collection name, where traversal results are stored >> ..\android.config
+echo set(MONGO_NAT_SAMPLES_COLL_NAME "data") # Mongo collection name, where collected NAT Samples will be stored >> ..\android.config
 echo set(MONGO_NAT_USERS_COLL_NAME "users") # Mongo collection name, where app user information are stored >> ..\android.config
 echo set(MONGO_VERSION_COLL_NAME "VersionUpdate") # Mongo collection name, where new version pop up information are stored >> ..\android.config
 echo set(MONGO_INFORMATION_COLL_NAME "InformationUpdate") # Mongo collection name, where general information for popups are stored >> ..\android.config

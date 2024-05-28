@@ -60,6 +60,11 @@ void MainScreen::Draw(Application* app)
 	ImGui::Text("Select App Task ");
 	for (auto& tab : glob_tabs)
 	{
+#if RANDOM_SYM_NAT_REQUIRED
+		if (tab.state == NatCollectorGlobalState::Traverse &&
+			modelRef.client_meta_data.nat_type != NATType::RANDOM_SYM) continue;
+#endif
+
 #if !TRAVERSAL_FEATURE_ENABLED
 		if (tab.state == NatCollectorGlobalState::Traverse) continue;
 #endif
