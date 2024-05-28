@@ -22,3 +22,4 @@ JSON
 unix_build
 android.config
 server_template_config.json
+BuildScripts/*.txt
