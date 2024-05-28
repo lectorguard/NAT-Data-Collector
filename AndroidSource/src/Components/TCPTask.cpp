@@ -15,6 +15,8 @@ DataPackage TCPTask::ServerTransaction(DataPackage&& pkg, std::string server_add
 	asio_tcp::resolver resolver{ io_context };
 	asio_tcp::socket socket{ io_context };
 
+	Log::Warning("%s", pkg.meta_data.dump().c_str());
+
 	asio::error_code asio_error;
 	socket.open(asio::ip::tcp::v4(), asio_error);
 	if (asio_error)

@@ -197,6 +197,7 @@ namespace shared
 				std::cout << "Decompress data package is invalid" << std::endl;
 				return DataPackage::Create<ErrorType::ERROR>({ "Decompress data package is invalid" });
 			}
+			std::cout << decompressed_answer.dump() << std::endl;
 			// Deserialize answer
 			std::vector<jser::JSerError> errors;
 			DataPackage data_package{};
