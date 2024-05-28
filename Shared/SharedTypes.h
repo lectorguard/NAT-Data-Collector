@@ -24,6 +24,7 @@ namespace shared
 		CLIENT_RECEIVE_COLLECTED_PORTS,
 		CLIENT_START_TRAVERSAL,
 		CLIENT_TRAVERSAL_RESULT,
+		CLIENT_UPLOAD_SUCCESS,
 		CLIENT_END,
 		SERVER_START,
 		SERVER_INSERT_MONGO,
@@ -34,6 +35,7 @@ namespace shared
 		SERVER_ASK_JOIN_LOBBY,
 		SERVER_CONFIRM_LOBBY,
 		SERVER_EXCHANGE_PREDICTION,
+		SERVER_UPLOAD_TRAVERSAL_RESULT,
 		SERVER_END
 	};
 
@@ -50,7 +52,8 @@ namespace shared
 		SESSION,
 		JOIN_SESSION_KEY,
 		USER_SESSION_KEY,
-		HOLEPUNCH_ROLE
+		HOLEPUNCH_ROLE,
+		SUCCESS
 	};
 
 	inline const std::map<MetaDataField, std::string> meta_data_to_string{
@@ -66,6 +69,7 @@ namespace shared
 		{MetaDataField::JOIN_SESSION_KEY, "join_session_key"},
 		{MetaDataField::USER_SESSION_KEY, "user_session_key"},
 		{MetaDataField::HOLEPUNCH_ROLE, "holepunch_role"},
+		{MetaDataField::SUCCESS, "success"}
 	};
 
 	enum class HolepunchRole : uint8_t

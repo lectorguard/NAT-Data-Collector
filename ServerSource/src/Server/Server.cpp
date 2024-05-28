@@ -179,6 +179,12 @@ void Server::add_lobby(User owner, std::vector<User> joined)
 	_lobbies[owner.session] = Lobby{owner, joined};
 }
 
+void Server::add_lobby(Lobby lobby)
+{
+	std::scoped_lock sc{ lobby_mutex };
+	_lobbies[lobby.owner.session] = lobby;
+}
+
 void Server::remove_lobby(User owner)
 {
 	std::scoped_lock sc{ lobby_mutex };

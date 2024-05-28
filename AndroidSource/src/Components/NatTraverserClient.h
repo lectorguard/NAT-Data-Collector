@@ -62,6 +62,8 @@ public:
 	// Tries to establish communication with other peer 
 	Error TraverseClient(UDPHolepunching::RandomInfo const& info);
 
+	Error UploadTraversalResult(bool success, TraversalClient client, const std::string& db_name, const std::string& coll_name);
+
 	UDPHolepunching::Result GetTraversalResultBlocking();
 
 	// All server responses can be accessed via this function

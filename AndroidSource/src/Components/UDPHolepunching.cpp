@@ -5,6 +5,8 @@
 #include "CustomCollections/Log.h"
 #include "Components/NatTraverserClient.h"
 
+#define SEND_ID "send_id"
+
 
 UDPHolepunching::UDPHolepunching(const RandomInfo& info) : _deadline_timer(std::make_shared<asio::system_timer>(CreateDeadline(info.io, info.deadline_duration_ms)))
 {
@@ -115,7 +117,7 @@ UDPHolepunching::Result UDPHolepunching::start_task_internal(std::function<UDPHo
 	for (Socket& sock : holepunch_task._socket_list)
 	{
 		// Don't close the success socket
-		if (holepunch_task.success_socket == sock.socket)
+		if (holepunch_task._result.socket == sock.socket)
 		{
 			continue;
 		}
@@ -127,7 +129,7 @@ UDPHolepunching::Result UDPHolepunching::start_task_internal(std::function<UDPHo
 	}
 
 	push_result(holepunch_task._error, read_queue);
-	return UDPHolepunching::Result{ holepunch_task.success_endpoint, holepunch_task.success_socket };
+	return holepunch_task._result;
 }
 
 void UDPHolepunching::send_request(uint16_t sock_index, asio::io_service& io_service, SharedEndpoint remote_endpoint, const std::error_code& ec)
@@ -140,20 +142,10 @@ void UDPHolepunching::send_request(uint16_t sock_index, asio::io_service& io_ser
 		return;
 	}
 
-	shared::Address address{ sock_index, shared::helper::CreateTimeStampOnlyMS() };
-	std::vector<jser::JSerError> jser_errors;
-	const nlohmann::json address_json = address.SerializeObjectJson(std::back_inserter(jser_errors));
-	if (jser_errors.size() > 0)
-	{
-		auto error_string_list = shared::helper::JserErrorToString(jser_errors);
-		error_string_list.push_back("Failed to serialize single Address during UDP Collect task");
-		_error.error = ErrorType::ERROR;
-		_error.messages.insert(_error.messages.end(), error_string_list.begin(), error_string_list.end());
-		io_service.stop();
-		return;
-	}
+	nlohmann::json to_send;
+	to_send[SEND_ID] = sock_index;
 	// create heap object
-	auto shared_serialized_address = std::make_shared<std::vector<uint8_t>>(nlohmann::json::to_msgpack(address_json));
+	auto shared_serialized_address = std::make_shared<std::vector<uint8_t>>(nlohmann::json::to_msgpack(to_send));
 
 
 	if (_socket_list.size() <= sock_index || !_socket_list[sock_index].socket)
@@ -195,55 +187,66 @@ void UDPHolepunching::start_receive(uint16_t sock_index, asio::io_service& io_se
 		asio::buffer(*shared_buffer), *shared_remote,
 		[this, &io_service, shared_buffer, sock_index, shared_remote](const std::error_code& ec, std::size_t bytesTransferred)
 		{
-			if (_socket_list.size() > sock_index && _socket_list[sock_index].socket)
-			{
-				// Set success sockets
-				success_endpoint = shared_remote;
-				success_socket = _socket_list[sock_index].socket;
-				// Handle receive
-				handle_receive(shared_buffer, bytesTransferred, io_service, ec);
-			}
+			handle_receive({ sock_index, shared_remote, shared_buffer, bytesTransferred, io_service, ec });
 		});
 }
 
-void UDPHolepunching::handle_receive(std::shared_ptr<DefaultBuffer> buffer, std::size_t len, asio::io_service& io_service, const std::error_code& ec)
+void UDPHolepunching::handle_receive(const ReceiveInfo& info)
 {
-	if (ec == asio::error::operation_aborted)
+	if (info.ec == asio::error::operation_aborted)
 	{
 		// Potential timeout, package might be dropped
 		return;
 	}
 
-	if (ec && ec != asio::error::message_size)
+	if (info.ec && info.ec != asio::error::message_size)
 	{
-		_error.error = shared::ErrorType::ERROR;
-		_error.messages.push_back(ec.message());
-		io_service.stop();
+		_error.Add(Error::FromAsio(info.ec, "UDP Holepunching handle receive"));
+		info.io.stop();
 		return;
 	}
 
-	if (!buffer || len == 0)
+	if (!info.buffer || info.buffer_length == 0)
 	{
 		// received something invalid, ignore
 		return;
 	}
 
-	nlohmann::json json_buffer = nlohmann::json::from_msgpack(buffer->begin(), buffer->begin() + len, true, false);
-	if (json_buffer.is_null())
+	if (_socket_list.size() <= info.index || !_socket_list[info.index].socket)
+	{
+		_error.Add(Error{ ErrorType::ERROR, {"UDP Holepunching socket index invalid during handle receive"}});
+		info.io.stop();
+		return;
+	}
+
+	nlohmann::json json_buffer = nlohmann::json::from_msgpack(info.buffer->begin(), info.buffer->begin() + info.buffer_length, true, false);
+	if (json_buffer.is_null() || !json_buffer.contains(SEND_ID))
 	{
 		// received invalid data, ignore
 		return;
 	}
-	const std::string rcvd = json_buffer.dump();
-	Log::Warning("Success rcvd : %s", rcvd.c_str());
+
+	uint16_t recvd_index = json_buffer[SEND_ID];
+
+	// Inform about successful traverse
+	Log::Warning("Successful Traverse");
+	Log::Warning("Received at index : %d", info.index);
+	Log::Warning("Send msg at index : %d", recvd_index);
+
+	_result = Result{ info.other_endpoint, _socket_list[info.index].socket, info.index, recvd_index };
+
+	nlohmann::json to_send;
+	to_send[SEND_ID] = info.index;
+	// create heap object
+	auto shared_serialized_address = std::make_shared<std::vector<uint8_t>>(nlohmann::json::to_msgpack(to_send));
 
 	// inform also other client
-	success_socket->async_send_to(asio::buffer(*buffer, len), *success_endpoint,
-		[&io_service, this](const std::error_code& ec, std::size_t bytesTransferred)
+	_result.socket->async_send_to(asio::buffer(*shared_serialized_address), *info.other_endpoint,
+		[&io = info.io, this, shared_serialized_address](const std::error_code& ec, std::size_t bytesTransferred)
 		{
 			// Kill deadline timer
 			_deadline_timer->cancel();
-			io_service.stop();
+			io.stop();
 		});
 }
 

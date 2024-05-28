@@ -187,19 +187,18 @@ void GlobTraverse::HandlePackage(Application* app, DataPackage& data_package)
 	case Transaction::CLIENT_START_TRAVERSAL:
 	{
 		Log::Info("Start Holepunching");
-		Address prediction;
-		if (auto err = data_package.Get<Address>(prediction))
+		if (auto err = data_package.Get<Address>(predicted_address))
 		{
 			Log::HandleResponse(err, "Read predicted Address for traversal");
 			Shutdown(app);
 			break;
 		}
-		Log::Info("Predicted Address : %s:%d", prediction.ip_address.c_str(), prediction.port);
+		Log::Info("Predicted Address : %s:%d", predicted_address.ip_address.c_str(), predicted_address.port);
 
 		const HolepunchRole role = data_package.Get<HolepunchRole>(MetaDataField::HOLEPUNCH_ROLE);
 		const UDPHolepunching::RandomInfo config
 		{
-			prediction, // Address
+			predicted_address, // Address
 			60'000u,		// Traversal Attempts
 			10'000u,	// Deadline duration	
 			role,		// Role
@@ -211,18 +210,44 @@ void GlobTraverse::HandlePackage(Application* app, DataPackage& data_package)
 			Shutdown(app);
 			break;
 		}
+		start_traversal_timestamp = shared::helper::CreateTimeStampNow();
 		break;
 	}
 	case Transaction::CLIENT_TRAVERSAL_RESULT:
 	{
 		Log::HandleResponse(data_package, "Traversal Result");
-		if (data_package)
+		const bool success = data_package;
+		uint16_t result_index{};
+		if (success)
 		{
 			auto res = traversal_client.GetTraversalResultBlocking();
+			result_index = res.rcvd_index;
 			if (res.socket)res.socket->close();
 			Log::Info("Traversal Succeeded");
 		}
-		Log::Info("Done");
+
+		Log::Info("Start Upload Traversal Result");
+		TraversalClient toSend
+		{
+			result_index, //success index if exist
+			60'000u,
+			app->_components.Get<ConnectionReader>().Get(),
+			predicted_address,
+			start_traversal_timestamp,
+			model.client_meta_data
+		};
+		if (auto err = traversal_client.UploadTraversalResult(success, toSend, MONGO_DB_NAME, "traversal"))
+		{
+			Log::HandleResponse(err, "Start upload traversal result");
+			Shutdown(app);
+			break;
+		}
+		break;
+	}
+	case Transaction::CLIENT_UPLOAD_SUCCESS:
+	{
+		Log::HandleResponse(data_package.error, "Upload Traversal Result");
+		Log::Info("Done Traversing");
 		Shutdown(app);
 		break;
 	}
@@ -306,6 +331,8 @@ void GlobTraverse::Shutdown(Application* app)
 {
 	all_lobbies = GetAllLobbies{};
 	join_info = JoinLobbyInfo{};
+	predicted_address = Address{};
+	start_traversal_timestamp = std::string{};
 	traversal_client.Disconnect();
 	currentTraversalStep = TraverseStep::Idle;
 	app->_components.Get<NatCollectorModel>().SetNextGlobalState(NatCollectorGlobalState::Idle);

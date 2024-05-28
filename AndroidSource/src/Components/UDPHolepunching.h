@@ -6,6 +6,7 @@
 #include <queue>
 #include "atomic"
 #include "SharedTypes.h"
+#include "memory"
 #include "CustomCollections/ConcurrentQueue.h"
 
 using namespace shared;
@@ -30,8 +31,10 @@ public:
 
 	struct Result
 	{
-		SharedEndpoint endpoint;
-		SharedSocket socket;
+		SharedEndpoint endpoint = nullptr;
+		SharedSocket socket = nullptr;
+		uint16_t rcvd_index{};
+		uint16_t send_index{};
 	};
 
 	static Result StartHolepunching(const RandomInfo& holepunch_info, AsyncQueue read_queue);
@@ -46,10 +49,21 @@ private:
 		asio::system_timer timer;
 	};
 
+	struct ReceiveInfo
+	{
+		uint16_t index{};
+		std::shared_ptr<asio::ip::udp::endpoint> other_endpoint{};
+		std::shared_ptr<DefaultBuffer> buffer{};
+		std::uint64_t buffer_length{};
+		asio::io_service& io;
+		asio::error_code ec;
+	};
+
 	static UDPHolepunching::Result start_task_internal(std::function<UDPHolepunching()> createCollectTask, AsyncQueue read_queue, asio::io_context& io);
 	void send_request(uint16_t sock_index, asio::io_service& io_service, SharedEndpoint remote_endpoint, const std::error_code& ec);
 	void start_receive(uint16_t sock_index, asio::io_service& io_service, const std::error_code& ec);
-	void handle_receive(std::shared_ptr<DefaultBuffer> buffer, std::size_t len, asio::io_service& io_service, const std::error_code& ec);
+	// Returns success index
+	void handle_receive(const ReceiveInfo& info);
 	asio::system_timer CreateDeadline(asio::io_service& service, uint32_t duration_ms);
 	static void push_result(Error error, AsyncQueue read_queue);
 
@@ -58,6 +72,5 @@ private:
 	std::shared_ptr<asio::system_timer> _deadline_timer;
 	bool _sockets_exhausted = false;
 	// In case of traversal success, socket and endpoint are set here
-	SharedEndpoint success_endpoint = nullptr;
-	SharedSocket success_socket = nullptr;
+	Result _result{};
 };

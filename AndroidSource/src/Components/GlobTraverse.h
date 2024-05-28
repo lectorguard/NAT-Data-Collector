@@ -33,6 +33,8 @@ public:
 private:
 
 	NatTraverserClient traversal_client{};
+	Address predicted_address;
+	std::string start_traversal_timestamp{};
 	TraverseStep currentTraversalStep = TraverseStep::Idle;
 
 	void OnJoinLobbyAccept(Application* app, Lobby join_lobby);

@@ -4,6 +4,7 @@
 #include "Data/Traversal.h"
 #include "Data/Address.h"
 #include "Server/Server.h"
+#include "MongoRequestHandler.h"
 
 template<>
 struct ServerHandler<shared::Transaction::SERVER_CREATE_LOBBY>
@@ -11,6 +12,7 @@ struct ServerHandler<shared::Transaction::SERVER_CREATE_LOBBY>
 	static const shared::DataPackage Handle(shared::DataPackage pkg, Server* ref, uint64_t session_hash)
 	{
 		using namespace shared;
+		
 		auto username = pkg.Get<std::string>(MetaDataField::USERNAME);
 		ref->add_lobby(shared::User{ session_hash, username });
 
@@ -155,6 +157,7 @@ struct ServerHandler<shared::Transaction::SERVER_EXCHANGE_PREDICTION>
 		// Traverse if both predictions are received
 		if (lobby.owner.prediction.port != 0 && lobby.joined[0].prediction.port != 0)
 		{
+			// Owner always punches holes !!!
 			DataPackage prediction_owner = 
 				DataPackage::Create(&lobby.owner.prediction, Transaction::CLIENT_START_TRAVERSAL)
 				.Add(MetaDataField::HOLEPUNCH_ROLE, HolepunchRole::PUNCH_HOLES);
@@ -165,5 +168,89 @@ struct ServerHandler<shared::Transaction::SERVER_EXCHANGE_PREDICTION>
 			ref->send_session(prediction_joined, lobby.joined[0].session);
 		}
 		return DataPackage::Create<ErrorType::OK>();
+	}
+};
+
+
+
+template<>
+struct ServerHandler<shared::Transaction::SERVER_UPLOAD_TRAVERSAL_RESULT>
+{
+	static const shared::DataPackage Handle(shared::DataPackage pkg, Server* ref, uint64_t session_hash)
+	{
+		using namespace shared;
+		// Read metadata infos
+		const auto traversal_success = pkg.Get<bool>(MetaDataField::SUCCESS);
+		const auto db_name = pkg.Get<std::string>(MetaDataField::DB_NAME);
+		const auto coll_name = pkg.Get<std::string>(MetaDataField::COLL_NAME);
+
+		// Read received client infos
+		TraversalClient client_info;
+		if (auto err = pkg.Get<TraversalClient>(client_info))
+		{
+			return DataPackage::Create(err);
+		}
+
+		// Find the related lobby
+		auto lobbies = ref->GetLobbies();
+		auto result = std::find_if(lobbies.begin(), lobbies.end(),
+			[session_hash](auto elem)
+			{
+				auto const& lobby = elem.second;
+				if (lobby.owner.session == session_hash || (lobby.joined.size() == 1 && lobby.joined[0].session == session_hash))
+				{
+					return true;
+				}
+				return false;
+			});
+		if (result == lobbies.end())
+		{
+			return DataPackage::Create<ErrorType::ERROR>({ "Can not find associated lobby to exchange prediction" });
+		}
+		if (result->second.joined.size() != 1)
+		{
+			return DataPackage::Create<ErrorType::ERROR>({ "Can not find associated lobby to exchange prediction" });
+		}
+
+		// Update the prediction
+		auto [hash, lobby] = *result;
+		
+		// Owner always punches holes
+		if (lobby.owner.session == session_hash)
+		{
+			lobby.result.client_punch_hole = client_info;
+		}
+		else
+		{
+			lobby.result.client_target_hole = client_info;
+		}
+		lobby.result.success = traversal_success;
+		// Update lobby internal
+		ref->add_lobby(lobby);
+
+		// if both result have been received, we upload the result to the database
+		if (lobby.result.client_punch_hole.connection_type != ConnectionType::NOT_CONNECTED &&
+			lobby.result.client_target_hole.connection_type != ConnectionType::NOT_CONNECTED)
+		{
+			Error err;
+			for (;;)
+			{
+				DataPackage to_database = DataPackage::Create(&lobby.result, Transaction::NO_TRANSACTION);
+				if ((err = to_database.error)) break;
+
+				err = WriteFileToDatabase(to_database.data.dump(), db_name, coll_name);
+				if (err) break;
+
+				break;
+			}
+			
+			auto to_send = err ? DataPackage::Create(err) : DataPackage::Create(nullptr, Transaction::CLIENT_UPLOAD_SUCCESS);
+			ref->send_session(to_send, lobby.owner.session);
+			ref->send_session(to_send, lobby.joined[0].session);
+			
+			// Make sure to remove the lobby
+			ref->remove_lobby(lobby.owner);
+		}
+		return DataPackage::Create(Error{ ErrorType::OK });
 	}
 };

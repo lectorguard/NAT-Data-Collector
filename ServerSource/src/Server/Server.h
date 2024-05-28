@@ -22,6 +22,7 @@ public:
 	void send_session(shared::DataPackage data, uint64_t session);
 
 	void add_lobby(User owner, std::vector<User> joined = {});
+	void add_lobby(Lobby lobby);
 	void remove_lobby(User owner);
 	void remove_member(User owner, std::vector<User> members_to_remove);
 	const std::map<uint64_t, Lobby> GetLobbies();

@@ -190,6 +190,22 @@ shared::Error NatTraverserClient::TraverseClient(UDPHolepunching::RandomInfo con
 	return Error{ ErrorType::OK };
 }
 
+shared::Error NatTraverserClient::UploadTraversalResult(bool success, TraversalClient client, const std::string& db_name, const std::string& coll_name)
+{
+	if (!rw_future.valid())
+	{
+		return Error(ErrorType::ERROR, { "Please call connect before any other action" });
+	}
+
+	auto data_package = 
+		DataPackage::Create(&client, Transaction::SERVER_UPLOAD_TRAVERSAL_RESULT)
+		.Add(MetaDataField::SUCCESS, success)
+		.Add(MetaDataField::DB_NAME, db_name)
+		.Add(MetaDataField::COLL_NAME, coll_name);
+
+	return push_package(data_package);
+}
+
 UDPHolepunching::Result NatTraverserClient::GetTraversalResultBlocking()
 {
 	establish_communication_future.wait();

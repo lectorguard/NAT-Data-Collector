@@ -10,6 +10,14 @@
 
 inline static std::mutex mongoWriteMutex{};
 
+
+static Error WriteFileToDatabase(const std::string& data, const std::string& db_name, const std::string& coll_name)
+{
+	// Data races are possible when same user writes to same document/collection
+	std::scoped_lock lock{ mongoWriteMutex };
+	return mongoUtils::InsertElementToCollection(data, db_name, coll_name);
+}
+
 template<>
 struct ServerHandler<shared::Transaction::SERVER_INSERT_MONGO>
 {
@@ -20,10 +28,7 @@ struct ServerHandler<shared::Transaction::SERVER_INSERT_MONGO>
 		const auto db_name = pkg.Get<std::string>(MetaDataField::DB_NAME);
 		const auto coll_name = pkg.Get<std::string>(MetaDataField::COLL_NAME);
 
-		// Data races are possible when same user writes to same document/collection
-		std::scoped_lock lock{ mongoWriteMutex };
-		Error error = mongoUtils::InsertElementToCollection(pkg.data.dump(), db_name, coll_name);
-		return shared::DataPackage::Create(error);
+		return shared::DataPackage::Create(WriteFileToDatabase(pkg.data.dump(), db_name, coll_name));
 	}
 };
 
