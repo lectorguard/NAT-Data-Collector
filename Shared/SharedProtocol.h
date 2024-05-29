@@ -70,6 +70,83 @@ namespace shared
 		}
 	};
 
+	template<typename ... Args>
+	struct MetaVariant
+	{
+	public:
+		MetaVariant(const std::tuple<Args ...>& values, const Error& err, const nlohmann::json& meta_data) :
+			values(values), error(err), meta_data(meta_data)
+		{};
+
+		template<typename M>
+		auto Get(MetaDataField field) -> MetaVariant<Args ..., M>
+		{
+			if (error)
+			{
+				return MetaVariant<Args ..., M>(std::tuple_cat(values, std::make_tuple(M())), error, meta_data);
+			}
+
+			if (!meta_data_to_string.contains(field))
+			{
+				error.Add(Error{ ErrorType::ERROR, {"Meta data field has no string representation" } });
+				return MetaVariant<Args ..., M>(std::tuple_cat(values, std::make_tuple(M())), error, meta_data);
+			}
+
+			if (!meta_data.contains(meta_data_to_string.at(field)))
+			{
+				error.Add(Error{ ErrorType::ERROR, {"Meta data json misses mandatory field : " + meta_data_to_string.at(field)} });
+				return MetaVariant<Args ..., M>(std::tuple_cat(values, std::make_tuple(M())), error, meta_data);
+			}
+			M obj = meta_data[meta_data_to_string.at(field)];
+			auto merged = std::tuple_cat(values, std::make_tuple(obj));
+			return MetaVariant<Args ..., M>(merged, error, meta_data);
+		}
+
+		std::tuple<Args...> values{};
+		Error error{};
+	private:
+		nlohmann::json meta_data{};
+	};
+
+	// Allow single param
+	template <>
+	struct MetaVariant<> {
+	public:
+		MetaVariant(const std::tuple<>& values, const Error& err, const nlohmann::json& meta_data) :
+			values(values), error(err), meta_data(meta_data)
+		{};
+
+		template<typename M>
+		auto Get(MetaDataField field) -> MetaVariant<M>
+		{
+			if (error)
+			{
+				return MetaVariant<M>(std::tuple_cat(values, std::make_tuple(M())), error, meta_data);
+			}
+
+			if (!meta_data_to_string.contains(field))
+			{
+				error.Add(Error{ ErrorType::ERROR, {"Meta data field has no string representation" } });
+				return MetaVariant<M>(std::tuple_cat(values, std::make_tuple(M())), error, meta_data);
+			}
+
+			if (!meta_data.contains(meta_data_to_string.at(field)))
+			{
+				error.Add(Error{ ErrorType::ERROR, {"Meta data json misses mandatory field : " + meta_data_to_string.at(field)} });
+				return MetaVariant<M>(std::tuple_cat(values, std::make_tuple(M())), error, meta_data);
+			}
+			M obj = meta_data[meta_data_to_string.at(field)];
+			auto merged = std::tuple_cat(values, std::make_tuple(obj));
+			return MetaVariant<M>(merged, error, meta_data);
+		}
+
+		std::tuple<> values{};
+		Error error{};
+	private:
+		nlohmann::json meta_data{};
+	
+	};
+
 	struct DataPackage : public jser::JSerializable
 	{
 		nlohmann::json data;
@@ -85,19 +162,10 @@ namespace shared
 		}
 
 		template<typename T>
-		T Get(MetaDataField field)
+		auto Get(MetaDataField field) -> MetaVariant<T>
 		{
-			const std::string field_name = meta_data_to_string.at(field);
-			if (meta_data.contains(field_name))
-			{
-				return meta_data[field_name];
-			}
-			else
-			{
-				std::cout << "Failed to extract Meta Data Field : " << field_name << std::endl;
-				assert(false);
-				return T();
-			}
+			MetaVariant<> meta_var{ std::make_tuple(), error, meta_data };
+			return meta_var.Get<T>(field);
 		}
 
 		template<typename T>

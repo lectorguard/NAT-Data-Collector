@@ -194,8 +194,14 @@ void GlobTraverse::HandlePackage(Application* app, DataPackage& data_package)
 			break;
 		}
 		Log::Info("Predicted Address : %s:%d", predicted_address.ip_address.c_str(), predicted_address.port);
-
-		const HolepunchRole role = data_package.Get<HolepunchRole>(MetaDataField::HOLEPUNCH_ROLE);
+		auto meta_data = data_package.Get<HolepunchRole>(MetaDataField::HOLEPUNCH_ROLE);
+		if (meta_data.error)
+		{
+			Log::HandleResponse(meta_data.error, "Read metadata info holupunchrole");
+			Shutdown(app);
+			break;
+		}
+		const auto [role] = meta_data.values;
 		const UDPHolepunching::RandomInfo config
 		{
 			predicted_address, // Address

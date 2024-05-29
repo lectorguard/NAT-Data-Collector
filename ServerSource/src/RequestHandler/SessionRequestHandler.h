@@ -13,7 +13,11 @@ struct ServerHandler<shared::Transaction::SERVER_CREATE_LOBBY>
 	{
 		using namespace shared;
 		
-		auto username = pkg.Get<std::string>(MetaDataField::USERNAME);
+		auto meta_data = pkg.Get<std::string>(MetaDataField::USERNAME);
+		if (meta_data.error) return DataPackage::Create(meta_data.error);
+
+		const auto [username] = meta_data.values;
+
 		ref->add_lobby(shared::User{ session_hash, username });
 
 		auto empty_lobbies = ref->GetEmptyLobbies();
@@ -29,8 +33,12 @@ struct ServerHandler<shared::Transaction::SERVER_ASK_JOIN_LOBBY>
 {
 	static const shared::DataPackage Handle(shared::DataPackage pkg, Server* ref, uint64_t session_hash)
 	{
-		auto user_session = pkg.Get<uint64_t>(MetaDataField::USER_SESSION_KEY);
-		auto join_session = pkg.Get<uint64_t>(MetaDataField::JOIN_SESSION_KEY);
+		auto meta_data = pkg
+			.Get<uint64_t>(MetaDataField::USER_SESSION_KEY)
+			.Get<uint64_t>(MetaDataField::JOIN_SESSION_KEY);
+
+		if (meta_data.error) return DataPackage::Create(meta_data.error);
+		auto const [user_session, join_session] = meta_data.values;
 
 		const std::map<uint64_t, Lobby> lobbies = ref->GetLobbies();
 		
@@ -179,10 +187,15 @@ struct ServerHandler<shared::Transaction::SERVER_UPLOAD_TRAVERSAL_RESULT>
 	static const shared::DataPackage Handle(shared::DataPackage pkg, Server* ref, uint64_t session_hash)
 	{
 		using namespace shared;
+		
 		// Read metadata infos
-		const auto traversal_success = pkg.Get<bool>(MetaDataField::SUCCESS);
-		const auto db_name = pkg.Get<std::string>(MetaDataField::DB_NAME);
-		const auto coll_name = pkg.Get<std::string>(MetaDataField::COLL_NAME);
+		auto meta_data = pkg
+			.Get<bool>(MetaDataField::SUCCESS)
+			.Get<std::string>(MetaDataField::DB_NAME)
+			.Get<std::string>(MetaDataField::COLL_NAME);
+
+		if (meta_data.error) return DataPackage::Create(meta_data.error);
+		auto const [traversal_success, db_name, coll_name] = meta_data.values;
 
 		// Read received client infos
 		TraversalClient client_info;

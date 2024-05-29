@@ -25,8 +25,12 @@ struct ServerHandler<shared::Transaction::SERVER_INSERT_MONGO>
 	{
 		using namespace shared;
 
-		const auto db_name = pkg.Get<std::string>(MetaDataField::DB_NAME);
-		const auto coll_name = pkg.Get<std::string>(MetaDataField::COLL_NAME);
+		auto meta_data = pkg
+			.Get<std::string>(MetaDataField::DB_NAME)
+			.Get<std::string>(MetaDataField::COLL_NAME);
+
+		if (meta_data.error) return DataPackage::Create(meta_data.error);
+		auto const [db_name, coll_name] = meta_data.values;
 
 		return shared::DataPackage::Create(WriteFileToDatabase(pkg.data.dump(), db_name, coll_name));
 	}
@@ -40,9 +44,13 @@ struct ServerHandler<shared::Transaction::SERVER_GET_VERSION_DATA>
 	{
 		using namespace shared;
 
-		const auto db_name = pkg.Get<std::string>(MetaDataField::DB_NAME);
-		const auto coll_name = pkg.Get<std::string>(MetaDataField::COLL_NAME);
-		const auto curr_version = pkg.Get<std::string>(MetaDataField::CURR_VERSION);
+		auto meta_data = pkg
+			.Get<std::string>(MetaDataField::DB_NAME)
+			.Get<std::string>(MetaDataField::COLL_NAME)
+			.Get<std::string>(MetaDataField::CURR_VERSION);
+
+		if (meta_data.error) return DataPackage::Create(meta_data.error);
+		auto const [db_name, coll_name, curr_version] = meta_data.values;
 
 
 		shared::VersionUpdate version_upate;
@@ -87,9 +95,14 @@ struct ServerHandler<shared::Transaction::SERVER_GET_INFORMATION_DATA>
 	static const shared::DataPackage Handle(shared::DataPackage pkg, Server* ref, uint64_t session_hash)
 	{
 		using namespace shared;
-		const auto db_name = pkg.Get<std::string>(MetaDataField::DB_NAME);
-		const auto coll_name = pkg.Get<std::string>(MetaDataField::COLL_NAME);
-		const auto identifier = pkg.Get<std::string>(MetaDataField::IDENTIFIER);
+
+		auto meta_data = pkg
+			.Get<std::string>(MetaDataField::DB_NAME)
+			.Get<std::string>(MetaDataField::COLL_NAME)
+			.Get<std::string>(MetaDataField::IDENTIFIER);
+
+		if (meta_data.error) return DataPackage::Create(meta_data.error);
+		auto const [db_name, coll_name, identifier] = meta_data.values;
 
 
 		InformationUpdate info_update;
@@ -130,10 +143,15 @@ struct ServerHandler<shared::Transaction::SERVER_GET_SCORES>
 	static const shared::DataPackage Handle(shared::DataPackage pkg, Server* ref, uint64_t session_hash)
 	{
 		using namespace shared;
-		const auto db_name = pkg.Get<std::string>(MetaDataField::DB_NAME);
-		const auto users_coll_name = pkg.Get<std::string>(MetaDataField::USERS_COLL_NAME);
-		const auto data_coll_name = pkg.Get<std::string>(MetaDataField::DATA_COLL_NAME);
-		const auto android_id = pkg.Get<std::string>(MetaDataField::ANDROID_ID);
+
+		auto meta_data = pkg
+			.Get<std::string>(MetaDataField::DB_NAME)
+			.Get<std::string>(MetaDataField::USERS_COLL_NAME)
+			.Get<std::string>(MetaDataField::DATA_COLL_NAME)
+			.Get<std::string>(MetaDataField::ANDROID_ID);
+
+		if (meta_data.error) return DataPackage::Create(meta_data.error);
+		auto const [db_name, users_coll_name, data_coll_name, android_id] = meta_data.values;
 
 		// Mongo Update Parameter
 		nlohmann::json query;
