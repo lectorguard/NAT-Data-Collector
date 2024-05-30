@@ -35,47 +35,17 @@ void PopUpWindow::Draw(class Application* app)
 	ImGui::PopFont();
 	ImGui::PushFont(Renderer::small_font);
 	
-	ImGui::TextWrapped(	"Thank you for downloading the NAT Collector App."
-						"This app collects data from mobile network providers anonymized. "
-						"No user specific data is collected. "
-						"Please disable WIFI and enable data, while running this app. "
-						"In order to collect data, let this app run in the background during your daily use. "
-						"Depending on your android version, background apps are killed after a certain amount of time. "
-						"Please change the following setting to allow the app to run in the background without time limit: "
-						);
+	ImGui::TextWrapped(	"Thank you for downloading the NAT Data Collector App. "
+						"This app collects anonymized data from your mobile network provider. "
+						"No personal user data is collected. "
+						"The data will be used for my master thesis to analyze mobile network behavior. "
+						"Please disable Wi-Fi and enable data while running this app. "
+						"To collect data, simply click on Collect in the next window. "
+						"If there are no errors in the log, everything is working as expected. "
+						"Keep the app open to collect data; you can press the power button once to dim the screen. "
+	);
 
 	ImGui::PopFont();
-	ImGui::PushFont(Renderer::medium_font);
-	ImGui::Dummy(ImVec2(0, Renderer::CentimeterToPixel(0.1f)));
-	ImGui::Text("	1. Open Settings \n"
-				"	2. Navigate to Apps \n"
-				"	3. Select this app \n"
-				"	4. Battery settings \n"
-				"	5. Optimize Battery Usage \n"
-				"	6. Set to NOT optimized");
-
-	ImGui::Dummy(ImVec2(ImGui::CalcTextSize("	").x, 0));
-	ImGui::SameLine();
-	if (utilities::StyledButton("Copy link to tutorial", link_settings_tutorial))
-	{
-		auto result = utilities::WriteToClipboard(app->android_state, "Nat Collector", "https://support.signonsite.com.au/hc/en-us/articles/360003166495-Run-App-In-Background-Android");
-		Log::HandleResponse(result, "Copy tutorial link to disable optimization");
-	}
-
-	ImGui::Dummy(ImVec2(0, Renderer::CentimeterToPixel(0.1f)));
-	ImGui::PopFont();
-
-	ImGui::PushFont(Renderer::small_font);
-	ImGui::TextWrapped(	"Depending on your android version and manufacturer these steps can vary.   "
-						"You can simply google ");
-	ImGui::Dummy(ImVec2(0, Renderer::CentimeterToPixel(0.1f)));
-	ImGui::TextWrapped("<androidVersion> <manufacturer> allow android app to run in background");
-	ImGui::Dummy(ImVec2(0, Renderer::CentimeterToPixel(0.1f)));
-
-	ImGui::TextWrapped( "to find more detailed instructions specific to your phone."
-						"Thanks for you cooperation.");
-	ImGui::PopFont();
-
 	ImGui::Dummy(ImVec2(0, Renderer::CentimeterToPixel(0.1f)));
 
 	ImGui::PushFont(Renderer::medium_font);
@@ -105,7 +75,7 @@ void PopUpWindow::Draw(class Application* app)
 
 	ImGui::PushFont(Renderer::small_font);
 	ImGui::TextWrapped( "You participate automatically, by providing a nickname (after closing this window) "
-						"and tick show score. After proceeding, you can find a scoreboard containing the current state right now."
+						"and tick show score. After proceeding, you can find a scoreboard containing the current state."
 						"The contest will be open for the next months. "
 						"Stay tuned for further information.");
 	
