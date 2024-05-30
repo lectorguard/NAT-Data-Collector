@@ -10,7 +10,6 @@ echo } >> ..\server_template_config.json
 REM Android Config
 echo cmake_minimum_required(VERSION 3.20) > ..\android.config
 echo. >> ..\android.config
-echo set(APP_VERSION "v0.0.1") # specify the current version of the app >> ..\android.config
 echo set(SERVER_IP "192.168.2.110") # your server ip address >> ..\android.config
 echo set(SERVER_NAT_UDP_PORT_1 7777) # server port for nat information request >> ..\android.config
 echo set(SERVER_NAT_UDP_PORT_2 7778) # server port for nat information request >> ..\android.config

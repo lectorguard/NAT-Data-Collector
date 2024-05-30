@@ -149,16 +149,17 @@ namespace shared
 
 	struct DataPackage : public jser::JSerializable
 	{
-		nlohmann::json data;
-		nlohmann::json meta_data;
-		Transaction transaction;
-		Error error;
+		nlohmann::json data{};
+		nlohmann::json meta_data{};
+		Transaction transaction{};
+		Error error{};
+		std::string version = APP_VERSION;
 
 		DataPackage() {};
 
 		jser::JserChunkAppender AddItem() override
 		{
-			return JSerializable::AddItem().Append(JSER_ADD(SerializeManagerType, error, data, meta_data, transaction));
+			return JSerializable::AddItem().Append(JSER_ADD(SerializeManagerType, error, data, meta_data, transaction, version));
 		}
 
 		template<typename T>

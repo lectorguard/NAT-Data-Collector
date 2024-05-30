@@ -11,19 +11,22 @@ namespace shared
 	{
 		uint16_t success_index = 0;
 		uint16_t traversal_attempts{};
-		shared::ConnectionType connection_type = shared::ConnectionType::NOT_CONNECTED;
+		std::vector<Address> analyzed_address{};
+		ConnectionType connection_type = shared::ConnectionType::NOT_CONNECTED;
 		Address prediction{};
 		std::string time_stamp{};
-		shared::ClientMetaData meta_data{};
+		ClientMetaData meta_data{};
 
 		TraversalClient(uint16_t success_index,
 			uint16_t traversal_attempts,
-			shared::ConnectionType connection_type,
+			std::vector<Address> analyzed_address,
+			ConnectionType connection_type,
 			const Address& prediction,
 			const std::string& time_stamp,
-			const shared::ClientMetaData& meta_data)
+			const ClientMetaData& meta_data)
 			: success_index(success_index),
 			traversal_attempts(traversal_attempts),
+			analyzed_address(analyzed_address),
 			connection_type(connection_type),
 			prediction(prediction),
 			time_stamp(time_stamp),
@@ -34,7 +37,7 @@ namespace shared
 		jser::JserChunkAppender AddItem() override
 		{
 			return JSerializable::AddItem()
-				.Append(JSER_ADD(SerializeManagerType, success_index, traversal_attempts, connection_type, prediction, time_stamp, meta_data));
+				.Append(JSER_ADD(SerializeManagerType, success_index, traversal_attempts, connection_type, prediction, time_stamp, meta_data, analyzed_address));
 		}
 	};
 

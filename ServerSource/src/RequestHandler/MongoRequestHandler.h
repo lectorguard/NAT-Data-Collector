@@ -46,16 +46,15 @@ struct ServerHandler<shared::Transaction::SERVER_GET_VERSION_DATA>
 
 		auto meta_data = pkg
 			.Get<std::string>(MetaDataField::DB_NAME)
-			.Get<std::string>(MetaDataField::COLL_NAME)
-			.Get<std::string>(MetaDataField::CURR_VERSION);
+			.Get<std::string>(MetaDataField::COLL_NAME);
 
 		if (meta_data.error) return DataPackage::Create(meta_data.error);
-		auto const [db_name, coll_name, curr_version] = meta_data.values;
+		auto const [db_name, coll_name] = meta_data.values;
 
 
 		shared::VersionUpdate version_upate;
 		Error err =  mongoUtils::FindElementsInCollection("{}", db_name,coll_name ,
-			[old_version = curr_version, &version_upate](mongoc_cursor_t* cursor, int64_t length)
+			[old_version = pkg.version, &version_upate](mongoc_cursor_t* cursor, int64_t length)
 			{
 				if (length == 0) return Error(ErrorType::OK);
 				else return 
@@ -63,15 +62,18 @@ struct ServerHandler<shared::Transaction::SERVER_GET_VERSION_DATA>
 					{
 						[old_version, &version_upate](std::vector<shared::VersionUpdate> vu)
 						{
-						// Check if latest version is newer then current version
-						if (vu[0].latest_version.compare(old_version) > 0)
-						{
-							version_upate = vu[0];
-							return Error(ErrorType::ANSWER);
-						}
-						else return Error(ErrorType::OK);
-					},
-					[](Error err) { return err; }
+							if (vu[0].latest_version != APP_VERSION)
+							{
+								return Error{ ErrorType::ERROR, {"Latest release of app does not match server version"} };
+							}
+							else if (old_version != vu[0].latest_version)
+							{
+								version_upate = vu[0];
+								return Error(ErrorType::ANSWER);
+							}
+							else return Error(ErrorType::OK);
+						},
+						[](Error err) { return err; }
 
 					}, mongoUtils::CursorToJserVector<shared::VersionUpdate>(cursor));
 			});

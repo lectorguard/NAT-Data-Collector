@@ -2,6 +2,10 @@ cmake_minimum_required(VERSION 3.20)
 
 project(AndroidNativeActivity)
 
+set(APP_VERSION "v0.0.1") # Set the version for server and client, checked for mismatch 
+set(SOCKET_TIMEOUT_MS 5000) # Set the timeout for sockets in ms
+set(MAX_MSG_LENGTH_DECIMALS 9)
+
 # Must be set in main CMakeLists.txt for Visual Studio to recognize
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
@@ -103,12 +107,12 @@ if(${CMAKE_SYSTEM_NAME} STREQUAL "Android")
 	source_group(TREE "${imgui_source_path}/" PREFIX "include" FILES ${IMGUI_FILES})
 	message(STATUS "Created successfully library with name: ${imgui_name}")
 
-	add_subdirectory(AndroidSource)
-	target_compile_definitions(native-activity PRIVATE SOCKET_TIMEOUT_MS=5000) 
-	target_compile_definitions(native-activity PRIVATE MAX_MSG_LENGTH_DECIMALS=9) 
+	add_subdirectory(AndroidSource) 
 	INCLUDE(android.config)
 	message(STATUS "IP address from android config ${SERVER_IP}")
 	target_compile_definitions(native-activity PRIVATE 
+										SOCKET_TIMEOUT_MS=${SOCKET_TIMEOUT_MS}
+										MAX_MSG_LENGTH_DECIMALS=${MAX_MSG_LENGTH_DECIMALS}
 										SERVER_IP="${SERVER_IP}"
 										SERVER_NAT_UDP_PORT_1=${SERVER_NAT_UDP_PORT_1}
 										SERVER_NAT_UDP_PORT_2=${SERVER_NAT_UDP_PORT_2}
@@ -142,9 +146,11 @@ else()
 	add_subdirectory(ServerSource)
 	# create config
 	configure_file(server_template_config.json ServerSource/server_config.json)
-	target_compile_definitions(server-app PRIVATE CONFIG_PATH="server_config.json")
-	target_compile_definitions(server-app PRIVATE SOCKET_TIMEOUT_MS=5000) 
-	target_compile_definitions(server-app PRIVATE MAX_MSG_LENGTH_DECIMALS=9) 
+	target_compile_definitions(server-app PRIVATE 
+										CONFIG_PATH="server_config.json"
+										APP_VERSION="${APP_VERSION}"
+										SOCKET_TIMEOUT_MS=${SOCKET_TIMEOUT_MS}
+										MAX_MSG_LENGTH_DECIMALS=${MAX_MSG_LENGTH_DECIMALS})
 endif()
 
 

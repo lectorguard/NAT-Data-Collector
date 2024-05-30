@@ -162,8 +162,7 @@ void GlobTraverse::HandlePackage(Application* app, DataPackage& data_package)
 	case Transaction::CLIENT_RECEIVE_COLLECTED_PORTS:
 	{
 		Log::Info("Received collected ports");
-		AddressVector rcvd_address_vector;
-		if (auto err = data_package.Get<AddressVector>(rcvd_address_vector))
+		if (auto err = data_package.Get<AddressVector>(collected_analyze_ports))
 		{
 			Log::HandleResponse(err, "Receive collected ports during traversal");
 			Shutdown(app);
@@ -171,7 +170,7 @@ void GlobTraverse::HandlePackage(Application* app, DataPackage& data_package)
 		}
 
 		// Predict port based on address vector
-		if (auto addr = NatTraverserClient::PredictPort(rcvd_address_vector, PredictionStrategy::HIGHEST_FREQUENCY))
+		if (auto addr = NatTraverserClient::PredictPort(collected_analyze_ports, PredictionStrategy::HIGHEST_FREQUENCY))
 		{
 			Log::Info("Exchange port prediction for other peer : port %d", addr->port);
 			traversal_client.ExchangePrediction(*addr);
@@ -237,6 +236,7 @@ void GlobTraverse::HandlePackage(Application* app, DataPackage& data_package)
 		{
 			result_index, //success index if exist
 			NAT_TRAVERSE_ATTEMPTS,
+			collected_analyze_ports.address_vector,
 			app->_components.Get<ConnectionReader>().Get(),
 			predicted_address,
 			start_traversal_timestamp,
@@ -290,6 +290,7 @@ void GlobTraverse::JoinLobby(Application* app, uint64_t join_sesssion)
 	{
 		Log::HandleResponse(err, "Join Traversal Lobby");
 		Shutdown(app);
+		return;
 	}
 	else
 	{
@@ -306,6 +307,7 @@ void GlobTraverse::OnJoinLobbyAccept(Application* app, Lobby join_lobby)
 	{
 		Log::Error("Invalid lobby to accept");
 		Shutdown(app);
+		return;
 	}
 
 	Log::Info("Lobby accepted");
@@ -315,6 +317,7 @@ void GlobTraverse::OnJoinLobbyAccept(Application* app, Lobby join_lobby)
 	{
 		Log::HandleResponse(err, "Confirm Lobby");
 		Shutdown(app);
+		return;
 	}
 }
 
@@ -337,6 +340,7 @@ void GlobTraverse::Shutdown(Application* app)
 {
 	all_lobbies = GetAllLobbies{};
 	join_info = JoinLobbyInfo{};
+	collected_analyze_ports = AddressVector{};
 	predicted_address = Address{};
 	start_traversal_timestamp = std::string{};
 	traversal_client.Disconnect();

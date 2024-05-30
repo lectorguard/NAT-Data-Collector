@@ -21,10 +21,6 @@ void GlobUserGuidance::Activate(Application* app)
 	NatCollectorModel& nat_model = app->_components.Get<NatCollectorModel>();
 	app->_components.Get<NatCollectorModel>().SubscribeRecalculateNAT([this](bool b) {OnRecalcNAT(); });
 	nat_model.SubscribePopUpEvent(NatCollectorPopUpState::PopUp, nullptr, nullptr, [this, app](auto st) {OnClosePopUpWindow(app); });
-	nat_model.SubscribePopUpEvent(NatCollectorPopUpState::VersionUpdateWindow,
-		nullptr,
-		nullptr,
-		[this, app](auto st) {OnCloseVersionUpdateWindow(app); });
 
 	nat_model.SubscribePopUpEvent(NatCollectorPopUpState::InformationUpdateWindow,
 		nullptr,
@@ -49,17 +45,6 @@ void GlobUserGuidance::OnClosePopUpWindow(Application* app)
 	bool ignore_pop_up = app->_components.Get<PopUpWindow>().IsPopUpIgnored();
 	user_data.info.ignore_pop_up = ignore_pop_up;
 	user_data.WriteToDisc();
-}
-
-void GlobUserGuidance::OnCloseVersionUpdateWindow(Application* app)
-{
-	UserData& user_data = app->_components.Get<UserData>();
-	bool ignore_pop_up = app->_components.Get<VersionUpdateWindow>().IsIgnorePopUp();
-	if (ignore_pop_up)
-	{
-		user_data.info.version_update = version_update_info.latest_version;
-		Log::HandleResponse(user_data.WriteToDisc(), "Write ignore version update window to disk");
-	}
 }
 
 void GlobUserGuidance::OnCloseInfoUpdateWindow(Application* app)
@@ -115,7 +100,7 @@ void GlobUserGuidance::UpdateGlobState(Application* app)
 	{
 		if (user_data.info.ignore_pop_up)
 		{
-			current = UserGuidanceStep::StartInformationUpdate;
+			current = UserGuidanceStep::StartVersionUpdate;
 		}
 		else
 		{

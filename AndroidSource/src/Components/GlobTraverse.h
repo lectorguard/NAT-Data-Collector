@@ -33,6 +33,7 @@ public:
 private:
 
 	NatTraverserClient traversal_client{};
+	AddressVector collected_analyze_ports{};
 	Address predicted_address;
 	std::string start_traversal_timestamp{};
 	TraverseStep currentTraversalStep = TraverseStep::Idle;

@@ -35,8 +35,6 @@ void VersionUpdateWindow::Draw(class Application* app)
 
 	ImGui::TextWrapped("%s", version_update.version_details.c_str());
 	ImGui::Dummy(ImVec2(0, Renderer::CentimeterToPixel(0.2f)));
-	ImGui::Checkbox(" Don't show this window again", &ignore_pop_up);
-	ImGui::Dummy(ImVec2(0, Renderer::CentimeterToPixel(0.2f)));
 
 	ImGui::PopFont();
 

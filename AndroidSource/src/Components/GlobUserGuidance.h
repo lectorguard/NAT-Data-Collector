@@ -51,7 +51,6 @@ public:
 	shared::InformationUpdate information_update_info;
 private:
 	void OnClosePopUpWindow(Application* app);
-	void OnCloseVersionUpdateWindow(Application* app);
 	void OnCloseInfoUpdateWindow(Application* app);
 	void OnRecalcNAT();
 
