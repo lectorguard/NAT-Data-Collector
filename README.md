@@ -1,5 +1,8 @@
 # NAT Data Collector
 
+This Android application serves the purpose of gathering NAT-related data. It achieves this by sending small messages to a server, collecting metadata such as NAT-translated ports and IP addresses. 
+A single sample contains the data from the collection step as well as the connection type and traceroute meta information. The samples are in a following step uploaded to the server and stored within the database. 
+
 ## Clone Repository
 
 * Clone repository recursively with `git clone --recursive git@github.com:lectorguard/NAT-Data-Collector.git`
