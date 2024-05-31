@@ -1,7 +1,7 @@
 # NAT Data Collector
 
 This Android application serves the purpose of gathering NAT-related data. It achieves this by sending small messages to a server, collecting metadata such as NAT-translated ports and IP addresses. 
-A single sample consists of the meta-data from small messages, the connection type and traceroute meta information. The samples are in a following step uploaded to the server and stored within the database. 
+A single sample consists of the meta-data from the small messages, the connection type and traceroute meta information. The samples are in a following step uploaded to the server and stored within the database. 
 
 ## Clone Repository
 
