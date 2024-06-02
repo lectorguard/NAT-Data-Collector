@@ -75,5 +75,27 @@ namespace shared::helper
 
 		template<class... Lambdas>
 		Overloaded(Lambdas...) -> Overloaded<Lambdas...>;
+
+
+		struct ScopeTimer
+		{
+		public:
+
+			ScopeTimer(std::string_view operation_name = "") :
+				operation_name(operation_name)
+			{
+				begin = std::chrono::system_clock::now();
+			}
+
+			~ScopeTimer()
+			{
+				auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - begin).count();
+				std::cout << operation_name << " took : " << duration << " ms" << std::endl;
+			}
+
+		private:
+			std::chrono::system_clock::time_point begin;
+			std::string_view operation_name;
+		};
 }
 

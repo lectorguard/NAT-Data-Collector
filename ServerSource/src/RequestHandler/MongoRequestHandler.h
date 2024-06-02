@@ -146,6 +146,8 @@ struct ServerHandler<shared::Transaction::SERVER_GET_SCORES>
 	{
 		using namespace shared;
 
+		//helper::ScopeTimer all{ "Server Get Scores Fun" };
+
 		auto meta_data = pkg
 			.Get<std::string>(MetaDataField::DB_NAME)
 			.Get<std::string>(MetaDataField::USERS_COLL_NAME)
@@ -166,6 +168,7 @@ struct ServerHandler<shared::Transaction::SERVER_GET_SCORES>
 		
 		// Update current user information
 		{
+			//helper::ScopeTimer sc{ "Update user info" };
 			std::scoped_lock lock{ mongoWriteMutex };
 			if (Error err = mongoUtils::UpdateElementInCollection(query.dump(), update.dump(), update_options.dump(), db_name, users_coll_name))
 			{
@@ -173,36 +176,96 @@ struct ServerHandler<shared::Transaction::SERVER_GET_SCORES>
 			}
 		}
 
+		Error err;
 		// Get all users
 		Scores all_scores;
-		auto err = mongoUtils::FindElementsInCollection("{}", db_name, users_coll_name,
-			[&all_scores](mongoc_cursor_t* cursor, int64_t length)
-			{
-				return std::visit(shared::helper::Overloaded
-					{
-						[&all_scores](std::vector<ClientID> ids) {
-							all_scores.scores = ids; 
-							return Error(ErrorType::ANSWER); 
-						},
-						[](Error err) { return err; }
+		{
+			//helper::ScopeTimer sc{ "Get all users" };
+			err = mongoUtils::FindElementsInCollection("{}", db_name, users_coll_name,
+				[&all_scores](mongoc_cursor_t* cursor, int64_t length)
+				{
+					return std::visit(shared::helper::Overloaded
+						{
+							[&all_scores](std::vector<ClientID> ids) {
+								all_scores.scores = ids;
+								return Error(ErrorType::ANSWER);
+							},
+							[](Error err) { return err; }
 
-					}, mongoUtils::CursorToJserVector<ClientID>(cursor));
-			});
-		if (!err.Is<ErrorType::ANSWER>()) return DataPackage::Create(err);
+						}, mongoUtils::CursorToJserVector<ClientID>(cursor));
+				});
+			if (!err.Is<ErrorType::ANSWER>()) return DataPackage::Create(err);
+		}
 
 		// Remove users to be ignored
 		all_scores.scores.erase(std::remove_if(all_scores.scores.begin(), all_scores.scores.end(), [](ClientID a) { return !a.show_score; }), all_scores.scores.end());
 
-		// Get number of samples per user
-		for (ClientID& user : all_scores.scores)
 		{
-			nlohmann::json user_query;
-			user_query["meta_data.android_id"] = user.android_id;
-			err = mongoUtils::FindElementsInCollection(user_query.dump(), db_name, data_coll_name,
-				[&user](mongoc_cursor_t* cursor, int64_t length)
+			//helper::ScopeTimer sc{ "Get samples per user" };
+			err = mongoUtils::OpenCollection(db_name, data_coll_name, [db_name, data_coll_name, &all_scores](mongoc_database_t* db, mongoc_collection_t* coll)
 				{
-					user.uploaded_samples = length > 0 ? length : 0;
-					return Error(ErrorType::OK);
+					using namespace SD;
+					using namespace shared;
+
+					// Create the aggregation pipeline
+
+					SmartDestruct<bson_t> pipeline
+					{
+						BCON_NEW(
+							"pipeline", "[",
+								"{", "$group", "{",
+									"_id", BCON_UTF8("$meta_data.android_id"),
+									"count", "{", "$sum", BCON_INT32(1), "}",
+								"}", "}",
+							"]"),
+						[](auto b) {bson_destroy(b); }
+					};
+
+					SmartDestruct<mongoc_cursor_t> cursor
+					{
+						 mongoc_collection_aggregate(coll, MONGOC_QUERY_NONE, pipeline.Value, NULL, NULL),
+						 [](auto c) {mongoc_cursor_destroy(c); }
+					};
+
+					const bson_t* doc;
+					bson_error_t error;
+					std::map<std::string, uint64_t> samples{};
+					// Iterate through the results and print the counts
+					while (mongoc_cursor_next(cursor.Value, &doc)) {
+						bson_iter_t iter;
+						if (bson_iter_init(&iter, doc)) {
+							std::string android_id{};
+							uint32_t count{0};
+
+							while (bson_iter_next(&iter)) {
+								if (strcmp(bson_iter_key(&iter), "_id") == 0 && BSON_ITER_HOLDS_UTF8(&iter)) {
+									android_id = bson_iter_utf8(&iter, NULL);
+								}
+								else if (strcmp(bson_iter_key(&iter), "count") == 0 && BSON_ITER_HOLDS_INT32(&iter)) {
+									count = bson_iter_int32(&iter);
+								}
+							}
+
+							if (!android_id.empty()) 
+							{
+								samples[android_id] = count;
+							}
+						}
+					}
+
+					if (mongoc_cursor_error(cursor.Value, &error)) {
+						return Error(ErrorType::ERROR, { "Query sample amount", error.message });
+					}
+
+
+					for (ClientID& user : all_scores.scores)
+					{
+						if (samples.contains(user.android_id))
+						{
+							user.uploaded_samples = samples[user.android_id];
+						}
+					}
+ 					return Error{ ErrorType::OK };
 				});
 			if (err) return DataPackage::Create(err);
 		}
