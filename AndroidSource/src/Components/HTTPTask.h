@@ -18,6 +18,7 @@ using namespace shared;
 class HTTPTask
 {
 public:
-	static std::variant<Error, std::string> SimpleHttpRequest(std::string_view request, std::string url, bool ignoreRespondHeader, std::string port);
+	// Expects JSON as return type
+	static DataPackage SimpleHttpRequest(std::string_view request, std::string url, bool ignoreRespondHeader, std::string port);
 };
 

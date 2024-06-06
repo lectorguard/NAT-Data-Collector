@@ -45,6 +45,7 @@ namespace shared
 		std::string timezone;
 		std::string android_id;
 		NATType nat_type;
+		std::string version = APP_VERSION;
 
 		ClientMetaData() {}
 		ClientMetaData(std::string isp, std::string country, std::string region, std::string city, std::string timezone, NATType nat_type, std::string android_id) :
@@ -59,7 +60,7 @@ namespace shared
 
 		jser::JserChunkAppender AddItem() override
 		{
-			return JSerializable::AddItem().Append(JSER_ADD(SerializeManagerType, isp, country, region, city, timezone, nat_type, android_id));
+			return JSerializable::AddItem().Append(JSER_ADD(SerializeManagerType, isp, country, region, city, timezone, nat_type, android_id, version));
 		}
 	};
 }

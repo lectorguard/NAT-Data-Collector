@@ -36,7 +36,6 @@ using namespace shared;
 
 class GlobUserGuidance
 {
-	using IPInfoTask = std::future<std::variant<Error, std::string>>;
 	using TransactionTask = std::future<DataPackage>;
 
 public:
@@ -58,7 +57,7 @@ private:
 	UserGuidanceStep current = UserGuidanceStep::Idle;
 
 	// Tasks
-	IPInfoTask ip_info_task;
+	TransactionTask ip_info_task;
 	NatClassifier nat_classifier;
 	TransactionTask version_update;
 	TransactionTask information_update;

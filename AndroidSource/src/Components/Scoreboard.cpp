@@ -22,7 +22,7 @@
 	 {
 		 auto& model = app->_components.Get<NatCollectorModel>();
 		 auto user_data = app->_components.Get<UserData>();
-		 if (model.client_meta_data.android_id.empty())
+		 if (model.GetClientMetaData().android_id.empty())
 		 {
 			 Log::Warning("Invalid android id, can not retrieve scoreboard");
 		 }
@@ -58,12 +58,12 @@ void Scoreboard::Update(Application* app)
 		UserData& user_data = app->_components.Get<UserData>();
 		NatCollectorModel& model = app->_components.Get<NatCollectorModel>();
 		// Create client id
-		ClientID client_id{ model.client_meta_data.android_id, user_data.info.username, user_data.info.show_score, 0 };
+		ClientID client_id{ model.GetClientMetaData().android_id, user_data.info.username, user_data.info.show_score, 0 };
 		DataPackage pkg = DataPackage::Create(&client_id, Transaction::SERVER_GET_SCORES)
 			.Add<std::string>(MetaDataField::DB_NAME, MONGO_DB_NAME)
 			.Add<std::string>(MetaDataField::USERS_COLL_NAME, MONGO_NAT_USERS_COLL_NAME)
 			.Add<std::string>(MetaDataField::DATA_COLL_NAME, MONGO_NAT_SAMPLES_COLL_NAME)
-			.Add<std::string>(MetaDataField::ANDROID_ID, model.client_meta_data.android_id);
+			.Add<std::string>(MetaDataField::ANDROID_ID, model.GetClientMetaData().android_id);
 
 		scoreboard_transaction = std::async(TCPTask::ServerTransaction, pkg, SERVER_IP, SERVER_TRANSACTION_TCP_PORT);
 		current = ScoreboardSteps::UpdateRequestScores;

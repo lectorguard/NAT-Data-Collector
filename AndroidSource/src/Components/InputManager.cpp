@@ -4,6 +4,8 @@
 #include "imgui.h"
 #include "CustomCollections/Log.h"
 #include "Application/Application.h"
+#include "android/keycodes.h"
+#include "android/window.h"
 
 void InputManager::Activate(Application* app)
 {
@@ -19,6 +21,19 @@ int32_t InputManager::HandleInput(struct android_app* state, AInputEvent* ev)
 		AKeyEvent_getAction(ev) == AKEY_EVENT_ACTION_DOWN)
 	{
 		const int key = AKeyEvent_getKeyCode(ev);
+		if (key == AKEYCODE_VOLUME_UP)
+		{
+			if(auto app = reinterpret_cast<Application*>(state->userData))
+			{
+				app->_components.Get<NatCollectorModel>().FlipDarkMode(app);
+				return 1;
+			}
+			else
+			{
+				Log::Error("Failed to retrieve Application* while handling input");
+			}
+		}
+
 		const int metaState = AKeyEvent_getMetaState(ev);
 		ImGuiIO& io = ImGui::GetIO();
 		const int unicode = metaState ?

@@ -26,7 +26,7 @@ void WrongNatTypeWindow::StartDraw(Application* app)
 void WrongNatTypeWindow::UpdateDraw(class Application* app)
 {
 	NatCollectorModel& nat_model = app->_components.Get<NatCollectorModel>();
-	const shared::NATType nat_type = nat_model.client_meta_data.nat_type;
+	const shared::NATType nat_type = nat_model.GetClientMetaData().nat_type;
 
 	ImGui::PushFont(Renderer::medium_font);
 

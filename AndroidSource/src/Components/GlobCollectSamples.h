@@ -16,6 +16,8 @@ enum class CollectSamplesStep : uint16_t
 	Start,
 	StartNATInfo,
 	UpdateNATInfo,
+	StartIPInfo,
+	UpdateIPInfo,
 	StartCollectPorts,
 	UpdateCollectPorts,
 	StartWaitUpload,
@@ -56,6 +58,8 @@ private:
 	NatClassifier nat_classifier;
 	NATIdentTask nat_ident_task;
 	TransactionTask upload_nat_sample;
+	TransactionTask ip_info_task;
+	
 
 	// Data
 	std::string readable_time_stamp;

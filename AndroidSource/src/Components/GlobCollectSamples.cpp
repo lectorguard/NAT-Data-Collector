@@ -37,7 +37,6 @@ void GlobCollectSamples::UpdateGlobState(class Application* app)
 {
 	std::atomic<shared::ConnectionType>& connect_type = app->_components.Get<ConnectionReader>().GetAtomicRef();
 	NatCollectorModel& model = app->_components.Get<NatCollectorModel>();
-	shared::ClientMetaData& client_meta_data = model.client_meta_data;
 
 	switch (current)
 	{
@@ -64,15 +63,15 @@ void GlobCollectSamples::UpdateGlobState(class Application* app)
 		Error logs;
 		if (auto nat_type = nat_classifier.TryGetAsyncClassifyNatResult(logs))
 		{
-			client_meta_data.nat_type = *nat_type;
+			model.SetClientNATType(*nat_type);
 			Log::HandleResponse(logs, "Receive NAT Classification");
-			Log::Info("Identified NAT type %s", shared::nat_to_string.at(client_meta_data.nat_type).c_str());
+			Log::Info("Identified NAT type %s", shared::nat_to_string.at(*nat_type).c_str());
 
 #if RANDOM_SYM_NAT_REQUIRED
-			if (client_meta_data.nat_type == shared::NATType::RANDOM_SYM)
+			if (*nat_type == shared::NATType::RANDOM_SYM)
 			{
 				// correct nat type continue
-				current = CollectSamplesStep::StartCollectPorts;
+				current = CollectSamplesStep::StartIPInfo;
 			}
 			else
 			{
@@ -81,8 +80,36 @@ void GlobCollectSamples::UpdateGlobState(class Application* app)
 				current = CollectSamplesStep::StartWait;
 			}
 #else
-			current = CollectSamplesStep::StartCollectPorts;
+			current = CollectSamplesStep::StartIPInfo;
 #endif
+		}
+		break;
+	}
+	case CollectSamplesStep::StartIPInfo:
+	{
+		Log::Info("Retrieve IP Meta Data");
+		std::stringstream requestHeader;
+		requestHeader << "GET /json/ HTTP/1.1\r\n";
+		requestHeader << "Host: ip-api.com\r\n";
+		requestHeader << "\r\n";
+		ip_info_task = std::async(HTTPTask::SimpleHttpRequest, requestHeader.str(), std::string("ip-api.com"), true, "80");
+		current = CollectSamplesStep::UpdateIPInfo;
+		break;
+	}
+	case CollectSamplesStep::UpdateIPInfo:
+	{
+		if (auto res = utilities::TryGetFuture<DataPackage>(ip_info_task))
+		{
+			shared::IPMetaData metaData{};
+			if (auto error = res->Get(metaData))
+			{
+				Log::HandleResponse(error, "Failed to deserialize Ip Information");
+			}
+			else
+			{
+				model.SetClientMetaData(metaData);
+			}
+			current = CollectSamplesStep::StartCollectPorts;
 		}
 		break;
 	}
@@ -187,7 +214,7 @@ void GlobCollectSamples::UpdateGlobState(class Application* app)
 		using namespace shared;
 
 		// Create Object
-		NATSample sampleToInsert{ client_meta_data, readable_time_stamp, NAT_COLLECT_REQUEST_DELAY_MS,
+		NATSample sampleToInsert{ model.GetClientMetaData(), readable_time_stamp, NAT_COLLECT_REQUEST_DELAY_MS,
 								  connect_type, collected_nat_data, NAT_COLLECT_SAMPLE_DELAY_MS };
 		DataPackage pkg = DataPackage::Create(&sampleToInsert, Transaction::SERVER_INSERT_MONGO)
 			.Add<std::string>(MetaDataField::DB_NAME, MONGO_DB_NAME)

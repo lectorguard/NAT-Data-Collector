@@ -102,6 +102,15 @@ bool NatCollectorModel::TrySwitchGlobState()
 	return false;
 }
 
+void NatCollectorModel::SetClientMetaData(shared::IPMetaData val)
+{
+	client_meta_data.country = val.country;
+	client_meta_data.city = val.city;
+	client_meta_data.region = val.region;
+	client_meta_data.isp = val.isp;
+	client_meta_data.timezone = val.timezone;
+}
+
 void NatCollectorModel::RecalculateNAT()
 {
 	OnRecalculateNAT.Publish(true);

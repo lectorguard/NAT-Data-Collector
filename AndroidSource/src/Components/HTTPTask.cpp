@@ -4,7 +4,7 @@
 #include "Application/Application.h"
 #include "SharedHelpers.h"
 
-std::variant<shared::Error, std::string> HTTPTask::SimpleHttpRequest(std::string_view request, std::string url, bool ignoreRespondHeader, std::string port)
+shared::DataPackage HTTPTask::SimpleHttpRequest(std::string_view request, std::string url, bool ignoreRespondHeader, std::string port)
 {
 	using asio_tcp = asio::ip::tcp;
 	using namespace shared;
@@ -20,7 +20,7 @@ std::variant<shared::Error, std::string> HTTPTask::SimpleHttpRequest(std::string
 	sock.open(asio::ip::tcp::v4(), asio_error);
 	if (asio_error)
 	{
-		return Error::FromAsio(asio_error, "Opening socket for HTTP request");
+		return DataPackage::Create(Error::FromAsio(asio_error, "Opening socket for HTTP request"));
 	}
 	for (;;)
 	{
@@ -45,8 +45,7 @@ std::variant<shared::Error, std::string> HTTPTask::SimpleHttpRequest(std::string
 	utilities::ShutdownTCPSocket(sock, toIgnore);
 	if (err)
 	{
-		return err;
-		
+		return DataPackage::Create(err);
 	}
 	else
 	{
@@ -57,6 +56,16 @@ std::variant<shared::Error, std::string> HTTPTask::SimpleHttpRequest(std::string
 				result.erase(0, header_end + 4);
 			}
 		}
-		return result;
+		
+		nlohmann::json j = nlohmann::json::parse(result, nullptr, false);
+		if (j.is_discarded())
+		{
+			return DataPackage::Create<ErrorType::ERROR>({ "Failed to parse result json from http request" });
+		}
+		DataPackage pkg;
+		pkg.data = j;
+		pkg.transaction = Transaction::NO_TRANSACTION;
+		pkg.error = Error{ ErrorType::ANSWER };
+		return pkg;
 	}
 }

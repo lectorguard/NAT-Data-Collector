@@ -62,7 +62,7 @@ void MainScreen::Draw(Application* app)
 	{
 #if RANDOM_SYM_NAT_REQUIRED
 		if (tab.state == NatCollectorGlobalState::Traverse &&
-			modelRef.client_meta_data.nat_type != NATType::RANDOM_SYM) continue;
+			modelRef.GetClientMetaData().nat_type != NATType::RANDOM_SYM) continue;
 #endif
 
 #if !TRAVERSAL_FEATURE_ENABLED
@@ -89,7 +89,7 @@ void MainScreen::Draw(Application* app)
 	ImGui::Columns(2, "Pairs", false);
 	ImGui::SetColumnWidth(0, StyleConst::LeftColumnWidth * io.DisplaySize.x);
 	{
-		shared::ClientMetaData& meta_data = modelRef.client_meta_data;
+		const shared::ClientMetaData meta_data = modelRef.GetClientMetaData();
 
 		ImGui::Text("Android ID"); ImGui::NextColumn();
 		ImGui::PushItemWidth(io.DisplaySize.x * (1.0f - StyleConst::LeftColumnWidth));
@@ -97,23 +97,23 @@ void MainScreen::Draw(Application* app)
 
 		ImGui::Text("ISP"); ImGui::NextColumn();
 		ImGui::PushItemWidth(io.DisplaySize.x * (1.0f - StyleConst::LeftColumnWidth));
-		ImGui::InputText("##ISP", &meta_data.isp); ImGui::NextColumn();
+		ImGui::Text("%s", meta_data.isp.c_str()); ImGui::NextColumn();
 
 		ImGui::Text("Country"); ImGui::NextColumn();
 		ImGui::PushItemWidth(io.DisplaySize.x * (1.0f - StyleConst::LeftColumnWidth));
-		ImGui::InputText("##Country", &meta_data.country); ImGui::NextColumn();
+		ImGui::Text("%s", meta_data.country.c_str()); ImGui::NextColumn();
 
 		ImGui::Text("Region"); ImGui::NextColumn();
 		ImGui::PushItemWidth(io.DisplaySize.x * (1.0f - StyleConst::LeftColumnWidth));
-		ImGui::InputText("##Region", &meta_data.region); ImGui::NextColumn();
+		ImGui::Text("%s", meta_data.region.c_str()); ImGui::NextColumn();
 
 		ImGui::Text("City"); ImGui::NextColumn();
 		ImGui::PushItemWidth(io.DisplaySize.x * (1.0f - StyleConst::LeftColumnWidth));
-		ImGui::InputText("##City", &meta_data.city); ImGui::NextColumn();
+		ImGui::Text("%s", meta_data.city.c_str()); ImGui::NextColumn();
 
 		ImGui::Text("Timezone"); ImGui::NextColumn();
 		ImGui::PushItemWidth(io.DisplaySize.x * (1.0f - StyleConst::LeftColumnWidth));
-		ImGui::InputText("##Timezone", &meta_data.timezone); ImGui::NextColumn();
+		ImGui::Text("%s", meta_data.timezone.c_str()); ImGui::NextColumn();
 
 		ImGui::Text("NAT Type"); ImGui::NextColumn();
 		ImGui::PushItemWidth(io.DisplaySize.x * (1.0f - StyleConst::LeftColumnWidth));

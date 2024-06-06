@@ -35,7 +35,7 @@ void GlobUserGuidance::Activate(Application* app)
 void GlobUserGuidance::OnRecalcNAT()
 {
 	if (current == UserGuidanceStep::Idle || current == UserGuidanceStep::FinishUserGuidance)
-		current = UserGuidanceStep::StartNATInfo;
+		current = UserGuidanceStep::StartIPInfo;
 	else Log::Warning("Failed to recalculate NAT");
 }
 
@@ -85,12 +85,12 @@ void GlobUserGuidance::UpdateGlobState(Application* app)
 		Log::Info("Retrieve Android ID");
 		if (auto id = utilities::GetAndroidID(app->android_state))
 		{
-			nat_model.client_meta_data.android_id = *id;
+			nat_model.SetClientAndroidId(*id);
 			current = UserGuidanceStep::StartMainPopUp;
 		}
 		else
 		{
-			nat_model.client_meta_data.android_id = "Not Identified";
+			nat_model.SetClientAndroidId("Not Identified");
 			Log::Error("Failed to retrieve android id");
 			current = UserGuidanceStep::FinishUserGuidance;
 		}
@@ -205,36 +205,18 @@ void GlobUserGuidance::UpdateGlobState(Application* app)
 	}
 	case UserGuidanceStep::UpdateIPInfo:
 	{
-		if (auto res = utilities::TryGetFuture<std::variant<Error, std::string>>(ip_info_task))
+		if (auto res = utilities::TryGetFuture<DataPackage>(ip_info_task))
 		{
-			if (auto apiAnswer = std::get_if<std::string>(&*res))
+			shared::IPMetaData metaData{};
+			if (auto error = res->Get(metaData))
 			{
-				shared::IPMetaData metaData{};
-				std::vector<jser::JSerError> jser_errors;
-				metaData.DeserializeObject(*apiAnswer, std::back_inserter(jser_errors));
-				if (jser_errors.size() > 0)
-				{
-					Error err{ ErrorType::ERROR, helper::JserErrorToString(jser_errors) };
-					Log::HandleResponse(err, "Deserialize IP Address Metadata from Service");
-					current = UserGuidanceStep::FinishUserGuidance;
-					break;
-				}
-				// Set client meta data
-				nat_model.client_meta_data.country = metaData.country;
-				nat_model.client_meta_data.city = metaData.city;
-				nat_model.client_meta_data.region = metaData.region;
-				nat_model.client_meta_data.isp = metaData.isp;
-				nat_model.client_meta_data.timezone = metaData.timezone;
-				// Next Collect NAT Info
-				current = UserGuidanceStep::StartNATInfo;
-				break;
+				Log::HandleResponse(error, "Failed to deserialize Ip Information");
 			}
 			else
 			{
-				Log::HandleResponse(std::get<Error>(*res), "Get IP Address Metadata from Server");
-				current = UserGuidanceStep::FinishUserGuidance;
-				break;
+				nat_model.SetClientMetaData(metaData);
 			}
+			current = UserGuidanceStep::StartNATInfo;
 		}
 		break;
 	}
@@ -251,12 +233,12 @@ void GlobUserGuidance::UpdateGlobState(Application* app)
 		Error errors;
 		if (auto nat_type = nat_classifier.TryGetAsyncClassifyNatResult(errors))
 		{
-			nat_model.client_meta_data.nat_type = *nat_type;
+			nat_model.SetClientNATType(*nat_type);
 			Log::HandleResponse(errors, "Classify NAT");
-			Log::Info("Identified NAT type %s", shared::nat_to_string.at(nat_model.client_meta_data.nat_type).c_str());
+			Log::Info("Identified NAT type %s", shared::nat_to_string.at(*nat_type).c_str());
 
 #if RANDOM_SYM_NAT_REQUIRED
-			if (nat_model.client_meta_data.nat_type != shared::NATType::RANDOM_SYM)
+			if (*nat_type != shared::NATType::RANDOM_SYM)
 			{
 				nat_model.PushPopUpState(NatCollectorPopUpState::NatInfoWindow);
 			}	

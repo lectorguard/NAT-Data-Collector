@@ -58,8 +58,14 @@ public:
 	NatCollectorGlobalState GetNextGlobState() const { return next_global_state; }
 	NatCollectorGlobalState GetCurrentGlobState() const { return current_global_state; }
 	bool TrySwitchGlobState();
-	shared::ClientMetaData client_meta_data{};
-	
+	const shared::ClientMetaData GetClientMetaData() const { return client_meta_data; }
+	void SetClientMetaData(shared::IPMetaData val);
+	void SetClientNATType(shared::NATType val) { client_meta_data.nat_type = val; };
+	void SetClientAndroidId(const std::string& id) { client_meta_data.android_id = id; };
+
+	// DarkMode
+	void SubscribeDarkModeEvent(const std::function<void(Application*)>& cb) { FlipDarkModeEvent.Subscribe(cb); };
+	void FlipDarkMode(Application* app) { FlipDarkModeEvent.Publish(app); };
 
 	// Tabs
 	NatCollectorTabState GetTabState() const { return current_tab_state; }
@@ -105,6 +111,10 @@ private:
 	GlobEv<Event<Application*, NatCollectorGlobalState>> UpdateGlobEvent;
 	GlobEv<Event<NatCollectorGlobalState>> EndGlobEvent;
 	Event<NatCollectorGlobalState> OnNextGlobalStateChanged;
+	shared::ClientMetaData client_meta_data{};
+
+	//Dark Mode
+	Event<Application*> FlipDarkModeEvent;
 
 	//Tab
 	NatCollectorTabState current_tab_state = NatCollectorTabState::Log;

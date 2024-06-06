@@ -42,7 +42,8 @@ void PopUpWindow::Draw(class Application* app)
 						"Please disable Wi-Fi and enable data while running this app. "
 						"To collect data, simply click on Collect in the next window. "
 						"If there are no errors in the log, everything is working as expected. "
-						"Keep the app open to collect data; you can press the power button once to dim the screen. "
+						"Keep the app open to collect data; you can press the volume up button to (un)dim the screen. "
+						"You can also dimm the screen by pressing the power button, but this functionality is unreliable on some devices. "
 	);
 
 	ImGui::PopFont();

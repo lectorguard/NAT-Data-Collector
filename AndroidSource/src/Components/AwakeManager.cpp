@@ -6,10 +6,12 @@
 void AwakeManager::Activate(class Application* app)
 {
 	app->AndroidCommandEvent.Subscribe([this, app](struct android_app* state, int32_t cmd) { OnAndroidEvent(state, cmd, app); });
+	app->_components.Get<NatCollectorModel>().SubscribeDarkModeEvent([this](auto* app) { FlipDarkMode(app->android_state, app); });
 }
 
 void AwakeManager::OnAndroidEvent(android_app* state, int32_t cmd, Application* app)
 {
+	NatCollectorModel& model = app->_components.Get<NatCollectorModel>();
 	Renderer& renderer = app->_components.Get<Renderer>();
 	switch (cmd)
 	{
@@ -26,7 +28,7 @@ void AwakeManager::OnAndroidEvent(android_app* state, int32_t cmd, Application* 
 		if (!lost_focus.IsActive() && renderer.IsAnimating())
 		{
 			Log::HandleResponse(TurnScreenOn(state), "Turn Screen On");
-			FlipDarkMode(state, app);
+			model.FlipDarkMode(app);
 		}
 	}
 	case APP_CMD_INIT_WINDOW:
@@ -50,7 +52,7 @@ void AwakeManager::OnAndroidEvent(android_app* state, int32_t cmd, Application* 
 			// Only if we are not animating this flag is set, animating is set true when gaining focus
 			if (lost_focus.IsActive() && !lost_focus.HasExpired())
 			{
-				FlipDarkMode(state, app);
+				model.FlipDarkMode(app);
 			}
 			else
 			{

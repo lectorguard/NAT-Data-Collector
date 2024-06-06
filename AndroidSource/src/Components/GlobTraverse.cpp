@@ -240,7 +240,7 @@ void GlobTraverse::HandlePackage(Application* app, DataPackage& data_package)
 			app->_components.Get<ConnectionReader>().Get(),
 			predicted_address,
 			start_traversal_timestamp,
-			model.client_meta_data
+			model.GetClientMetaData()
 		};
 		if (auto err = traversal_client.UploadTraversalResult(success, toSend, MONGO_DB_NAME, MONGO_NAT_TRAVERSAL_COLL_NAME))
 		{
