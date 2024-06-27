@@ -8,7 +8,7 @@
 #include <algorithm>
 
 
-shared::Error NatTraverserClient::Connect(std::string_view server_addr, uint16_t server_port)
+shared::Error NatTraverserClient::ConnectAsync(std::string_view server_addr, uint16_t server_port)
 {
 	if (write_queue && read_queue && shutdown_flag)
 	{
@@ -54,7 +54,7 @@ Error NatTraverserClient::Disconnect()
 	return response;
 }
 
-Error NatTraverserClient::push_package(DataPackage& pkg)
+Error NatTraverserClient::push_package_write(DataPackage& pkg)
 {
 	if (auto buffer = pkg.Compress())
 	{
@@ -71,7 +71,63 @@ Error NatTraverserClient::push_package(DataPackage& pkg)
 	return Error{ ErrorType::ERROR, {"Failed to compress data package"} };
 }
 
-Error NatTraverserClient::RegisterUser(std::string const& username)
+Error NatTraverserClient::push_package(AsyncQueue queue, DataPackage pkg, bool prepend_msg_length)
+{
+	if (!queue)
+	{
+		return Error{ ErrorType::ERROR, {"Invalid Queue"}};
+	}
+
+	if (auto compressed_data = pkg.Compress(prepend_msg_length))
+	{
+		queue->Push(std::move(*compressed_data));
+		return Error{ ErrorType::OK };
+	}
+	else
+	{
+		Error err{ ErrorType::ERROR, {"Failed compressing pkg"} };
+		queue->push_error(err);
+		return err;
+	}
+}
+
+Error NatTraverserClient::PredictPortAsync_Internal(std::function<std::optional<Address>()> cb)
+{
+	if (analyze_nat_future.valid())
+	{
+		return Error(ErrorType::ERROR, { "Please wait until previous analyze NAT call has finished" });
+	}
+
+	if (!read_queue)
+	{
+		return Error(ErrorType::ERROR, { "Read queue is invalid, can not push result on analyze NAT" });
+	}
+
+	if (!shutdown_flag)
+	{
+		return Error(ErrorType::ERROR, { "shutdown flag is invalid, abort" });
+	}
+
+	assert(info.local_port == 0 && "To analyze NAT each request must come from a different port");
+
+	analyze_nat_future = std::async(std::launch::async,
+		[this, cb]()
+		{
+			DataPackage pkg;
+			if (std::optional<Address> res = cb())
+			{
+				pkg = DataPackage::Create(&*res, shared::Transaction::CLIENT_RECEIVE_PREDICTION);
+			}
+			else
+			{
+				pkg = DataPackage::Create(Error(ErrorType::ERROR, { "Predictor failed to perform a prediction" }));
+			}
+			return push_package(read_queue, pkg, false);
+		});
+	return Error{ ErrorType::OK };
+}
+
+shared::Error NatTraverserClient::RegisterUserAsync(std::string const& username)
 {
 	if (!rw_future.valid())
 	{
@@ -82,10 +138,10 @@ Error NatTraverserClient::RegisterUser(std::string const& username)
 		DataPackage::Create(nullptr, Transaction::SERVER_CREATE_LOBBY)
 		.Add(MetaDataField::USERNAME, username);
 
-	return push_package(data_package);
+	return push_package_write(data_package);
 }
 
-Error NatTraverserClient::AskJoinLobby(uint64_t join_session_key, uint64_t user_session_key)
+Error NatTraverserClient::AskJoinLobbyAsync(uint64_t join_session_key, uint64_t user_session_key)
 {
 	if (!rw_future.valid())
 	{
@@ -97,10 +153,10 @@ Error NatTraverserClient::AskJoinLobby(uint64_t join_session_key, uint64_t user_
 		.Add(MetaDataField::JOIN_SESSION_KEY, join_session_key)
 		.Add(MetaDataField::USER_SESSION_KEY, user_session_key);
 
-	return push_package(data_package);
+	return push_package_write(data_package);
 }
 
-Error NatTraverserClient::ConfirmLobby(Lobby lobby)
+Error NatTraverserClient::ConfirmLobbyAsync(Lobby lobby)
 {
 	if (!rw_future.valid())
 	{
@@ -109,10 +165,10 @@ Error NatTraverserClient::ConfirmLobby(Lobby lobby)
 
 	auto data_package = DataPackage::Create(&lobby, Transaction::SERVER_CONFIRM_LOBBY);
 
-	return push_package(data_package);
+	return push_package_write(data_package);
 }
 
-shared::Error NatTraverserClient::CollectPorts(UDPCollectTask::CollectInfo info)
+shared::Error NatTraverserClient::CollectPortsAsync(UDPCollectTask::CollectInfo info)
 {
 	if (analyze_nat_future.valid())
 	{
@@ -133,6 +189,11 @@ shared::Error NatTraverserClient::CollectPorts(UDPCollectTask::CollectInfo info)
 
 	analyze_nat_future = std::async(NatTraverserClient::analyze_nat_internal, info, read_queue, shutdown_flag);
 	return Error{ ErrorType::OK };
+}
+
+shared::DataPackage NatTraverserClient::CollectPorts(UDPCollectTask::CollectInfo info)
+{
+	return UDPCollectTask::StartCollectTask(info, *shutdown_flag);
 }
 
 Error NatTraverserClient::analyze_nat_internal(UDPCollectTask::CollectInfo info, AsyncQueue read_queue, ShutdownSignal shutdown)
@@ -157,7 +218,7 @@ Error NatTraverserClient::analyze_nat_internal(UDPCollectTask::CollectInfo info,
 	return Error{ ErrorType::OK };
 }
 
-Error NatTraverserClient::ExchangePrediction(Address prediction_other_client)
+shared::Error NatTraverserClient::ExchangePredictionAsync(Address prediction_other_client)
 {
 	if (!rw_future.valid())
 	{
@@ -166,10 +227,10 @@ Error NatTraverserClient::ExchangePrediction(Address prediction_other_client)
 
 	auto data_package = DataPackage::Create(&prediction_other_client, Transaction::SERVER_EXCHANGE_PREDICTION);
 
-	return push_package(data_package);
+	return push_package_write(data_package);
 }
 
-shared::Error NatTraverserClient::TraverseClient(UDPHolepunching::RandomInfo const& info)
+shared::Error NatTraverserClient::TraverseClientAsync(UDPHolepunching::RandomInfo const& info)
 {
 	if (establish_communication_future.valid())
 	{
@@ -190,7 +251,7 @@ shared::Error NatTraverserClient::TraverseClient(UDPHolepunching::RandomInfo con
 	return Error{ ErrorType::OK };
 }
 
-shared::Error NatTraverserClient::UploadTraversalResult(bool success, TraversalClient client, const std::string& db_name, const std::string& coll_name)
+shared::Error NatTraverserClient::UploadTraversalResultAsync(bool success, TraversalClient client, const std::string& db_name, const std::string& coll_name)
 {
 	if (!rw_future.valid())
 	{
@@ -203,125 +264,113 @@ shared::Error NatTraverserClient::UploadTraversalResult(bool success, TraversalC
 		.Add(MetaDataField::DB_NAME, db_name)
 		.Add(MetaDataField::COLL_NAME, coll_name);
 
-	return push_package(data_package);
+	return push_package_write(data_package);
 }
 
-UDPHolepunching::Result NatTraverserClient::GetTraversalResultBlocking()
+UDPHolepunching::Result NatTraverserClient::WaitForTraversalResult()
 {
 	establish_communication_future.wait();
 	return establish_communication_future.get();
 }
 
+// 
+// std::optional<Address> NatTraverserClient::PredictPort(const AddressVector& address_vector, PredictionStrategy strategy)
+// {
+// 	const std::vector<Address> addresses = address_vector.address_vector;
+// 	if (addresses.size() == 0)
+// 	{
+// 		return std::nullopt;
+// 	}
+// 
+// 	switch (strategy)
+// 	{
+// 	case PredictionStrategy::RANDOM:
+// 	{
+// 		srand((uint32_t)std::chrono::system_clock::now().time_since_epoch().count());
+// 		const std::uint64_t prediction_index = rand() / ((RAND_MAX + 1u) / addresses.size());
+// 		return addresses.at(prediction_index);
+// 	}
+// 	case PredictionStrategy::HIGHEST_FREQUENCY:
+// 	{
+// 		std::map<uint16_t, std::vector<Address>> port_occurence_map{};
+// 		for (auto const& addr : addresses)
+// 		{
+// 			if (port_occurence_map.contains(addr.port))
+// 			{
+// 				port_occurence_map[addr.port].push_back(addr);
+// 			}
+// 			else
+// 			{
+// 				port_occurence_map[addr.port] = {addr};
+// 			}
+// 		}
+// 		return port_occurence_map.rbegin()->second[0];
+// 	}
+// 	case PredictionStrategy::MINIMUM_DELTA:
+// 	{
+// 		std::map<uint16_t, std::vector<Address>> port_occurence_map{};
+// 		for (auto const& addr : addresses)
+// 		{
+// 			if (port_occurence_map.contains(addr.port))
+// 			{
+// 				port_occurence_map[addr.port].push_back(addr);
+// 			}
+// 			else
+// 			{
+// 				port_occurence_map[addr.port] = { addr };
+// 			}
+// 		}
+// 		// minimum 2 occurences
+// 		std::erase_if(port_occurence_map, [](auto const tuple)
+// 			{
+// 				return tuple.second.size() < 2;
+// 			});
+// 		// minimum distance between reocurring ports
+// 		auto result = std::min_element(port_occurence_map.begin(), port_occurence_map.end(),
+// 			[addresses](auto l, auto r)
+// 			{
+// 				uint64_t min_distance_l = UINT64_MAX;
+// 				for (auto it = addresses.begin(); it != addresses.end(); ++it)
+// 				{
+// 					if (it->port == l.first)
+// 					{
+// 						auto found = std::find_if(it + 1, addresses.end(), [p = l.first](Address x) { return p == x.port; });
+// 						if (found == addresses.end()) break;
+// 						const uint64_t distance = found - it;
+// 						min_distance_l = std::min(distance, min_distance_l);
+// 					}
+// 				}
+// 
+// 				uint64_t min_distance_r = UINT64_MAX;
+// 				for (auto it = addresses.begin(); it != addresses.end(); ++it)
+// 				{
+// 					if (it->port == r.first)
+// 					{
+// 						auto found = std::find_if(it + 1, addresses.end(), [p = r.first](Address x) { return p == x.port; });
+// 						if (found == addresses.end()) break;
+// 						const uint64_t distance = found - it;
+// 						min_distance_r = std::min(distance, min_distance_r);
+// 					}
+// 				}
+// 
+// 				return min_distance_l < min_distance_r;
+// 			});
+// 		if(result != port_occurence_map.end())
+// 		{
+// 			return result->second[0];
+// 		}
+// 		else
+// 		{
+// 			return std::nullopt;
+// 		}
+// 	}
+// 	default:
+// 		break;
+// 	}
+// 	return std::nullopt;
+// }
 
-std::optional<Address> NatTraverserClient::PredictPort(const AddressVector& address_vector, PredictionStrategy strategy)
-{
-	const std::vector<Address> addresses = address_vector.address_vector;
-	if (addresses.size() == 0)
-	{
-		return std::nullopt;
-	}
-
-	switch (strategy)
-	{
-	case PredictionStrategy::RANDOM:
-	{
-		srand((uint32_t)std::chrono::system_clock::now().time_since_epoch().count());
-		const std::uint64_t prediction_index = rand() / ((RAND_MAX + 1u) / addresses.size());
-		return addresses.at(prediction_index);
-	}
-	case PredictionStrategy::HIGHEST_FREQUENCY:
-	{
-		std::map<uint16_t, std::vector<Address>> port_occurence_map{};
-		for (auto const& addr : addresses)
-		{
-			if (port_occurence_map.contains(addr.port))
-			{
-				port_occurence_map[addr.port].push_back(addr);
-			}
-			else
-			{
-				port_occurence_map[addr.port] = {addr};
-			}
-		}
-		auto result = std::max_element(port_occurence_map.begin(), port_occurence_map.end(),
-			[](auto l, auto r) {
-				return l.second.size() < r.second.size();
-			});
-
-		if (result != port_occurence_map.end())
-		{
-			return result->second[0];
-		}
-		else
-		{
-			return std::nullopt;
-		}
-	}
-	case PredictionStrategy::MINIMUM_DELTA:
-	{
-		std::map<uint16_t, std::vector<Address>> port_occurence_map{};
-		for (auto const& addr : addresses)
-		{
-			if (port_occurence_map.contains(addr.port))
-			{
-				port_occurence_map[addr.port].push_back(addr);
-			}
-			else
-			{
-				port_occurence_map[addr.port] = { addr };
-			}
-		}
-		// minimum 2 occurences
-		std::erase_if(port_occurence_map, [](auto const tuple)
-			{
-				return tuple.second.size() < 2;
-			});
-		// minimum distance between reocurring ports
-		auto result = std::min_element(port_occurence_map.begin(), port_occurence_map.end(),
-			[addresses](auto l, auto r)
-			{
-				uint64_t min_distance_l = UINT64_MAX;
-				for (auto it = addresses.begin(); it != addresses.end(); ++it)
-				{
-					if (it->port == l.first)
-					{
-						auto found = std::find_if(it + 1, addresses.end(), [p = l.first](Address x) { return p == x.port; });
-						if (found == addresses.end()) break;
-						const uint64_t distance = found - it;
-						min_distance_l = std::min(distance, min_distance_l);
-					}
-				}
-
-				uint64_t min_distance_r = UINT64_MAX;
-				for (auto it = addresses.begin(); it != addresses.end(); ++it)
-				{
-					if (it->port == r.first)
-					{
-						auto found = std::find_if(it + 1, addresses.end(), [p = r.first](Address x) { return p == x.port; });
-						if (found == addresses.end()) break;
-						const uint64_t distance = found - it;
-						min_distance_r = std::min(distance, min_distance_r);
-					}
-				}
-
-				return min_distance_l < min_distance_r;
-			});
-		if(result != port_occurence_map.end())
-		{
-			return result->second[0];
-		}
-		else
-		{
-			return std::nullopt;
-		}
-	}
-	default:
-		break;
-	}
-	return std::nullopt;
-}
-
-std::optional<DataPackage> NatTraverserClient::TryGetResponse()
+std::optional<shared::DataPackage> NatTraverserClient::TryGetResponse()
 {
 	if (!read_queue)return std::nullopt;
 	std::vector<uint8_t> buf{};
@@ -339,14 +388,14 @@ std::optional<DataPackage> NatTraverserClient::TryGetResponse()
 		else if (pkg.transaction == Transaction::CLIENT_TRAVERSAL_RESULT && pkg.error)
 		{
 			// Discard future result
-			GetTraversalResultBlocking();
+			WaitForTraversalResult();
 		}
 		return pkg;
 	}
 	return std::nullopt;
 }
 
-bool NatTraverserClient::TryGetUserSession(const std::string& username, const GetAllLobbies& lobbies, uint64_t& found_session)
+bool NatTraverserClient::FindUserSession(const std::string& username, const GetAllLobbies& lobbies, uint64_t& found_session)
 {
 	return std::any_of(lobbies.lobbies.begin(), lobbies.lobbies.end(),
 		[&found_session, username](auto tuple)

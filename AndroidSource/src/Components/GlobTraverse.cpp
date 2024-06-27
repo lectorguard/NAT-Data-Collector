@@ -1,6 +1,7 @@
 #include "GlobIdle.h"
 #include "Application/Application.h"
 #include "Components/UserData.h"
+#include "Predictors/Predictor.h"
 
 void GlobTraverse::Activate(Application* app)
 {
@@ -28,7 +29,7 @@ void GlobTraverse::StartDraw(Application* app)
 	// Start Traversal
 	if (GetTraversalState() != TraverseStep::Idle) return;
 	// Connect to Server
-	if (auto err = traversal_client.Connect(SERVER_IP, SERVER_TRANSACTION_TCP_PORT))
+	if (auto err = traversal_client.ConnectAsync(SERVER_IP, SERVER_TRANSACTION_TCP_PORT))
 	{
 		Log::HandleResponse(err, "Start Traversal");
 		Shutdown(app);
@@ -36,7 +37,7 @@ void GlobTraverse::StartDraw(Application* app)
 	}
 
 	// Register user
-	if (auto err = traversal_client.RegisterUser(user_data.info.username))
+	if (auto err = traversal_client.RegisterUserAsync(user_data.info.username))
 	{
 		Log::HandleResponse(err, "Start Traversal");
 		Shutdown(app);
@@ -145,39 +146,47 @@ void GlobTraverse::HandlePackage(Application* app, DataPackage& data_package)
 		}
 		// Remaining information will be handled in Log
 		model.SetTabState(NatCollectorTabState::Log);
+		//AnalyzerDynamic::Config conf
+		//{
+		//	SERVER_IP,
+		//	SERVER_NAT_UDP_PORT_2,
+		//	NAT_COLLECT_REQUEST_DELAY_MS
+		//};
 
-		Log::Info("Start Analyze NAT");
-		const UDPCollectTask::CollectInfo collect_config
+		AnalyzerConeNAT::Config conf
 		{
-			/* server address */				SERVER_IP,
-			/* server port */					SERVER_NAT_UDP_PORT_2,
-			/* local port */					0,
-			/* sample size */					NAT_TRAVERSE_ANALYZE_PORTS,
-			/* sample rate in ms */				NAT_COLLECT_REQUEST_DELAY_MS,
+			SERVER_IP,
+			SERVER_NAT_UDP_PORT_2,
+			7856
 		};
-		traversal_client.CollectPorts(collect_config);
-		currentTraversalStep = TraverseStep::NonInterruptable;
+		
+		if (auto err = traversal_client.PredictPortAsync<AnalyzerConeNAT::Config>(conf, AnalyzerConeNAT::analyze, PredictorTakeFirst::predict))
+		{
+			Log::Error("Failed to predict port");
+			Shutdown(app);
+		}
 		break;
 	}
-	case Transaction::CLIENT_RECEIVE_COLLECTED_PORTS:
+	case Transaction::CLIENT_RECEIVE_PREDICTION:
 	{
-		Log::Info("Received collected ports");
-		if (auto err = data_package.Get<AddressVector>(collected_analyze_ports))
+		if (data_package.error)
 		{
-			Log::HandleResponse(err, "Receive collected ports during traversal");
+			Log::HandleResponse(data_package.error, "Start Analyze NAT");
 			Shutdown(app);
 			break;
 		}
+		Log::Info("Received prediction");
 
-		// Predict port based on address vector
-		if (auto addr = NatTraverserClient::PredictPort(collected_analyze_ports, PredictionStrategy::HIGHEST_FREQUENCY))
+		Address prediction;
+		if (auto err = data_package.Get<Address>(prediction))
 		{
-			Log::Info("Exchange port prediction for other peer : port %d", addr->port);
-			traversal_client.ExchangePrediction(*addr);
+			Log::HandleResponse(err, "Client Confirm Lobby");
+			Shutdown(app);
+			break;
 		}
-		else
+		if (auto err = traversal_client.ExchangePredictionAsync(prediction))
 		{
-			Log::Error("Failed to predict port");
+			Log::HandleResponse(err, "Exchange prediction async");
 			Shutdown(app);
 			break;
 		}
@@ -209,7 +218,7 @@ void GlobTraverse::HandlePackage(Application* app, DataPackage& data_package)
 			role,		// Role
 			io
 		};
-		if (auto err = traversal_client.TraverseClient(config))
+		if (auto err = traversal_client.TraverseClientAsync(config))
 		{
 			Log::HandleResponse(err, "Call Traverse Client");
 			Shutdown(app);
@@ -225,7 +234,7 @@ void GlobTraverse::HandlePackage(Application* app, DataPackage& data_package)
 		uint16_t result_index{};
 		if (success)
 		{
-			auto res = traversal_client.GetTraversalResultBlocking();
+			auto res = traversal_client.WaitForTraversalResult();
 			result_index = res.rcvd_index;
 			if (res.socket)res.socket->close();
 			Log::Info("Traversal Succeeded");
@@ -242,7 +251,7 @@ void GlobTraverse::HandlePackage(Application* app, DataPackage& data_package)
 			start_traversal_timestamp,
 			model.GetClientMetaData()
 		};
-		if (auto err = traversal_client.UploadTraversalResult(success, toSend, MONGO_DB_NAME, MONGO_NAT_TRAVERSAL_COLL_NAME))
+		if (auto err = traversal_client.UploadTraversalResultAsync(success, toSend, MONGO_DB_NAME, MONGO_NAT_TRAVERSAL_COLL_NAME))
 		{
 			Log::HandleResponse(err, "Start upload traversal result");
 			Shutdown(app);
@@ -279,14 +288,14 @@ void GlobTraverse::JoinLobby(Application* app, uint64_t join_sesssion)
 
 	const std::string username = app->_components.Get<UserData>().info.username;
 	uint64_t user_session;
-	if (!NatTraverserClient::TryGetUserSession(username, all_lobbies, user_session))
+	if (!NatTraverserClient::FindUserSession(username, all_lobbies, user_session))
 	{
 		Log::Error("Failed to find user session during join lobby process");
 		Shutdown(app);
 		return;
 	}
 	
-	if (auto err = traversal_client.AskJoinLobby(join_sesssion, user_session))
+	if (auto err = traversal_client.AskJoinLobbyAsync(join_sesssion, user_session))
 	{
 		Log::HandleResponse(err, "Join Traversal Lobby");
 		Shutdown(app);
@@ -313,7 +322,7 @@ void GlobTraverse::OnJoinLobbyAccept(Application* app, Lobby join_lobby)
 	Log::Info("Lobby accepted");
 
 	currentTraversalStep = TraverseStep::ConfirmLobby;
-	if (auto err = traversal_client.ConfirmLobby(join_lobby))
+	if (auto err = traversal_client.ConfirmLobbyAsync(join_lobby))
 	{
 		Log::HandleResponse(err, "Confirm Lobby");
 		Shutdown(app);
