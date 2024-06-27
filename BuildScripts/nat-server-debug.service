@@ -1,0 +1,15 @@
+[Unit]
+Description=nat-server
+After=network.target
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=5
+ExecStart=/home/simon/debug/NAT-Data-Collector/unix_build/ServerSource/server-app
+WorkingDirectory=/home/simon/debug/NAT-Data-Collector/unix_build/ServerSource
+StandardOutput=file:/var/log/nat-server-debug.log
+StandardError=file:/var/log/nat-server-debug.log
+
+[Install]
+WantedBy=multi-user.target
