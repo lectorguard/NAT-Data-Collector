@@ -6,8 +6,8 @@
 
 struct ServerConfig : public jser::JSerializable
 {
-	uint16_t udp_address_server1_port = 0;
-	uint16_t udp_address_server2_port = 0;
+	uint16_t udp_starting_port = 10000;
+	uint16_t udp_amount_services = 15000;
 	uint16_t tcp_session_server_port = 0;
 	std::string mongo_server_url = "";
 	std::string mongo_app_name = "";
@@ -53,6 +53,6 @@ private:
 	{
 		return JSerializable::AddItem()
 			.Append(JSER_ADD(SerializeManagerType, mongo_server_url, mongo_app_name, tcp_session_server_port))
-			.Append(JSER_ADD(SerializeManagerType, udp_address_server1_port, udp_address_server2_port));
+			.Append(JSER_ADD(SerializeManagerType, udp_starting_port, udp_amount_services));
 	}
 };

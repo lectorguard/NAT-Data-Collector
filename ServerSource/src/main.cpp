@@ -19,8 +19,13 @@ int main()
 	{
 		std::cout << "Successfully read server_config.json file" << std::endl;
 
-		std::jthread UDPAddressEchoServer1{ [server_config] {UDP_Adresss_Echo_Server::StartService(server_config->udp_address_server1_port); } };
-		std::jthread UDPAddressEchoServer2{ [server_config] {UDP_Adresss_Echo_Server::StartService(server_config->udp_address_server2_port); } };
+		std::vector<std::jthread> udp_echo_services;
+		udp_echo_services.reserve(server_config->udp_amount_services);
+		for (size_t i = 0; i < server_config->udp_amount_services; ++i)
+		{
+			const uint16_t port = server_config->udp_starting_port + i;
+			udp_echo_services.emplace_back(std::jthread([port] {UDP_Adresss_Echo_Server::StartService(port); }));
+		}
 
 		asio::io_context context;
 		Server tcp_transaction_server{ context, server_config->tcp_session_server_port };
