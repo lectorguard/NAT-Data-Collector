@@ -59,6 +59,18 @@ namespace utilities
 		return std::nullopt;
 	}
 
+	inline std::optional<uint32_t> GetNumberOfRemainingFiles()
+	{
+		if (auto curr = GetCurrentOpenFiles())
+		{
+			if (auto all = GetMaxOpenFiles())
+			{
+				return *all - *curr;
+			}
+		}
+		return std::nullopt;
+	}
+
 	// Only produces warning
 	inline Error ClampIfNotEnoughFiles(uint16_t& sample_size)
 	{

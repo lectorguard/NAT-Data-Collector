@@ -146,24 +146,43 @@ void GlobTraverse::HandlePackage(Application* app, DataPackage& data_package)
 		}
 		// Remaining information will be handled in Log
 		model.SetTabState(NatCollectorTabState::Log);
-		//AnalyzerDynamic::Config conf
-		//{
-		//	SERVER_IP,
-		//	SERVER_NAT_UDP_PORT_2,
-		//	NAT_COLLECT_REQUEST_DELAY_MS
-		//};
+		Log::Info("Start analyze NAT");
+		currentTraversalStep = TraverseStep::NonInterruptable;
 
-		AnalyzerConeNAT::Config conf
+
+		// Collection step based on nat type
+		if (model.GetClientMetaData().nat_type == NATType::CONE)
 		{
-			SERVER_IP,
-			SERVER_NAT_UDP_PORT_2,
-			7856
-		};
-		
-		if (auto err = traversal_client.PredictPortAsync<AnalyzerConeNAT::Config>(conf, AnalyzerConeNAT::analyze, PredictorTakeFirst::predict))
+			AnalyzerConeNAT::Config conf
+			{
+				SERVER_IP,
+				SERVER_NAT_UDP_PORT_2,
+				7856
+			};
+
+			if (auto err = traversal_client.PredictPortAsync<AnalyzerConeNAT::Config>(conf, AnalyzerConeNAT::analyze, PredictorTakeFirst::predict))
+			{
+				Log::Error("Failed to predict port");
+				Shutdown(app);
+				break;
+			}
+		}
+		else if (model.GetClientMetaData().nat_type == NATType::RANDOM_SYM)
 		{
-			Log::Error("Failed to predict port");
-			Shutdown(app);
+			AnalyzerDynamic::Config conf
+			{
+				SERVER_IP, // ip address
+				5000,	// sample size
+				5,		// sample rate
+				10		// first n subset for prediction
+			};
+
+			if (auto err = traversal_client.PredictPortAsync<AnalyzerDynamic::Config>(conf, AnalyzerDynamic::analyze, PredictorRandomExisting::predict))
+			{
+				Log::Error("Failed to predict port");
+				Shutdown(app);
+				break;
+			}
 		}
 		break;
 	}
@@ -195,6 +214,7 @@ void GlobTraverse::HandlePackage(Application* app, DataPackage& data_package)
 	case Transaction::CLIENT_START_TRAVERSAL:
 	{
 		Log::Info("Start Holepunching");
+		// Retrieve infos
 		if (auto err = data_package.Get<Address>(predicted_address))
 		{
 			Log::HandleResponse(err, "Read predicted Address for traversal");
@@ -210,20 +230,49 @@ void GlobTraverse::HandlePackage(Application* app, DataPackage& data_package)
 			break;
 		}
 		const auto [role] = meta_data.values;
-		const UDPHolepunching::RandomInfo config
+
+		// Traversal step based on nat type
+		if (model.GetClientMetaData().nat_type == NATType::CONE)
 		{
-			predicted_address, // Address
-			NAT_TRAVERSE_ATTEMPTS,		// Traversal Attempts
-			NAT_TRAVERSE_DEADLINE_MS,	// Deadline duration	
-			role,		// Role
-			io
-		};
-		if (auto err = traversal_client.TraverseClientAsync(config))
-		{
-			Log::HandleResponse(err, "Call Traverse Client");
-			Shutdown(app);
-			break;
+			const UDPHolepunching::RandomInfo config
+			{
+				predicted_address, // Address
+				1,		// Traversal Attempts
+				7856,
+				90000, // Deadline duration	
+				role,		// Role
+				io
+			};
+
+			if (auto err = traversal_client.TraverseClientAsync(config))
+			{
+				Log::HandleResponse(err, "Call Traverse Client");
+				Shutdown(app);
+				break;
+			}
 		}
+		else if (model.GetClientMetaData().nat_type == NATType::RANDOM_SYM)
+		{
+			const UDPHolepunching::RandomInfo config
+			{
+				predicted_address, // Address
+				10000,		// Traversal Attempts
+				0,			// local port
+				90000, // Deadline duration	
+				role,		// Role
+				io
+			};
+
+			if (auto err = traversal_client.TraverseClientAsync(config))
+			{
+				Log::HandleResponse(err, "Call Traverse Client");
+				Shutdown(app);
+				break;
+			}
+		}
+
+
+
 		start_traversal_timestamp = shared::helper::CreateTimeStampNow();
 		break;
 	}

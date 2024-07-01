@@ -10,25 +10,15 @@ using namespace shared;
 
 class NatClassifier
 {
-	inline static UDPCollectTask::NatTypeInfo base_nat_config
-	{
-		/* remote address */			SERVER_IP,
-		/* first remote port */			SERVER_NAT_UDP_PORT_1,
-		/* second remote port */		SERVER_NAT_UDP_PORT_2,
-		/* nat request frequency */		NAT_IDENT_REQUEST_FREQUNCY_MS
-	};
-
 public:
 	using NatFuture = std::future<DataPackage>;
 
-	Error AsyncClassifyNat(uint16_t num_nat_samples, UDPCollectTask::NatTypeInfo config = base_nat_config);
+	Error AsyncClassifyNat(uint16_t num_nat_samples);
 	std::optional<shared::NATType> TryGetAsyncClassifyNatResult(Error& all_responses);
 
 	static shared::NATType IdentifyNatType(const shared::Address& first, const shared::Address& second);
 	static shared::NATType GetMostFrequentNatType(const std::vector<shared::NATType>& nat_types);
 private:
-	uint16_t required_nat_samples = 0;
+	std::atomic<bool> shutdown_flag = false;
 	NatFuture nat_future;
-	std::vector<shared::NATType> identified_nat_types;
-	Error log_information;
 };

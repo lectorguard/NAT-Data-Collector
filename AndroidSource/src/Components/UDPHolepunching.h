@@ -24,6 +24,7 @@ public:
 	{
 		Address target_client{};
 		uint16_t traversal_attempts{};
+		uint16_t local_port{};
 		uint32_t deadline_duration_ms{};
 		HolepunchRole role;
 		asio::io_service& io;

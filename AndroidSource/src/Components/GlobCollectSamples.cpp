@@ -123,7 +123,8 @@ void GlobCollectSamples::UpdateGlobState(class Application* app)
 		const UDPCollectTask::CollectInfo collect_config
 		{
 			/* remote address */				SERVER_IP,
-			/* remote port */					SERVER_NAT_UDP_PORT_1,
+			/* start port */					10'000,
+			/* num port services */				1'000,
 			/* local port */					0,
 			/* amount of ports */				NAT_COLLECT_PORTS_PER_SAMPLE,
 			/* time between requests in ms */	NAT_COLLECT_REQUEST_DELAY_MS,

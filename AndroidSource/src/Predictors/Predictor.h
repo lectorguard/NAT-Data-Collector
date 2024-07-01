@@ -10,68 +10,33 @@ struct AnalyzerDynamic
 	struct Config
 	{
 		std::string server_address;
-		uint16_t server_port{};
-		uint16_t sample_rate_ms{};
-		std::vector<uint16_t> steps =
-		{	50u, 50u, 50u,
-			100u, 100u, 100u, 100u,
-			500u, 500u, 500u, 500u, 500u,
-			1000u, 1000u, 1000u,1000u, 1000u,
-			5000u, 5000u, 5000u, 5000u, 5000u, 5000u, 5000u, 5000u, 5000u, 5000u 
-		};
-		float stop_ratio = 0.6f;
+		uint16_t sample_size;
+		uint16_t sample_rate;
+		uint16_t analyze_subset;
 	};
 
 
 	static std::optional<std::vector<Address>> analyze(NatTraverserClient& nc, const Config& config)
 	{
-		// Analyzing Phase
-		std::set<uint32_t> unique_ports{};
-		std::vector<Address> all_found{};
-		for (uint16_t step : config.steps)
+		const UDPCollectTask::CollectInfo collect_config
 		{
-			const UDPCollectTask::CollectInfo collect_conf
-			{
-				config.server_address,
-				config.server_port,
-				0,
-				step,
-				config.sample_rate_ms
-			};
+			/* remote address */				config.server_address,
+			/* start port */					10'000,
+			/* num port services */				1'000,
+			/* local port */					0,
+			/* amount of ports */				config.sample_size,
+			/* time between requests in ms */	config.sample_rate,
+		};
 
-			const uint32_t size_before = unique_ports.size();
-			// Collect ports
-			auto pkg = nc.CollectPorts(collect_conf);
-			
-			// Retrieve result
-			if (pkg.error) return std::nullopt;
-			shared::AddressVector av;
-			if (auto err = pkg.Get(av)) return std::nullopt;
-			
-			//Insert found ports 
-			all_found.insert(all_found.end(), av.address_vector.begin(), av.address_vector.end());
-			for (const auto& elem : av.address_vector)
-			{
-				unique_ports.insert(elem.port);
-			}
-			
-			//state 1
-			if (unique_ports.size() <= size_before)
-			{
-				// Done analyzing
-				break;
-			}
+		auto pkg = nc.CollectPorts(collect_config);
 
-			uint32_t minimum = *unique_ports.begin();
-			uint32_t maximum = *unique_ports.rbegin();
-			// state 2
-			if (unique_ports.size() / (float)(maximum - minimum) > config.stop_ratio)
-			{
-				// Done analyzing
-				break;
-			}
-		}
-		return all_found;
+		// Retrieve result
+		if (pkg.error) return std::nullopt;
+		shared::AddressVector av;
+		if (auto err = pkg.Get(av)) return std::nullopt;
+
+		const uint16_t subset_size = std::clamp(av.address_vector.size(), 0u, (uint32_t)config.analyze_subset);
+		return std::vector<Address>(av.address_vector.begin(), av.address_vector.begin() + subset_size);
 	};
 };
 
@@ -87,16 +52,17 @@ struct AnalyzerConeNAT
 
 	static std::optional<std::vector<Address>> analyze(NatTraverserClient& nc, const Config& config)
 	{
-		const UDPCollectTask::CollectInfo collect_conf
+		const UDPCollectTask::CollectInfo collect_config
 		{
-			config.server_address,
-			config.server_port,
-			config.local_port,
-			1,
-			0
+			/* remote address */				SERVER_IP,
+			/* start port */					10'000,
+			/* num port services */				1'000,
+			/* local port */					config.local_port,
+			/* amount of ports */				1,
+			/* time between requests in ms */	NAT_COLLECT_REQUEST_DELAY_MS,
 		};
 
-		auto pkg = nc.CollectPorts(collect_conf);
+		auto pkg = nc.CollectPorts(collect_config);
 
 		// Retrieve result
 		if (pkg.error) return std::nullopt;
@@ -146,4 +112,19 @@ struct PredictorHighestFreq
 		}
 		return port_occurence_map.rbegin()->second[0];
 	};
+};
+
+struct PredictorRandomExisting
+{
+	static std::optional<Address> predict(const std::vector<Address>& addresses)
+	{
+		if (addresses.size() == 0)
+		{
+			return std::nullopt;
+		}
+
+		srand((uint32_t)std::chrono::system_clock::now().time_since_epoch().count());
+		const std::uint64_t prediction_index = rand() / ((RAND_MAX + 1u) / addresses.size());
+		return addresses.at(prediction_index);
+	}
 };

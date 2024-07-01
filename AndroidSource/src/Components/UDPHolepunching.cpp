@@ -44,7 +44,11 @@ UDPHolepunching::UDPHolepunching(const RandomInfo& info) : _deadline_timer(std::
 					_sockets_exhausted = true;
 					return;
 				}
-				_socket_list[index].socket->bind(asio::ip::udp::endpoint{ asio::ip::udp::v4(), 0 }, ec);
+// 				if (info.local_port != 0)
+// 				{
+// 					_socket_list[index].socket->set_option(asio::ip::udp::socket::reuse_address(true));
+// 				}
+				_socket_list[index].socket->bind(asio::ip::udp::endpoint{ asio::ip::udp::v4(), info.local_port }, ec);
 				if (ec)
 				{
 					const std::string err_msg = "Binding socket at index " + std::to_string(index) + " failed";
@@ -53,15 +57,15 @@ UDPHolepunching::UDPHolepunching(const RandomInfo& info) : _deadline_timer(std::
 					_sockets_exhausted = true;
 					return;
 				}
-				if (info.role == HolepunchRole::PUNCH_HOLES)
-				{
-					// Value must be high enough to pass NAT,
-					// but low enough that the packet is dropped before
-					// reaching the other client
-					// Value was figured out be testing
-					const asio::ip::unicast::hops option(8);
-					_socket_list[index].socket->set_option(option);
-				}
+// 				if (info.role == HolepunchRole::PUNCH_HOLES)
+// 				{
+// 					// Value must be high enough to pass NAT,
+// 					// but low enough that the packet is dropped before
+// 					// reaching the other client
+// 					// Value was figured out be testing
+// 					//const asio::ip::unicast::hops option(8);
+// 					//_socket_list[index].socket->set_option(option);
+// 				}
 				send_request(index, info.io, remote_endpoint, error);
 			});
 	}
@@ -177,8 +181,8 @@ void UDPHolepunching::start_receive(uint16_t sock_index, asio::io_service& io_se
 	}
 
 	// Reset TTL value to default of 64 hops
-	const asio::ip::unicast::hops option(64);
-	_socket_list[sock_index].socket->set_option(option);
+// 	const asio::ip::unicast::hops option(64);
+// 	_socket_list[sock_index].socket->set_option(option);
 
 	auto shared_remote = std::make_shared<asio::ip::udp::endpoint>();
 	auto shared_buffer = std::make_shared<DefaultBuffer>();
