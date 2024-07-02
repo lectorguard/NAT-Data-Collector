@@ -8,7 +8,9 @@
 #define SEND_ID "send_id"
 
 
-UDPHolepunching::UDPHolepunching(const RandomInfo& info) : _deadline_timer(std::make_shared<asio::system_timer>(CreateDeadline(info.io, info.deadline_duration_ms)))
+UDPHolepunching::UDPHolepunching(const RandomInfo& info) 
+	: _deadline_timer(std::make_shared<asio::system_timer>(CreateDeadline(info.io, info.deadline_duration_ms))),
+	_config(info)
 {
 	_socket_list.reserve(info.traversal_attempts);
 	for (uint16_t index = 0; index < info.traversal_attempts; ++index)
@@ -19,7 +21,7 @@ UDPHolepunching::UDPHolepunching(const RandomInfo& info) : _deadline_timer(std::
 			});
 
 
-		_socket_list[index].timer.expires_from_now(std::chrono::milliseconds(0));
+		_socket_list[index].timer.expires_from_now(std::chrono::milliseconds(info.traversal_rate * index));
 		_socket_list[index].timer.async_wait([this, &info, index](auto error)
 			{
 
@@ -44,10 +46,6 @@ UDPHolepunching::UDPHolepunching(const RandomInfo& info) : _deadline_timer(std::
 					_sockets_exhausted = true;
 					return;
 				}
-// 				if (info.local_port != 0)
-// 				{
-// 					_socket_list[index].socket->set_option(asio::ip::udp::socket::reuse_address(true));
-// 				}
 				_socket_list[index].socket->bind(asio::ip::udp::endpoint{ asio::ip::udp::v4(), info.local_port }, ec);
 				if (ec)
 				{
@@ -57,15 +55,6 @@ UDPHolepunching::UDPHolepunching(const RandomInfo& info) : _deadline_timer(std::
 					_sockets_exhausted = true;
 					return;
 				}
-// 				if (info.role == HolepunchRole::PUNCH_HOLES)
-// 				{
-// 					// Value must be high enough to pass NAT,
-// 					// but low enough that the packet is dropped before
-// 					// reaching the other client
-// 					// Value was figured out be testing
-// 					//const asio::ip::unicast::hops option(8);
-// 					//_socket_list[index].socket->set_option(option);
-// 				}
 				send_request(index, info.io, remote_endpoint, error);
 			});
 	}
@@ -163,6 +152,17 @@ void UDPHolepunching::send_request(uint16_t sock_index, asio::io_service& io_ser
 			start_receive(sock_index, io_service, ec);
 		});
 
+	if (_config.keep_alive_duration)
+	{
+		_socket_list[sock_index].timer.expires_from_now(std::chrono::milliseconds(_config.keep_alive_duration));
+		_socket_list[sock_index].timer.async_wait([this, sock_index, &io_service, remote_endpoint](auto error) {
+			if (error != asio::error::operation_aborted)
+			{
+				std::error_code ec;
+				send_request(sock_index, io_service, remote_endpoint, ec);
+			}
+		});
+	}
 }
 
 void UDPHolepunching::start_receive(uint16_t sock_index, asio::io_service& io_service, const std::error_code& ec)
@@ -179,10 +179,6 @@ void UDPHolepunching::start_receive(uint16_t sock_index, asio::io_service& io_se
 	{
 		return;
 	}
-
-	// Reset TTL value to default of 64 hops
-// 	const asio::ip::unicast::hops option(64);
-// 	_socket_list[sock_index].socket->set_option(option);
 
 	auto shared_remote = std::make_shared<asio::ip::udp::endpoint>();
 	auto shared_buffer = std::make_shared<DefaultBuffer>();

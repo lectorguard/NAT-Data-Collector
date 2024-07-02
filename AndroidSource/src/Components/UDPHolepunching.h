@@ -24,8 +24,10 @@ public:
 	{
 		Address target_client{};
 		uint16_t traversal_attempts{};
+		uint16_t traversal_rate{};
 		uint16_t local_port{};
 		uint32_t deadline_duration_ms{};
+		uint32_t keep_alive_duration{};
 		HolepunchRole role;
 		asio::io_service& io;
 	};
@@ -74,4 +76,5 @@ private:
 	bool _sockets_exhausted = false;
 	// In case of traversal success, socket and endpoint are set here
 	Result _result{};
+	const RandomInfo _config;
 };

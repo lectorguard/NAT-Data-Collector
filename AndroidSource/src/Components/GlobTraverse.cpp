@@ -172,12 +172,11 @@ void GlobTraverse::HandlePackage(Application* app, DataPackage& data_package)
 			AnalyzerDynamic::Config conf
 			{
 				SERVER_IP, // ip address
-				5000,	// sample size
-				5,		// sample rate
-				10		// first n subset for prediction
+				60'000,	// sample size
+				6		// sample rate
 			};
 
-			if (auto err = traversal_client.PredictPortAsync<AnalyzerDynamic::Config>(conf, AnalyzerDynamic::analyze, PredictorRandomExisting::predict))
+			if (auto err = traversal_client.PredictPortAsync<AnalyzerDynamic::Config>(conf, AnalyzerDynamic::analyze, PredictorHighestFreq::predict))
 			{
 				Log::Error("Failed to predict port");
 				Shutdown(app);
@@ -238,9 +237,11 @@ void GlobTraverse::HandlePackage(Application* app, DataPackage& data_package)
 			{
 				predicted_address, // Address
 				1,		// Traversal Attempts
-				7856,
-				90000, // Deadline duration	
-				role,		// Role
+				0,		// Traversal Rate
+				7856,	// local port
+				65'000,	// Deadline duration ms	
+				5'000,	// Keep alive ms
+				role,	// Role
 				io
 			};
 
@@ -256,9 +257,11 @@ void GlobTraverse::HandlePackage(Application* app, DataPackage& data_package)
 			const UDPHolepunching::RandomInfo config
 			{
 				predicted_address, // Address
-				10000,		// Traversal Attempts
+				10'000,		// Traversal Attempts
+				6,			// Traversal Rate
 				0,			// local port
-				90000, // Deadline duration	
+				65'000,		// Deadline duration ms
+				0,			// Keep alive
 				role,		// Role
 				io
 			};
@@ -270,8 +273,6 @@ void GlobTraverse::HandlePackage(Application* app, DataPackage& data_package)
 				break;
 			}
 		}
-
-
 
 		start_traversal_timestamp = shared::helper::CreateTimeStampNow();
 		break;

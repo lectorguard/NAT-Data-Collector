@@ -50,7 +50,7 @@
 	 return start_task_internal([&copy, &shutdown_flag](asio::io_service& io) { return UDPCollectTask(copy,shutdown_flag, io); });
  }
 
-UDPCollectTask::UDPCollectTask(const CollectInfo& info, std::atomic<bool>& shutdown_flag, asio::io_service& io_service) : config(info)
+UDPCollectTask::UDPCollectTask(const CollectInfo& info, std::atomic<bool>& shutdown_flag, asio::io_service& io_service) : config(info), global_deadline(asio::system_timer(io_service))
 {
 	const uint16_t total_sockets = (info.sample_size / info.echo_server_num_services) + 1;
 	if (info.local_port != 0 && total_sockets > 1)
@@ -129,6 +129,12 @@ UDPCollectTask::UDPCollectTask(const CollectInfo& info, std::atomic<bool>& shutd
 					send_request(_socket_list[total_index], io_service, remote_endpoint, error);
 				});
 		}
+	}
+
+	if (!info.close_socket_early)
+	{
+		global_deadline.expires_from_now(std::chrono::milliseconds(info.sample_size * info.sample_rate_ms + SOCKET_TIMEOUT_MS));
+		global_deadline.async_wait([&io_service](auto error) { if (error != asio::error::operation_aborted) io_service.stop(); });
 	}
 }
 
@@ -214,7 +220,7 @@ void UDPCollectTask::start_receive(Socket& local_socket, asio::io_service& io_se
 
 	asio::ip::udp::endpoint remote_endpoint;
 	auto shared_buffer = std::make_shared<AddressBuffer>();
-	if (config.echo_server_start_port == local_socket.port)
+	if (config.close_socket_early && config.echo_server_start_port == local_socket.port)
 	{
 		const uint32_t min_duration = config.sample_rate_ms * (local_socket.max_port - config.echo_server_start_port);
 		auto deadline_timer = std::make_shared<asio::system_timer>(CreateDeadline(io_service, local_socket.socket, min_duration));

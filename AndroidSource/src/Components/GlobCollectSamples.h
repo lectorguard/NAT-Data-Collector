@@ -20,6 +20,8 @@ enum class CollectSamplesStep : uint16_t
 	UpdateIPInfo,
 	StartCollectPorts,
 	UpdateCollectPorts,
+	StartTraverseCollPort,
+	UpdateTraverseCollPort,
 	StartWaitUpload,
 	UpdateWaitUpload,
 	StartUploadDB,
@@ -63,5 +65,6 @@ private:
 
 	// Data
 	std::string readable_time_stamp;
-	std::vector<shared::Address> collected_nat_data;
+	std::vector<shared::Address> analyze_vector;
+	std::vector<shared::Address> traversal_vector;
 };

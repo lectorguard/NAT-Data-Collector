@@ -28,6 +28,8 @@ public:
 		uint16_t sample_size{};
 		// Delay between requests
 		uint16_t sample_rate_ms{};
+		// As soon as all sockets are received should they be closed ?
+		bool close_socket_early = true;
 	};
 
 	static DataPackage StartCollectTask(const CollectInfo& collect_info, std::atomic<bool>& shutdown_flag);
@@ -65,4 +67,5 @@ private:
 	std::queue<std::shared_ptr<asio::system_timer>> _deadline_queue;
 	PhysicalDeviceError _system_error_state = PhysicalDeviceError::NO_ERROR;
 	const CollectInfo config;
+	asio::system_timer global_deadline;
 };

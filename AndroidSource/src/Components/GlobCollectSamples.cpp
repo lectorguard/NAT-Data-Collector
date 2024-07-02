@@ -126,12 +126,13 @@ void GlobCollectSamples::UpdateGlobState(class Application* app)
 			/* start port */					10'000,
 			/* num port services */				1'000,
 			/* local port */					0,
-			/* amount of ports */				NAT_COLLECT_PORTS_PER_SAMPLE,
-			/* time between requests in ms */	NAT_COLLECT_REQUEST_DELAY_MS,
+			/* amount of ports */				60000,
+			/* time between requests in ms */	6,
+			/* close sockets early*/			true
 		};
 		nat_collect_task = std::async(UDPCollectTask::StartCollectTask, collect_config, std::ref(collect_shutdown_flag));
 		// Create Timestamp
-		const long long max_duration_ms = NAT_COLLECT_PORTS_PER_SAMPLE * NAT_COLLECT_REQUEST_DELAY_MS + NAT_COLLECT_EXTRA_TIME_MS;
+		const long long max_duration_ms = collect_config.sample_size * collect_config.sample_rate_ms + NAT_COLLECT_EXTRA_TIME_MS;
 		collect_samples_timer.ExpiresFromNow(std::chrono::milliseconds(max_duration_ms));
 		readable_time_stamp = shared::helper::CreateTimeStampNow();
 		current = CollectSamplesStep::UpdateCollectPorts;
@@ -185,7 +186,52 @@ void GlobCollectSamples::UpdateGlobState(class Application* app)
 					Log::Info("%s : Received %d remote address samples",
 						shared::helper::CreateTimeStampNow().c_str(),
 						recvd.address_vector.size());
-					collected_nat_data = recvd.address_vector;
+					analyze_vector = recvd.address_vector;
+					current = CollectSamplesStep::StartTraverseCollPort;
+				}
+			}
+		}
+		break;
+	}
+	case CollectSamplesStep::StartTraverseCollPort:
+	{
+		const UDPCollectTask::CollectInfo collect_config
+		{
+			/* remote address */				SERVER_IP,
+			/* start port */					10'000,
+			/* num port services */				1,
+			/* local port */					0,
+			/* amount of ports */				10'000,
+			/* time between requests in ms */	6,
+			/* close sockets early */			false
+		};
+		nat_collect_task = std::async(UDPCollectTask::StartCollectTask, collect_config, std::ref(collect_shutdown_flag));
+		current = CollectSamplesStep::UpdateTraverseCollPort;
+		break;
+	}
+	case CollectSamplesStep::UpdateTraverseCollPort:
+	{
+		if (auto res = utilities::TryGetFuture<DataPackage>(nat_collect_task))
+		{
+			shared::AddressVector recvd;
+			if (auto err = res->Get(recvd))
+			{
+				Log::HandleResponse(err, "Collect Ports");
+				current = CollectSamplesStep::StartWait;
+			}
+			else
+			{
+				if (recvd.address_vector.empty())
+				{
+					Log::Error("Failed to get any ports");
+					current = CollectSamplesStep::StartWait;
+				}
+				else
+				{
+					Log::Info("%s : Received %d remote address samples",
+						shared::helper::CreateTimeStampNow().c_str(),
+						recvd.address_vector.size());
+					traversal_vector = recvd.address_vector;
 					current = CollectSamplesStep::StartWaitUpload;
 				}
 			}
@@ -216,10 +262,10 @@ void GlobCollectSamples::UpdateGlobState(class Application* app)
 
 		// Create Object
 		NATSample sampleToInsert{ model.GetClientMetaData(), readable_time_stamp, NAT_COLLECT_REQUEST_DELAY_MS,
-								  connect_type, collected_nat_data, NAT_COLLECT_SAMPLE_DELAY_MS };
+								  connect_type, analyze_vector, traversal_vector, NAT_COLLECT_SAMPLE_DELAY_MS };
 		DataPackage pkg = DataPackage::Create(&sampleToInsert, Transaction::SERVER_INSERT_MONGO)
 			.Add<std::string>(MetaDataField::DB_NAME, MONGO_DB_NAME)
-			.Add<std::string>(MetaDataField::COLL_NAME, MONGO_NAT_SAMPLES_COLL_NAME);
+			.Add<std::string>(MetaDataField::COLL_NAME, "sixty6tenCE");
 
 		upload_nat_sample = std::async(TCPTask::ServerTransaction, pkg, SERVER_IP, SERVER_TRANSACTION_TCP_PORT);
 		current = CollectSamplesStep::UpdateUploadDB;
