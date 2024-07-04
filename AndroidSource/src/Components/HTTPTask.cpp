@@ -68,4 +68,5 @@ shared::DataPackage HTTPTask::SimpleHttpRequest(std::string_view request, std::s
 		pkg.error = Error{ ErrorType::ANSWER };
 		return pkg;
 	}
+	return DataPackage();
 }

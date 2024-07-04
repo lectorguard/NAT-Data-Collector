@@ -256,6 +256,7 @@ namespace shared
 				data_compressed.insert(data_compressed.begin(), data_length.begin(), data_length.end());
 				return data_compressed;
 			}
+			return std::nullopt;
 		}
 
 		static DataPackage Decompress(const std::vector<uint8_t>& data)
@@ -280,6 +281,7 @@ namespace shared
 			{
 				return data_package;
 			}
+			return DataPackage();
 		}
 
 		// Start and End are exclusive

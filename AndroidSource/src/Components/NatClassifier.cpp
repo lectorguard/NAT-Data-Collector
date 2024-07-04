@@ -22,6 +22,7 @@ shared::Error NatClassifier::AsyncClassifyNat(uint16_t num_nat_samples)
 	{
 		return Error{ ErrorType::ERROR, { "Future is already bound to async task !"} };
 	}	
+	return Error();
 }
 
 std::optional<shared::NATType> NatClassifier::TryGetAsyncClassifyNatResult(Error& all_responses)
@@ -83,6 +84,7 @@ shared::NATType NatClassifier::IdentifyNatType(const shared::Address& first, con
 	{
 		return shared::NATType::RANDOM_SYM;
 	}
+	return shared::NATType::UNDEFINED;
 }
 
 shared::NATType NatClassifier::GetMostFrequentNatType(const std::vector<shared::NATType>& nat_types)

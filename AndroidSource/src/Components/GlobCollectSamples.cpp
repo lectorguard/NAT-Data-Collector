@@ -116,7 +116,6 @@ void GlobCollectSamples::UpdateGlobState(class Application* app)
 	case CollectSamplesStep::StartCollectPorts:
 	{
 		Log::Info("%s : Started collecting Ports", shared::helper::CreateTimeStampNow().c_str());
-		
 		//Reset flag
 		collect_shutdown_flag = false;
 		//Start Collecting
@@ -126,8 +125,8 @@ void GlobCollectSamples::UpdateGlobState(class Application* app)
 			/* start port */					10'000,
 			/* num port services */				1'000,
 			/* local port */					0,
-			/* amount of ports */				60000,
-			/* time between requests in ms */	6,
+			/* amount of ports */				4500,
+			/* time between requests in ms */	1,
 			/* close sockets early*/			true
 		};
 		nat_collect_task = std::async(UDPCollectTask::StartCollectTask, collect_config, std::ref(collect_shutdown_flag));
@@ -195,6 +194,7 @@ void GlobCollectSamples::UpdateGlobState(class Application* app)
 	}
 	case CollectSamplesStep::StartTraverseCollPort:
 	{
+		std::this_thread::sleep_for(std::chrono::seconds(65));
 		const UDPCollectTask::CollectInfo collect_config
 		{
 			/* remote address */				SERVER_IP,
@@ -202,7 +202,7 @@ void GlobCollectSamples::UpdateGlobState(class Application* app)
 			/* num port services */				1,
 			/* local port */					0,
 			/* amount of ports */				10'000,
-			/* time between requests in ms */	6,
+			/* time between requests in ms */	3,
 			/* close sockets early */			false
 		};
 		nat_collect_task = std::async(UDPCollectTask::StartCollectTask, collect_config, std::ref(collect_shutdown_flag));
@@ -223,8 +223,10 @@ void GlobCollectSamples::UpdateGlobState(class Application* app)
 			{
 				if (recvd.address_vector.empty())
 				{
+					// Always upload
 					Log::Error("Failed to get any ports");
-					current = CollectSamplesStep::StartWait;
+					traversal_vector = {};
+					current = CollectSamplesStep::StartWaitUpload;
 				}
 				else
 				{
@@ -240,8 +242,8 @@ void GlobCollectSamples::UpdateGlobState(class Application* app)
 	}
 	case CollectSamplesStep::StartWaitUpload:
 	{
-		Log::Info("Defer upload of collected data by %d ms", NAT_COLLECT_UPLOAD_DELAY_MS);
-		wait_upload_timer.ExpiresFromNow(std::chrono::milliseconds(NAT_COLLECT_UPLOAD_DELAY_MS));
+		Log::Info("Defer upload of collected data by %d ms", 60'000);
+		wait_upload_timer.ExpiresFromNow(std::chrono::milliseconds(60'000));
 		current = CollectSamplesStep::UpdateWaitUpload;
 		break;
 	}
@@ -261,11 +263,11 @@ void GlobCollectSamples::UpdateGlobState(class Application* app)
 		using namespace shared;
 
 		// Create Object
-		NATSample sampleToInsert{ model.GetClientMetaData(), readable_time_stamp, NAT_COLLECT_REQUEST_DELAY_MS,
+		NATSample sampleToInsert{ model.GetClientMetaData(), readable_time_stamp, 1,
 								  connect_type, analyze_vector, traversal_vector, NAT_COLLECT_SAMPLE_DELAY_MS };
 		DataPackage pkg = DataPackage::Create(&sampleToInsert, Transaction::SERVER_INSERT_MONGO)
 			.Add<std::string>(MetaDataField::DB_NAME, MONGO_DB_NAME)
-			.Add<std::string>(MetaDataField::COLL_NAME, "sixty6tenCE");
+			.Add<std::string>(MetaDataField::COLL_NAME, "TraversalConfigWait");
 
 		upload_nat_sample = std::async(TCPTask::ServerTransaction, pkg, SERVER_IP, SERVER_TRANSACTION_TCP_PORT);
 		current = CollectSamplesStep::UpdateUploadDB;

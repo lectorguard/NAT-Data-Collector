@@ -60,6 +60,21 @@ UDPCollectTask::UDPCollectTask(const CollectInfo& info, std::atomic<bool>& shutd
 		_error = Error{ ErrorType::ERROR, {"Local port is non-zero, but sample size " + ss_string + " is larger then number of services " + ns_string} };
 		return;
 	}
+	Log::Info("Try to open %d sockets", total_sockets);
+
+
+	if (!info.close_socket_early)
+	{
+		global_deadline.expires_from_now(std::chrono::milliseconds(info.sample_size * info.sample_rate_ms + SOCKET_TIMEOUT_MS));
+		global_deadline.async_wait([&io_service](auto error)
+			{
+				if (error != asio::error::operation_aborted)
+				{
+					Log::Info("Global timeout reached, abort collecting ...");
+					io_service.stop();
+				}
+			});
+	}
 
 	// Create sockets
 	for (uint16_t sock_index = 0; sock_index < total_sockets; ++sock_index)
@@ -70,8 +85,8 @@ UDPCollectTask::UDPCollectTask(const CollectInfo& info, std::atomic<bool>& shutd
 		shared_local_socket->open(asio::ip::udp::v4(), ec);
 		if (ec)
 		{
-			const std::string err_msg = "Failed to open single socket during UDP Collect Task";
-			Log::Warning("%s", err_msg.c_str());
+			Log::Warning("Failed to open single socket during UDP Collect Task");
+			Log::Warning("Index : %d", sock_index);
 			Log::Warning("Error Msg : %s", ec.message().c_str());
 			_system_error_state = PhysicalDeviceError::SOCKETS_EXHAUSTED;
 			return;
@@ -79,8 +94,8 @@ UDPCollectTask::UDPCollectTask(const CollectInfo& info, std::atomic<bool>& shutd
 		shared_local_socket->bind(asio::ip::udp::endpoint{ asio::ip::udp::v4(), info.local_port }, ec);
 		if (ec)
 		{
-			const std::string err_msg = "Bind socket at port " + std::to_string(info.local_port) + " failed";
-			Log::Warning("%s", err_msg.c_str());
+			Log::Warning("Bind socket at port %d failed ", info.local_port);
+			Log::Warning("Index : %d", sock_index);
 			Log::Warning("Error Msg : %s", ec.message().c_str());
 			_system_error_state = PhysicalDeviceError::SOCKETS_EXHAUSTED;
 			return;
@@ -130,12 +145,6 @@ UDPCollectTask::UDPCollectTask(const CollectInfo& info, std::atomic<bool>& shutd
 				});
 		}
 	}
-
-	if (!info.close_socket_early)
-	{
-		global_deadline.expires_from_now(std::chrono::milliseconds(info.sample_size * info.sample_rate_ms + SOCKET_TIMEOUT_MS));
-		global_deadline.async_wait([&io_service](auto error) { if (error != asio::error::operation_aborted) io_service.stop(); });
-	}
 }
 
 DataPackage UDPCollectTask::start_task_internal(std::function<UDPCollectTask(asio::io_service&)> createCollectTask)
@@ -173,6 +182,7 @@ DataPackage UDPCollectTask::start_task_internal(std::function<UDPCollectTask(asi
 		std::sort(address_vector.begin(), address_vector.end(), [](auto l, auto r) {return l.index < r.index; });
 		return DataPackage::Create(&collectTask._stored_natsample, Transaction::CLIENT_RECEIVE_COLLECTED_PORTS);
 	}
+	return DataPackage();
 }
 
 

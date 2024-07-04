@@ -184,6 +184,7 @@ namespace utilities
 		{
 			return result_id;
 		}
+		return std::nullopt;
 	}
 
 

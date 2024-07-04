@@ -39,6 +39,7 @@ shared::Error UserData::ValidateUsername()
 			} 
 		};
 	}
+	return Error();
 }
 
 
@@ -77,6 +78,7 @@ shared::DataPackage UserData::ReadFromDisc()
 		// Failed to open user data file, file might not exist yet
 		return DataPackage::Create<ErrorType::OK>();
 	}
+	return DataPackage();
 }
 
 shared::Error UserData::WriteToDisc()
@@ -181,6 +183,9 @@ std::variant<shared::Error, std::string> UserData::GetExternalFilesDir(struct an
 	}
 	// Make sure to detach always
 	lJavaVM->DetachCurrentThread();
-	if (error) return error;
-	else return result_id;
+	if (error)
+	{
+		return error;
+	}
+	return result_id;
 }

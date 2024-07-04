@@ -83,4 +83,5 @@ DataPackage TCPTask::ServerTransaction(DataPackage&& pkg, std::string server_add
 	{
 		return rcvd;
 	}
+	return DataPackage();
 }

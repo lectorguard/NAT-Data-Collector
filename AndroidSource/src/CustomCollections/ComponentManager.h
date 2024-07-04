@@ -23,7 +23,8 @@ struct ComponentManager
 				return *std::get<std::unique_ptr<T>>(variant);
 			};
 		};
-		throw std::runtime_error("Type must exist");
+		assert(false && "type must exist");
+		handle_unreachable();
 	}
 
 	template<typename T>
@@ -43,5 +44,11 @@ struct ComponentManager
 	}
 
 private:
+
+	[[noreturn]] void handle_unreachable() 
+	{
+		std::terminate();
+	};
+
 	std::array<VariantType, std::variant_size_v<VariantType>> _components;
 };

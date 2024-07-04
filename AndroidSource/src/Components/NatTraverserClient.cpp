@@ -29,7 +29,7 @@ shared::Error NatTraverserClient::ConnectAsync(std::string_view server_addr, uin
 	{
 		return Error{ ErrorType::ERROR, {"Invalid state"} };
 	}
-	
+	return Error();
 }
 
 Error NatTraverserClient::Disconnect()
@@ -89,6 +89,7 @@ Error NatTraverserClient::push_package(AsyncQueue queue, DataPackage pkg, bool p
 		queue->push_error(err);
 		return err;
 	}
+	return Error();
 }
 
 Error NatTraverserClient::PredictPortAsync_Internal(std::function<std::optional<Address>()> cb)

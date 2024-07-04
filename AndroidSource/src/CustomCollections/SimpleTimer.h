@@ -32,6 +32,7 @@ public:
 		{
 			return std::chrono::duration_cast<std::chrono::milliseconds>(expiry_time - time_now).count();
 		}
+		return 0;
 	}
 
 	void SetActive(bool newActiveState)
