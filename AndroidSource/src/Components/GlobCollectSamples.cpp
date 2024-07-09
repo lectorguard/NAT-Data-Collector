@@ -33,7 +33,7 @@ void GlobCollectSamples::StartGlobState()
 	}
 }
 
-static DataPackage CollectPorts(std::atomic<bool>& shutdown_flag)
+DataPackage GlobCollectSamples::CollectPorts(std::atomic<bool>& shutdown_flag)
 {
 	std::set<uint16_t> first_stage_ports{};
 	std::function<bool(Address, uint32_t)> should_shutdown = [&first_stage_ports](Address addr, uint32_t stage)
@@ -55,8 +55,8 @@ static DataPackage CollectPorts(std::atomic<bool>& shutdown_flag)
 		/* start port */					10'000,
 		/* num port services */				1'000,
 		/* local port */					0,
-		/* amount of ports */				4500,
-		/* time between requests in ms */	1,
+		/* amount of ports */				analyze_step[conf_index].sample_size,
+		/* time between requests in ms */	analyze_step[conf_index].sample_rate,
 		/* close sockets early */			true,
 		/* shutdown condition */			should_shutdown
 	};
@@ -67,8 +67,8 @@ static DataPackage CollectPorts(std::atomic<bool>& shutdown_flag)
 		/* start port */					10'000,
 		/* num port services */				1'000,
 		/* local port */					0,
-		/* amount of ports */				10'000,
-		/* time between requests in ms */	10,
+		/* amount of ports */				intersect_step[conf_index].sample_size,
+		/* time between requests in ms */	intersect_step[conf_index].sample_rate,
 		/* close sockets early */			true,
 		/* shutdown condition */			should_shutdown
 	};
@@ -80,8 +80,8 @@ static DataPackage CollectPorts(std::atomic<bool>& shutdown_flag)
 		/* start port */					10'000,
 		/* num port services */				1,
 		/* local port */					0,
-		/* amount of ports */				10'000,
-		/* time between requests in ms */	1,
+		/* amount of ports */				traversal_step[conf_index].sample_size,
+		/* time between requests in ms */	traversal_step[conf_index].sample_rate,
 		/* close sockets early */			false,
 		/* shutdown condition */			nullptr
 	};
@@ -176,11 +176,11 @@ void GlobCollectSamples::UpdateGlobState(class Application* app)
 		//Reset flag
 		collect_shutdown_flag = false;
 		//Start Collecting
-		nat_collect_task = std::async(CollectPorts, std::ref(collect_shutdown_flag));
+		nat_collect_task = std::async(GlobCollectSamples::CollectPorts, std::ref(collect_shutdown_flag));
 		// Create Timestamp
 		// const long long max_duration_ms = collect_config.sample_size * collect_config.sample_rate_ms + NAT_COLLECT_EXTRA_TIME_MS;
 		// collect_samples_timer.ExpiresFromNow(std::chrono::milliseconds(max_duration_ms));
-		// readable_time_stamp = shared::helper::CreateTimeStampNow();
+		readable_time_stamp = shared::helper::CreateTimeStampNow();
 		current = CollectSamplesStep::UpdateCollectPorts;
 		break;
 	}
@@ -232,8 +232,8 @@ void GlobCollectSamples::UpdateGlobState(class Application* app)
 	}
 	case CollectSamplesStep::StartWaitUpload:
 	{
-		Log::Info("Defer upload of collected data by %d ms", 60'000);
-		wait_upload_timer.ExpiresFromNow(std::chrono::milliseconds(60'000));
+		Log::Info("Defer upload of collected data by %d ms", 80'000);
+		wait_upload_timer.ExpiresFromNow(std::chrono::milliseconds(80'000));
 		current = CollectSamplesStep::UpdateWaitUpload;
 		break;
 	}
@@ -253,16 +253,15 @@ void GlobCollectSamples::UpdateGlobState(class Application* app)
 		using namespace shared;
 
 		// Create Object
-		NATSample sampleToInsert{ model.GetClientMetaData(), readable_time_stamp, 1,
+		NATSample sampleToInsert{ model.GetClientMetaData(), readable_time_stamp,
 								  connect_type,
-								  analyze_collect_ports.stages[0].address_vector,
-								  analyze_collect_ports.stages[1].address_vector,
-								  analyze_collect_ports.stages[2].address_vector,
+								  CollectVector(analyze_collect_ports.stages[0].address_vector, analyze_step[conf_index].sample_rate),
+								  CollectVector(analyze_collect_ports.stages[1].address_vector, intersect_step[conf_index].sample_rate),
+								  CollectVector(analyze_collect_ports.stages[2].address_vector, traversal_step[conf_index].sample_rate),
 								  NAT_COLLECT_SAMPLE_DELAY_MS};
 		DataPackage pkg = DataPackage::Create(&sampleToInsert, Transaction::SERVER_INSERT_MONGO)
 			.Add<std::string>(MetaDataField::DB_NAME, MONGO_DB_NAME)
-			.Add<std::string>(MetaDataField::COLL_NAME, "TravConfigTelus");
-
+			.Add<std::string>(MetaDataField::COLL_NAME, db_name);
 		upload_nat_sample = std::async(TCPTask::ServerTransaction, pkg, SERVER_IP, SERVER_TRANSACTION_TCP_PORT);
 		current = CollectSamplesStep::UpdateUploadDB;
 		break;
@@ -272,6 +271,11 @@ void GlobCollectSamples::UpdateGlobState(class Application* app)
 		if (auto res = utilities::TryGetFuture<DataPackage>(upload_nat_sample))
 		{
 			Log::HandleResponse(*res, "Insert NAT sample to DB");
+			if (++conf_index >= analyze_step.size())
+			{
+				current = CollectSamplesStep::Idle;
+				break;
+			}
 			// Even if we fail, we will try again later
 			current = CollectSamplesStep::StartWait;
 		}

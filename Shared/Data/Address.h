@@ -56,36 +56,51 @@ namespace shared
 		}
 	};
 
+	struct CollectVector : public jser::JSerializable
+	{
+		std::vector<Address> data{};
+		uint16_t sampling_rate_ms{};
+		
+		CollectVector() {};
+		CollectVector(const std::vector<Address>& data, uint16_t sampling_rate_ms) :
+			data(data),
+			sampling_rate_ms(sampling_rate_ms)
+		{};
+
+		jser::JserChunkAppender AddItem() override
+		{
+			return JSerializable::AddItem().Append(JSER_ADD(SerializeManagerType, data, sampling_rate_ms));
+		}
+	};
+
 
 	struct NATSample : public jser::JSerializable
 	{
 		ClientMetaData meta_data;
 		std::string timestamp;
-		uint16_t sampling_rate_ms = 0;
 		shared::ConnectionType connection_type = shared::ConnectionType::NOT_CONNECTED;
-		std::vector<Address> analyze_vector;
-		std::vector<Address> repetition_vector;
-		std::vector<Address> traversal_vector;
+		CollectVector analyze_phase;
+		CollectVector intersect_phase;
+		CollectVector traversal_phase;
 		uint32_t delay_between_samples_ms = 0;
 
 		NATSample() {};
-		NATSample(ClientMetaData meta_data, std::string timestamp,  uint16_t sampling_rate_ms,
-			shared::ConnectionType connection_type,  const std::vector<Address>& analyze_vector, const std::vector<Address>& repetition_vector,
-			const std::vector<Address>& traversal_vector, uint32_t delay_between_samples_ms) :
+		NATSample(ClientMetaData meta_data, std::string timestamp,
+			shared::ConnectionType connection_type,  const CollectVector& analyze_phase, const CollectVector& intersect_phase,
+			const CollectVector& traversal_phase, uint32_t delay_between_samples_ms) :
 			meta_data(meta_data),
 			timestamp(timestamp),
-			sampling_rate_ms(sampling_rate_ms),
 			connection_type(connection_type),
-			analyze_vector(analyze_vector),
-			repetition_vector(repetition_vector),
-			traversal_vector(traversal_vector),
+			analyze_phase(analyze_phase),
+			intersect_phase(intersect_phase),
+			traversal_phase(traversal_phase),
 			delay_between_samples_ms(delay_between_samples_ms)
 		{};
 
 		jser::JserChunkAppender AddItem() override
 		{
 			return JSerializable::AddItem().Append(JSER_ADD(SerializeManagerType, meta_data,
-				connection_type, timestamp, analyze_vector, traversal_vector, sampling_rate_ms, delay_between_samples_ms, repetition_vector));
+				connection_type, timestamp, analyze_phase, intersect_phase, delay_between_samples_ms, traversal_phase));
 		}
 	};
 

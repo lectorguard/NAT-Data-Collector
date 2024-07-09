@@ -67,4 +67,18 @@ private:
 	std::string readable_time_stamp;
 	MultiAddressVector analyze_collect_ports;
 	MultiAddressVector traverse_collect_ports;
+
+	// config
+	struct Conf
+	{
+		uint16_t sample_rate;
+		uint16_t sample_size;
+	};
+
+	inline static std::vector<Conf> analyze_step = { 6, {1,5000}};
+	inline static std::vector<Conf> intersect_step = { 6, {10, 10'000} };
+	inline static std::vector<Conf> traversal_step = { {7 , 10'000}, {8 , 10'000}, {9 , 10'000}, {10 , 10'000}, {11 , 10'000}, {12 , 10'000} };
+	inline static uint16_t conf_index = 0;
+	static DataPackage CollectPorts(std::atomic<bool>& shutdown_flag);
+	const std::string db_name = "DifferentTraversalSampleRates";
 };
