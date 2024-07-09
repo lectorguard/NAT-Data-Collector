@@ -6,16 +6,17 @@ shared::Error NatClassifier::AsyncClassifyNat(uint16_t num_nat_samples)
 {
 	if (!nat_future.valid())
 	{
-		const UDPCollectTask::CollectInfo config
+		const UDPCollectTask::Stage config
 		{
 			/* remote address */				SERVER_IP,
 			/* start port */					10'000,
 			/* num port services */				2,
 			/* local port */					0,
-			/* amount of ports */				(const uint16_t)(2u * num_nat_samples),
+			/* amount of ports */				2,
 			/* time between requests in ms */	NAT_COLLECT_REQUEST_DELAY_MS,
+			/* close sockets early */			true
 		};
-		nat_future = std::async(UDPCollectTask::StartCollectTask, config, std::ref(shutdown_flag));
+		nat_future = std::async(UDPCollectTask::StartCollectTask, std::vector<UDPCollectTask::Stage>{num_nat_samples, config}, std::ref(shutdown_flag));
 		return Error{ ErrorType::OK };
 	}
 	else
@@ -29,7 +30,8 @@ std::optional<shared::NATType> NatClassifier::TryGetAsyncClassifyNatResult(Error
 {
 	if (auto res = utilities::TryGetFuture<DataPackage>(nat_future))
 	{
-		shared::AddressVector rcvd{};
+		// Should be a multi address vector
+		shared::MultiAddressVector rcvd;
 		if (auto error = res->Get(rcvd))
 		{
 			all_responses = error;
@@ -37,27 +39,29 @@ std::optional<shared::NATType> NatClassifier::TryGetAsyncClassifyNatResult(Error
 		}
 
 		std::vector<shared::NATType> identified_nat_types;
-		uint16_t i = 0;
-		while (i + 2 < rcvd.address_vector.size())
+		for (auto stage : rcvd.stages)
 		{
-			if (i == rcvd.address_vector[i].index && 
-				i % 2 == 0 &&
-				i + 1 == rcvd.address_vector[i + 1].index)
+			if (stage.address_vector.size() >= 2)
 			{
-				identified_nat_types.push_back(IdentifyNatType(rcvd.address_vector[i], rcvd.address_vector[i + 1]));
+				identified_nat_types.push_back(IdentifyNatType(stage.address_vector[0], stage.address_vector[1]));
 				all_responses.Add({ ErrorType::OK,
-						{
-							"-- Collected NAT Sample --",
-							"Address : " + rcvd.address_vector[i].ip_address,
-							"Port 1  : " + std::to_string(rcvd.address_vector[i].port),
-							"Port 2  : " + std::to_string(rcvd.address_vector[i + 1].port)
-						}
-					});
-				i += 2;
+				{
+					"-- Collected NAT Sample --",
+					"Address : " + stage.address_vector[0].ip_address,
+					"Port 1  : " + std::to_string(stage.address_vector[0].port),
+					"Port 2  : " + std::to_string(stage.address_vector[1].port)
+				}
+				});
 			}
 			else
 			{
-				++i;
+				identified_nat_types.push_back(shared::NATType::UNDEFINED);
+				all_responses.Add({ ErrorType::WARNING,
+				{
+					"-- Collected NAT Sample --",
+					"Failed to receive both ports",
+				}
+				});
 			}
 		}
 		return GetMostFrequentNatType(identified_nat_types);

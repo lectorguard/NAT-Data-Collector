@@ -33,6 +33,63 @@ void GlobCollectSamples::StartGlobState()
 	}
 }
 
+static DataPackage CollectPorts(std::atomic<bool>& shutdown_flag)
+{
+	std::set<uint16_t> first_stage_ports{};
+	std::function<bool(Address, uint32_t)> should_shutdown = [&first_stage_ports](Address addr, uint32_t stage)
+		{
+			if (stage == 0)
+			{
+				first_stage_ports.insert(addr.port);
+			}
+			else if (stage == 1)
+			{
+				return first_stage_ports.contains(addr.port);
+			}
+			return false;
+		};
+
+	const UDPCollectTask::Stage candidates
+	{
+		/* remote address */				SERVER_IP,
+		/* start port */					10'000,
+		/* num port services */				1'000,
+		/* local port */					0,
+		/* amount of ports */				4500,
+		/* time between requests in ms */	1,
+		/* close sockets early */			true,
+		/* shutdown condition */			should_shutdown
+	};
+
+	const UDPCollectTask::Stage check_duplicates
+	{
+		/* remote address */				SERVER_IP,
+		/* start port */					10'000,
+		/* num port services */				1'000,
+		/* local port */					0,
+		/* amount of ports */				10'000,
+		/* time between requests in ms */	10,
+		/* close sockets early */			true,
+		/* shutdown condition */			should_shutdown
+	};
+
+
+	const UDPCollectTask::Stage traverse_stage
+	{
+		/* remote address */				SERVER_IP,
+		/* start port */					10'000,
+		/* num port services */				1,
+		/* local port */					0,
+		/* amount of ports */				10'000,
+		/* time between requests in ms */	1,
+		/* close sockets early */			false,
+		/* shutdown condition */			nullptr
+	};
+
+	const std::vector<UDPCollectTask::Stage> stages = { candidates, check_duplicates, traverse_stage };
+	return UDPCollectTask::StartCollectTask(stages, shutdown_flag);
+}
+
 void GlobCollectSamples::UpdateGlobState(class Application* app)
 {
 	std::atomic<shared::ConnectionType>& connect_type = app->_components.Get<ConnectionReader>().GetAtomicRef();
@@ -119,21 +176,11 @@ void GlobCollectSamples::UpdateGlobState(class Application* app)
 		//Reset flag
 		collect_shutdown_flag = false;
 		//Start Collecting
-		const UDPCollectTask::CollectInfo collect_config
-		{
-			/* remote address */				SERVER_IP,
-			/* start port */					10'000,
-			/* num port services */				1'000,
-			/* local port */					0,
-			/* amount of ports */				4500,
-			/* time between requests in ms */	1,
-			/* close sockets early*/			true
-		};
-		nat_collect_task = std::async(UDPCollectTask::StartCollectTask, collect_config, std::ref(collect_shutdown_flag));
+		nat_collect_task = std::async(CollectPorts, std::ref(collect_shutdown_flag));
 		// Create Timestamp
-		const long long max_duration_ms = collect_config.sample_size * collect_config.sample_rate_ms + NAT_COLLECT_EXTRA_TIME_MS;
-		collect_samples_timer.ExpiresFromNow(std::chrono::milliseconds(max_duration_ms));
-		readable_time_stamp = shared::helper::CreateTimeStampNow();
+		// const long long max_duration_ms = collect_config.sample_size * collect_config.sample_rate_ms + NAT_COLLECT_EXTRA_TIME_MS;
+		// collect_samples_timer.ExpiresFromNow(std::chrono::milliseconds(max_duration_ms));
+		// readable_time_stamp = shared::helper::CreateTimeStampNow();
 		current = CollectSamplesStep::UpdateCollectPorts;
 		break;
 	}
@@ -157,86 +204,29 @@ void GlobCollectSamples::UpdateGlobState(class Application* app)
 		if (auto res = utilities::TryGetFuture<DataPackage>(nat_collect_task))
 		{
 			// if true, phone was sleeping in background
-			const bool has_expired = collect_samples_timer.HasExpired();
-			collect_samples_timer.SetActive(false);
-			if (has_expired)
+// 			const bool has_expired = collect_samples_timer.HasExpired();
+// 			collect_samples_timer.SetActive(false);
+// 			if (has_expired)
+// 			{
+// 				Log::Warning("%s : Collected Sample has expired. Phone was dozing or standby during collection.", 
+// 					shared::helper::CreateTimeStampNow().c_str());
+// 				current = CollectSamplesStep::StartWait;
+// 				break;
+// 			}
+
+
+			if (auto err = res->Get(analyze_collect_ports))
 			{
-				Log::Warning("%s : Collected Sample has expired. Phone was dozing or standby during collection.", 
-					shared::helper::CreateTimeStampNow().c_str());
+				Log::HandleResponse(err, "Collect Ports");
 				current = CollectSamplesStep::StartWait;
-				break;
 			}
 
-			shared::AddressVector recvd;
-			if (auto err = res->Get(recvd))
+			Log::Info("%s Received Collect Data", shared::helper::CreateTimeStampNow().c_str());
+			for (size_t i = 0; i < analyze_collect_ports.stages.size(); ++i)
 			{
-				Log::HandleResponse(err, "Collect Ports");
-				current = CollectSamplesStep::StartWait;
+				Log::Info("Received %d remote address samples in stage %d", analyze_collect_ports.stages[i].address_vector.size(),i);
 			}
-			else
-			{
-				if (recvd.address_vector.empty())
-				{
-					Log::Error("Failed to get any ports");
-					current = CollectSamplesStep::StartWait;
-				}
-				else
-				{
-					Log::Info("%s : Received %d remote address samples",
-						shared::helper::CreateTimeStampNow().c_str(),
-						recvd.address_vector.size());
-					analyze_vector = recvd.address_vector;
-					current = CollectSamplesStep::StartTraverseCollPort;
-				}
-			}
-		}
-		break;
-	}
-	case CollectSamplesStep::StartTraverseCollPort:
-	{
-		std::this_thread::sleep_for(std::chrono::seconds(65));
-		const UDPCollectTask::CollectInfo collect_config
-		{
-			/* remote address */				SERVER_IP,
-			/* start port */					10'000,
-			/* num port services */				1,
-			/* local port */					0,
-			/* amount of ports */				10'000,
-			/* time between requests in ms */	3,
-			/* close sockets early */			false
-		};
-		nat_collect_task = std::async(UDPCollectTask::StartCollectTask, collect_config, std::ref(collect_shutdown_flag));
-		current = CollectSamplesStep::UpdateTraverseCollPort;
-		break;
-	}
-	case CollectSamplesStep::UpdateTraverseCollPort:
-	{
-		if (auto res = utilities::TryGetFuture<DataPackage>(nat_collect_task))
-		{
-			shared::AddressVector recvd;
-			if (auto err = res->Get(recvd))
-			{
-				Log::HandleResponse(err, "Collect Ports");
-				current = CollectSamplesStep::StartWait;
-			}
-			else
-			{
-				if (recvd.address_vector.empty())
-				{
-					// Always upload
-					Log::Error("Failed to get any ports");
-					traversal_vector = {};
-					current = CollectSamplesStep::StartWaitUpload;
-				}
-				else
-				{
-					Log::Info("%s : Received %d remote address samples",
-						shared::helper::CreateTimeStampNow().c_str(),
-						recvd.address_vector.size());
-					traversal_vector = recvd.address_vector;
-					current = CollectSamplesStep::StartWaitUpload;
-				}
-			}
+			current = CollectSamplesStep::StartWaitUpload;
 		}
 		break;
 	}
@@ -264,10 +254,14 @@ void GlobCollectSamples::UpdateGlobState(class Application* app)
 
 		// Create Object
 		NATSample sampleToInsert{ model.GetClientMetaData(), readable_time_stamp, 1,
-								  connect_type, analyze_vector, traversal_vector, NAT_COLLECT_SAMPLE_DELAY_MS };
+								  connect_type,
+								  analyze_collect_ports.stages[0].address_vector,
+								  analyze_collect_ports.stages[1].address_vector,
+								  analyze_collect_ports.stages[2].address_vector,
+								  NAT_COLLECT_SAMPLE_DELAY_MS};
 		DataPackage pkg = DataPackage::Create(&sampleToInsert, Transaction::SERVER_INSERT_MONGO)
 			.Add<std::string>(MetaDataField::DB_NAME, MONGO_DB_NAME)
-			.Add<std::string>(MetaDataField::COLL_NAME, "TraversalConfigWait");
+			.Add<std::string>(MetaDataField::COLL_NAME, "TravConfigTelus");
 
 		upload_nat_sample = std::async(TCPTask::ServerTransaction, pkg, SERVER_IP, SERVER_TRANSACTION_TCP_PORT);
 		current = CollectSamplesStep::UpdateUploadDB;

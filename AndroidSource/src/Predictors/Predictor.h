@@ -17,7 +17,7 @@ struct AnalyzerDynamic
 
 	static std::optional<std::vector<Address>> analyze(NatTraverserClient& nc, const Config& config)
 	{
-		const UDPCollectTask::CollectInfo collect_config
+		const UDPCollectTask::Stage collect_config
 		{
 			/* remote address */				config.server_address,
 			/* start port */					10'000,
@@ -97,7 +97,7 @@ struct AnalyzerConeNAT
 
 	static std::optional<std::vector<Address>> analyze(NatTraverserClient& nc, const Config& config)
 	{
-		const UDPCollectTask::CollectInfo collect_config
+		const UDPCollectTask::Stage collect_config
 		{
 			/* remote address */				SERVER_IP,
 			/* start port */					10'000,

@@ -64,7 +64,7 @@ UDPHolepunching::Result UDPHolepunching::StartHolepunching(const RandomInfo& hol
 {
 	RandomInfo copy = holepunch_info;
 	// Make sure number of sockets does not exceed max number of files of os
-	auto err = utilities::ClampIfNotEnoughFiles(copy.traversal_attempts);
+	auto err = utilities::ClampIfNotEnoughFiles(copy.traversal_attempts, 1);
 	if (err.Is<ErrorType::WARNING>())
 	{
 		Log::HandleResponse(err, "UDP Holepunching");

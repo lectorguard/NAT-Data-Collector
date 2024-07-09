@@ -65,6 +65,6 @@ private:
 
 	// Data
 	std::string readable_time_stamp;
-	std::vector<shared::Address> analyze_vector;
-	std::vector<shared::Address> traversal_vector;
+	MultiAddressVector analyze_collect_ports;
+	MultiAddressVector traverse_collect_ports;
 };

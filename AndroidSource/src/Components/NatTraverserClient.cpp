@@ -169,7 +169,7 @@ Error NatTraverserClient::ConfirmLobbyAsync(Lobby lobby)
 	return push_package_write(data_package);
 }
 
-shared::Error NatTraverserClient::CollectPortsAsync(UDPCollectTask::CollectInfo info)
+shared::Error NatTraverserClient::CollectPortsAsync(UDPCollectTask::Stage info)
 {
 	if (analyze_nat_future.valid())
 	{
@@ -192,14 +192,14 @@ shared::Error NatTraverserClient::CollectPortsAsync(UDPCollectTask::CollectInfo 
 	return Error{ ErrorType::OK };
 }
 
-shared::DataPackage NatTraverserClient::CollectPorts(UDPCollectTask::CollectInfo info)
+shared::DataPackage NatTraverserClient::CollectPorts(UDPCollectTask::Stage info)
 {
-	return UDPCollectTask::StartCollectTask(info, *shutdown_flag);
+	return UDPCollectTask::StartCollectTask({ info }, *shutdown_flag);
 }
 
-Error NatTraverserClient::analyze_nat_internal(UDPCollectTask::CollectInfo info, AsyncQueue read_queue, ShutdownSignal shutdown)
+Error NatTraverserClient::analyze_nat_internal(UDPCollectTask::Stage info, AsyncQueue read_queue, ShutdownSignal shutdown)
 {
-	DataPackage result_pkg = UDPCollectTask::StartCollectTask(info, *shutdown);
+	DataPackage result_pkg = UDPCollectTask::StartCollectTask({ info }, *shutdown);
 
 	if (!read_queue)
 	{

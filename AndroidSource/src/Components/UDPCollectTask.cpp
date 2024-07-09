@@ -17,115 +17,148 @@
 }
 
 
- shared::DataPackage UDPCollectTask::StartCollectTask(const CollectInfo& collect_info, std::atomic<bool>& shutdown_flag)
+ shared::DataPackage UDPCollectTask::StartCollectTask(const std::vector<Stage> collect_info, std::atomic<bool>& shutdown_flag)
  {
-	 CollectInfo copy = collect_info;
-	 if (auto remainingFiles = utilities::GetNumberOfRemainingFiles())
+	 std::vector<Stage> copy;
+	 for (const Stage& st : collect_info)
 	 {
-		 const uint32_t requestedSockets = copy.sample_size / copy.echo_server_num_services + 1;
-		 if (collect_info.sample_rate_ms == 0 &&  
-			 requestedSockets > *remainingFiles)
-		 {
-			 const uint16_t rem95 = *remainingFiles * 0.95f;
-			 Error err{ ErrorType::WARNING,
-				{
-					 "Device runs out of file descriptors for sockets",
-					 "Requested sockets : " + std::to_string(requestedSockets) + " Remaining files : " + std::to_string(rem95),
-					 "Requests per socket " + std::to_string(copy.echo_server_num_services),
-					 "Override total requests to " + std::to_string(copy.echo_server_num_services * rem95)
-				}
-			 };
-			 copy.sample_size = copy.echo_server_num_services * rem95;
-		 }
+		 Stage temp = st;
+		 auto err = utilities::ClampIfNotEnoughFiles(temp.sample_size, temp.echo_server_num_services);
+		 Log::HandleResponse(err, "Socket Usage Exceeds File Descriptors");
+		 copy.push_back(temp);
+
+		 Log::Info("--- Collect Task Stage %d ---", copy.size());
+		 Log::Info("Server Address     :  %s", temp.echo_server_addr.c_str());
+		 Log::Info("First service port :  %d", temp.echo_server_start_port);
+		 Log::Info("Number of services :  %d", temp.echo_server_num_services);
+		 Log::Info("Local Port         :  %d", temp.local_port);
+		 Log::Info("Amount of Ports    :  %d", temp.sample_size);
+		 Log::Info("Request Delta Time :  %d ms", temp.sample_rate_ms);
+		 Log::Info("Close sockets early:  %s", temp.close_socket_early ? "true" : "false");
+		 Log::Info("Has shutdown cond. :  %s", temp.cond ? "true" : "false");
 	 }
-
-	 Log::Info("--- Metadata Collect NAT Samples ---");
-	 Log::Info("Server Address     :  %s", copy.echo_server_addr.c_str());
-	 Log::Info("First service port :  %d", copy.echo_server_start_port);
-	 Log::Info("Number of services :  %d", copy.echo_server_num_services);
-	 Log::Info("Local Port         :  %d", copy.local_port);
-	 Log::Info("Amount of Ports    :  %d", copy.sample_size);
-	 Log::Info("Request Delta Time :  %d ms", copy.sample_rate_ms);
-
 	 return start_task_internal([&copy, &shutdown_flag](asio::io_service& io) { return UDPCollectTask(copy,shutdown_flag, io); });
  }
 
-UDPCollectTask::UDPCollectTask(const CollectInfo& info, std::atomic<bool>& shutdown_flag, asio::io_service& io_service) : config(info), global_deadline(asio::system_timer(io_service))
+UDPCollectTask::UDPCollectTask(const std::vector<Stage>& info, std::atomic<bool>& shutdown_flag, asio::io_service& io_service) :
+	_global_deadline(asio::system_timer(io_service)),
+	_stages(info),
+	_shutdown_flag(shutdown_flag)
 {
-	const uint16_t total_sockets = (info.sample_size / info.echo_server_num_services) + 1;
-	if (info.local_port != 0 && total_sockets > 1)
+	_result.stages = std::vector<AddressVector>(info.size(), AddressVector());
+	PrepareStage(0, io_service);
+}
+
+bool UDPCollectTask::CreateSocket(asio::io_service& io_service, uint16_t sock_index, uint32_t total_index, uint16_t local_port)
+{
+	if (_system_error_state != PhysicalDeviceError::NO_ERROR)
 	{
-		const auto ss_string = std::to_string(info.sample_size);
-		const auto ns_string = std::to_string(info.echo_server_num_services);
+		return false;
+	}
+
+	if (sock_index >= _socket_list.size())
+	{
+		return false;
+	}
+
+	if (_socket_list[sock_index].socket)
+	{
+		// reuse socket
+		_socket_list[total_index].socket = _socket_list[sock_index].socket;
+		return true;
+	}
+
+	if (sock_index != total_index)
+	{
+		Log::Warning("Socket index %d and total index %d differ", sock_index, total_index);
+		Log::Warning("Can not create socket ...");
+		return false;
+	}
+
+	asio::error_code ec;
+	auto shared_local_socket = std::make_shared<asio::ip::udp::socket>(io_service);
+	shared_local_socket->open(asio::ip::udp::v4(), ec);
+	if (ec)
+	{
+		Log::Warning("Failed to open single socket during UDP Collect Task");
+		Log::Warning("Index : %d", sock_index);
+		Log::Warning("Error Msg : %s", ec.message().c_str());
+		_system_error_state = PhysicalDeviceError::SOCKETS_EXHAUSTED;
+		return false;
+	}
+	shared_local_socket->bind(asio::ip::udp::endpoint{ asio::ip::udp::v4(), local_port }, ec);
+	if (ec)
+	{
+		Log::Warning("Bind socket at port %d failed ", local_port);
+		Log::Warning("Index : %d", sock_index);
+		Log::Warning("Error Msg : %s", ec.message().c_str());
+		_system_error_state = PhysicalDeviceError::SOCKETS_EXHAUSTED;
+		return false;
+	}
+	_socket_list[sock_index].socket = shared_local_socket;
+	return true;
+}
+
+void UDPCollectTask::PrepareStage(const uint16_t& stage_index, asio::io_service& io_service)
+{
+	ClearStage();
+	if (stage_index >= _stages.size())
+	{
+		// Done with all stages
+		return;
+	}
+
+	const Stage& stage = _stages[stage_index];
+
+	const uint16_t sockets_in_stage = stage.sample_size % stage.echo_server_num_services == 0 ? 
+		stage.sample_size / stage.echo_server_num_services :
+		(stage.sample_size / stage.echo_server_num_services) + 1;
+
+	if (stage.local_port != 0 && sockets_in_stage > 1)
+	{
+		const auto ss_string = std::to_string(stage.sample_size);
+		const auto ns_string = std::to_string(stage.echo_server_num_services);
 		_error = Error{ ErrorType::ERROR, {"Local port is non-zero, but sample size " + ss_string + " is larger then number of services " + ns_string} };
 		return;
 	}
-	Log::Info("Try to open %d sockets", total_sockets);
-
-
-	if (!info.close_socket_early)
-	{
-		global_deadline.expires_from_now(std::chrono::milliseconds(info.sample_size * info.sample_rate_ms + SOCKET_TIMEOUT_MS));
-		global_deadline.async_wait([&io_service](auto error)
-			{
-				if (error != asio::error::operation_aborted)
-				{
-					Log::Info("Global timeout reached, abort collecting ...");
-					io_service.stop();
-				}
-			});
-	}
 
 	// Create sockets
-	for (uint16_t sock_index = 0; sock_index < total_sockets; ++sock_index)
+	for (uint16_t sock_index = 0; sock_index < sockets_in_stage; ++sock_index)
 	{
-		// Create socket
-		asio::error_code ec;
-		auto shared_local_socket = std::make_shared<asio::ip::udp::socket>(io_service);
-		shared_local_socket->open(asio::ip::udp::v4(), ec);
-		if (ec)
-		{
-			Log::Warning("Failed to open single socket during UDP Collect Task");
-			Log::Warning("Index : %d", sock_index);
-			Log::Warning("Error Msg : %s", ec.message().c_str());
-			_system_error_state = PhysicalDeviceError::SOCKETS_EXHAUSTED;
-			return;
-		}
-		shared_local_socket->bind(asio::ip::udp::endpoint{ asio::ip::udp::v4(), info.local_port }, ec);
-		if (ec)
-		{
-			Log::Warning("Bind socket at port %d failed ", info.local_port);
-			Log::Warning("Index : %d", sock_index);
-			Log::Warning("Error Msg : %s", ec.message().c_str());
-			_system_error_state = PhysicalDeviceError::SOCKETS_EXHAUSTED;
-			return;
-		}
-
 		// Create request to port
-		const uint16_t remaining_requests = info.sample_size - (sock_index * info.echo_server_num_services);
-		const uint16_t remaining_requests_clamped = std::clamp(remaining_requests, (const uint16_t)0u, info.echo_server_num_services);
+		const uint16_t remaining_requests = stage.sample_size - (sock_index * stage.echo_server_num_services);
+		const uint16_t remaining_requests_clamped = std::clamp(remaining_requests, (const uint16_t)0u, stage.echo_server_num_services);
+		const uint16_t local_socket_index = (const uint16_t)(sock_index * stage.echo_server_num_services);
+		const bool is_last_socket = sock_index == sockets_in_stage - 1;
+
 		for (uint16_t req_index = 0; req_index < remaining_requests_clamped; ++req_index)
 		{
-			const uint16_t total_index = (const uint16_t)(sock_index * info.echo_server_num_services + req_index);
-			_socket_list.emplace_back(Socket{ 
-								sock_index, // socket index
-								total_index, // total index
-								(const uint16_t)(info.echo_server_start_port + req_index), // port
-								(const uint16_t)(info.echo_server_start_port + remaining_requests_clamped - 1u), // max port for this socket
-								shared_local_socket, // socket
-								asio::system_timer(io_service) // start cb
+			const uint16_t local_request_index = (const uint16_t)(local_socket_index + req_index);
+			_socket_list.emplace_back(Socket{
+								local_request_index, // index
+								(const uint16_t)(stage.echo_server_start_port + req_index), // port
+								(const uint16_t)(stage.echo_server_start_port + remaining_requests_clamped - 1u), // max port for this socket
+								nullptr, // create socket when used
+								asio::system_timer(io_service), // start cb,
+								stage_index,
+								is_last_socket
 				});
 
-			_socket_list[total_index].timer.expires_from_now(std::chrono::milliseconds(total_index * info.sample_rate_ms));
-			_socket_list[total_index].timer.async_wait([this, &info, &io_service, total_index, &shutdown_flag](auto error)
+			_socket_list[local_request_index].timer.expires_from_now(std::chrono::milliseconds(local_request_index * stage.sample_rate_ms));
+			_socket_list[local_request_index].timer.async_wait([this, stage, &io_service, local_socket_index, local_request_index, stage_index](auto error)
 				{
-
-					if (_system_error_state != PhysicalDeviceError::NO_ERROR)
+					if (error)
 					{
 						return;
 					}
 
-					if (shutdown_flag.load())
+					if (!CreateSocket(io_service, local_socket_index, local_request_index, stage.local_port))
+					{
+						Log::Warning("Stage %d : Can not create socket.", stage_index);
+						return;
+					}
+
+					if (_shutdown_flag.load())
 					{
 						_error = Error(ErrorType::ERROR, { "Abort Collecting Ports, shutdown requested from main thread" });
 						io_service.stop();
@@ -133,18 +166,56 @@ UDPCollectTask::UDPCollectTask(const CollectInfo& info, std::atomic<bool>& shutd
 					}
 
 					asio::error_code ec;
-					auto address = asio::ip::make_address(info.echo_server_addr, ec);
+					auto address = asio::ip::make_address(stage.echo_server_addr, ec);
 					if (auto err = Error::FromAsio(ec, "Make Adress"))
 					{
 						_error = err;
 						return;
 					}
 
-					auto remote_endpoint = std::make_shared<asio::ip::udp::endpoint>(address, _socket_list[total_index].port);
-					send_request(_socket_list[total_index], io_service, remote_endpoint, error);
+					auto remote_endpoint = std::make_shared<asio::ip::udp::endpoint>(address, _socket_list[local_request_index].port);
+					send_request(_socket_list[local_request_index], io_service, remote_endpoint, error);
 				});
 		}
 	}
+
+	if (!stage.close_socket_early)
+	{
+		_global_deadline.expires_from_now(std::chrono::milliseconds(stage.sample_size * stage.sample_rate_ms + SOCKET_TIMEOUT_MS));
+		_global_deadline.async_wait([this, stage_index, &io_service](auto error)
+			{
+				if (error != asio::error::operation_aborted)
+				{
+					Log::Info("Stage %d : Global timeout reached. Start next stage.", stage_index);
+					PrepareStage(stage_index + 1, io_service);
+				}
+			});
+	}
+}
+
+void UDPCollectTask::ClearStage()
+{
+	for (Socket& sock : _socket_list)
+	{
+		if (sock.socket && sock.socket->is_open())
+		{
+			sock.socket->close();
+		}
+		sock.timer.cancel();
+	}
+
+	for (auto timer : _deadline_vector)
+	{
+		if (timer)
+		{
+			timer->cancel();
+		}
+	}
+
+	_socket_list.clear();
+	_deadline_vector.clear();
+	_global_deadline.cancel();
+	_system_error_state = PhysicalDeviceError::NO_ERROR;
 }
 
 DataPackage UDPCollectTask::start_task_internal(std::function<UDPCollectTask(asio::io_service&)> createCollectTask)
@@ -177,10 +248,13 @@ DataPackage UDPCollectTask::start_task_internal(std::function<UDPCollectTask(asi
 	}
 	else
 	{
-		// Sort ports found
-		auto& address_vector = collectTask._stored_natsample.address_vector;
-		std::sort(address_vector.begin(), address_vector.end(), [](auto l, auto r) {return l.index < r.index; });
-		return DataPackage::Create(&collectTask._stored_natsample, Transaction::CLIENT_RECEIVE_COLLECTED_PORTS);
+		// sort all the stages
+		for (auto& stage : collectTask._result.stages)
+		{
+			auto& address_vector = stage.address_vector;
+			std::sort(address_vector.begin(), address_vector.end(), [](auto l, auto r) {return l.index < r.index; });
+		}
+		return DataPackage::Create(&collectTask._result, Transaction::CLIENT_RECEIVE_COLLECTED_PORTS);
 	}
 	return DataPackage();
 }
@@ -196,7 +270,7 @@ void UDPCollectTask::send_request(Socket& local_socket, asio::io_service& io_ser
 		return;
 	}
 
-	shared::Address address{ local_socket.total_index, shared::helper::CreateTimeStampOnlyMS() };
+	shared::Address address{ local_socket.index, shared::helper::CreateTimeStampOnlyMS() };
 	std::vector<jser::JSerError> jser_errors;
 	const nlohmann::json address_json = address.SerializeObjectJson(std::back_inserter(jser_errors));
 	if (jser_errors.size() > 0)
@@ -230,31 +304,38 @@ void UDPCollectTask::start_receive(Socket& local_socket, asio::io_service& io_se
 
 	asio::ip::udp::endpoint remote_endpoint;
 	auto shared_buffer = std::make_shared<AddressBuffer>();
-	if (config.close_socket_early && config.echo_server_start_port == local_socket.port)
+	const Stage stage = _stages[local_socket.stage_index];
+	if (stage.close_socket_early && stage.echo_server_start_port == local_socket.port)
 	{
-		const uint32_t min_duration = config.sample_rate_ms * (local_socket.max_port - config.echo_server_start_port);
-		auto deadline_timer = std::make_shared<asio::system_timer>(CreateDeadline(io_service, local_socket.socket, min_duration));
-		_deadline_queue.push(deadline_timer);
+		const uint32_t min_duration = stage.sample_rate_ms * (local_socket.max_port - stage.echo_server_start_port);
+		auto action = [this, &local_socket](asio::io_service& io)
+			{
+				if (local_socket.socket && local_socket.socket->is_open()) 
+				{
+					local_socket.socket->cancel();
+					local_socket.socket->close();
+				}
+				// if this is the last socket in this stage, go to next stage
+				if (local_socket.is_last_socket)
+				{
+					Log::Info("Stage %d : Last socket deadline at index %d has triggered. Start next stage.", local_socket.stage_index, local_socket.index);
+					PrepareStage(local_socket.stage_index + 1, io);
+				}
+			};
+		auto deadline_timer = std::make_shared<asio::system_timer>(CreateDeadline(io_service, min_duration, action));
+		_deadline_vector.push_back(deadline_timer);
 	}
 
 	local_socket.socket->async_receive_from(
 		asio::buffer(*shared_buffer), remote_endpoint,
-		[this, &io_service, shared_buffer](const std::error_code& ec, std::size_t bytesTransferred)
+		[this, &io_service, shared_buffer, &local_socket](const std::error_code& ec, std::size_t bytesTransferred)
 		{
 			 // cancel oldest deadline on receive
-			handle_receive(shared_buffer, bytesTransferred, io_service, ec);
-
-			// Stop io service when all ports are received.
-			// If not all ports are received, deadline timer will kill the sockets
-			if (_stored_natsample.address_vector.size() >= config.sample_size)
-			{
-				// Done
-				io_service.stop();
-			}
+			handle_receive(local_socket, shared_buffer, bytesTransferred, io_service, ec);
 		});
 }
 
-void UDPCollectTask::handle_receive(std::shared_ptr<AddressBuffer> buffer, std::size_t len, asio::io_service& io_service, const std::error_code& ec)
+void UDPCollectTask::handle_receive(Socket& local_socket, std::shared_ptr<AddressBuffer> buffer, std::size_t len, asio::io_service& io_service, const std::error_code& ec)
 {
 	if (ec == asio::error::operation_aborted)
 	{
@@ -295,28 +376,40 @@ void UDPCollectTask::handle_receive(std::shared_ptr<AddressBuffer> buffer, std::
 		return;
 	}
 	address.rtt_ms = (uint16_t)std::abs((int32_t)shared::helper::CreateTimeStampOnlyMS() - (int32_t)address.rtt_ms);
-	_stored_natsample.address_vector.push_back(address);
+
+	_result.stages[local_socket.stage_index].address_vector.push_back(address);
+	const Stage stage = _stages[local_socket.stage_index];
+	// Check shutdown condition
+	if (stage.cond)
+	{
+		if (stage.cond(address, local_socket.stage_index))
+		{
+			Log::Info("Stage %d : Shutdown condition fulfilled at index %d. Start next stage.", local_socket.stage_index, local_socket.index);
+			PrepareStage(local_socket.stage_index + 1, io_service);
+			return;
+		}
+	}
+	// Check if we received all ports in stage
+	const uint32_t received_addresses = _result.stages[local_socket.stage_index].address_vector.size();
+	if (received_addresses >= stage.sample_size)
+	{
+		Log::Info("Stage %d : Received all %d addresses in stage. Start next stage.", local_socket.stage_index, received_addresses);
+		PrepareStage(local_socket.stage_index + 1, io_service);
+		return;
+	}
 }
 
-asio::system_timer UDPCollectTask::CreateDeadline(asio::io_service& service, std::shared_ptr<asio::ip::udp::socket> socket, uint32_t min_duration)
+asio::system_timer UDPCollectTask::CreateDeadline(asio::io_service& service, uint32_t min_duration, const std::function<void(asio::io_service&)>& action)
 {
 	auto timer = asio::system_timer(service);
 	timer.expires_from_now(std::chrono::milliseconds(min_duration + SOCKET_TIMEOUT_MS));
 	timer.async_wait(
-		[socket](auto error) 
+		[&service, action](auto error) 
 		{
 			// If timer activates without abortion, we close the socket
 			if (error != asio::error::operation_aborted)
 			{
-				// We do NOT create here an error
-				// Package loss is expected
-				// If there is no internet connection,
-				// an error will be created at a later stage
-				if (socket->is_open())
-				{
-					socket->cancel();
-					socket->close();
-				}
+				action(service);
 			}
 		}
 	);

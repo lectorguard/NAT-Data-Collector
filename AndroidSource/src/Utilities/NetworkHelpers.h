@@ -72,23 +72,26 @@ namespace utilities
 	}
 
 	// Only produces warning
-	inline Error ClampIfNotEnoughFiles(uint16_t& sample_size)
+	inline Error ClampIfNotEnoughFiles(uint16_t& sample_size, const uint16_t& number_of_services)
 	{
 		auto max_files = GetMaxOpenFiles();
 		auto curr_files = GetCurrentOpenFiles();
 		if (max_files && curr_files)
 		{
-			uint32_t rem95 = (*max_files - *curr_files) * 0.95f;
-			if (sample_size > rem95)
+			const uint32_t rem95 = (*max_files - *curr_files) * 0.95f;
+			const uint32_t sockets = sample_size % number_of_services == 0 ? 
+				sample_size / number_of_services :
+				(sample_size / number_of_services) + 1;
+			if (sockets > rem95)
 			{
 				Error err{ ErrorType::WARNING,
 					{
 						"Device runs out of file descriptors for sockets",
-						"Requested size : " + std::to_string(sample_size) + " Remaining files : " + std::to_string(rem95),
-						"Overriding requested size with " + std::to_string(rem95)
+						"Requested sockets : " + std::to_string(sockets) + " Remaining files : " + std::to_string(rem95 - 1),
+						"Overriding requested sockets with " + std::to_string((rem95 - 1) * number_of_services)
 					}
 				};
-				sample_size = rem95;
+				sample_size = (rem95 - 1) * number_of_services;
 				return err;
 			}
 		}

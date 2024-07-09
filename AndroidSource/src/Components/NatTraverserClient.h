@@ -56,14 +56,14 @@ public:
 	Error ConfirmLobbyAsync(Lobby lobby);
 
 	// Blocking method returning the collected ports
-	DataPackage CollectPorts(UDPCollectTask::CollectInfo info);
+	DataPackage CollectPorts(UDPCollectTask::Stage info);
 
 
 	// Collects port translations of NAT device
 	// Should be part of analyzing phase
 	// Fill the CollectInfo config file, local port must be 0
 	// Triggers response of collected ports (CLIENT_RECEIVE_COLLECTED_PORTS)
-	Error CollectPortsAsync(UDPCollectTask::CollectInfo info);
+	Error CollectPortsAsync(UDPCollectTask::Stage info);
  
 	// Blocking method returning the predicted port
 	template<typename CONFIG>
@@ -124,7 +124,7 @@ private:
 	};
 
 	static Error connect_internal(TraversalInfo const& info);
-	static Error analyze_nat_internal(UDPCollectTask::CollectInfo info, AsyncQueue read_queue, ShutdownSignal shutdown);
+	static Error analyze_nat_internal(UDPCollectTask::Stage info, AsyncQueue read_queue, ShutdownSignal shutdown);
 	static void async_read_msg_length(TraversalInfo const& info, asio::ip::tcp::socket& s);
 
 	Error push_package_write(DataPackage& pkg);
