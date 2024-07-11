@@ -75,10 +75,10 @@ private:
 		uint16_t sample_size;
 	};
 
-	inline static std::vector<Conf> analyze_step = { 6, {1,5000}};
-	inline static std::vector<Conf> intersect_step = { 6, {10, 10'000} };
-	inline static std::vector<Conf> traversal_step = { {7 , 10'000}, {8 , 10'000}, {9 , 10'000}, {10 , 10'000}, {11 , 10'000}, {12 , 10'000} };
+	inline static std::vector<Conf> analyze_step = { 7, {0,10'000} };
+	inline static std::vector<Conf> intersect_step = { 7, {10, 10'000} };
+	inline static std::vector<Conf> traversal_step = { {0 , 10'000}, {3 , 10'000}, {6 , 10'000}, {9 , 10'000}, {12 , 10'000}, {15 , 10'000}, {18 , 10'000} };
 	inline static uint16_t conf_index = 0;
 	static DataPackage CollectPorts(std::atomic<bool>& shutdown_flag);
-	const std::string db_name = "DifferentTraversalSampleRates";
+	const std::string db_name = "RandomTraversalRate";
 };

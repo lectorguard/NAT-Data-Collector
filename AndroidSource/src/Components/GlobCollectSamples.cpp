@@ -35,6 +35,17 @@ void GlobCollectSamples::StartGlobState()
 
 DataPackage GlobCollectSamples::CollectPorts(std::atomic<bool>& shutdown_flag)
 {
+	// all steps must have equal sized configs
+	if (analyze_step.size() != intersect_step.size() ||
+		intersect_step.size() != traversal_step.size())
+	{
+		return DataPackage::Create(Error{ ErrorType::ERROR, {"Config sizes of analyze, intersect and traversal are not equal" }});
+	}
+
+	// Randomly generate the index every time
+	srand((uint32_t)std::chrono::system_clock::now().time_since_epoch().count());
+	conf_index = rand() / ((RAND_MAX + 1u) / analyze_step.size());
+
 	std::set<uint16_t> first_stage_ports{};
 	std::function<bool(Address, uint32_t)> should_shutdown = [&first_stage_ports](Address addr, uint32_t stage)
 		{
@@ -271,11 +282,6 @@ void GlobCollectSamples::UpdateGlobState(class Application* app)
 		if (auto res = utilities::TryGetFuture<DataPackage>(upload_nat_sample))
 		{
 			Log::HandleResponse(*res, "Insert NAT sample to DB");
-			if (++conf_index >= analyze_step.size())
-			{
-				current = CollectSamplesStep::Idle;
-				break;
-			}
 			// Even if we fail, we will try again later
 			current = CollectSamplesStep::StartWait;
 		}
