@@ -71,15 +71,15 @@ UDPHolepunching::Result UDPHolepunching::StartHolepunching(const RandomInfo& hol
 	}
 
  	Log::Info("--- Metadata Holepunching ---");
- 	Log::Info("Predicted Address  :  %s:%d",	copy.target_client.ip_address.c_str(), copy.target_client.port);
+ 	Log::Info("Predicted Address   :  %s:%d",	copy.target_client.ip_address.c_str(), copy.target_client.port);
  	Log::Info("Traversal Attempts  :  %d",		copy.traversal_attempts);
+	Log::Info("Traversal Rate ms   :  %d",		copy.traversal_rate);
  	Log::Info("Timeout after       :  %d ms",	copy.deadline_duration_ms);
- 	Log::Info("Holepunch Role      :  %s", shared::holepunch_role_to_string.at(copy.role).c_str());
+ 	Log::Info("Local port	      :  %d",		copy.local_port);
+ 	Log::Info("Keep alive rate     :  %d ",		copy.keep_alive_rate_ms);
 
 	return start_task_internal([copy]{ return UDPHolepunching(copy); }, read_queue, copy.io);
 }
-
-
 
 UDPHolepunching::Result UDPHolepunching::start_task_internal(std::function<UDPHolepunching()> createCollectTask, AsyncQueue read_queue, asio::io_context& io)
 {
@@ -152,9 +152,9 @@ void UDPHolepunching::send_request(uint16_t sock_index, asio::io_service& io_ser
 			start_receive(sock_index, io_service, ec);
 		});
 
-	if (_config.keep_alive_duration)
+	if (_config.keep_alive_rate_ms)
 	{
-		_socket_list[sock_index].timer.expires_from_now(std::chrono::milliseconds(_config.keep_alive_duration));
+		_socket_list[sock_index].timer.expires_from_now(std::chrono::milliseconds(_config.keep_alive_rate_ms));
 		_socket_list[sock_index].timer.async_wait([this, sock_index, &io_service, remote_endpoint](auto error) {
 			if (error != asio::error::operation_aborted)
 			{

@@ -18,6 +18,7 @@ void Application::run(struct android_app* state)
 	AndroidStartEvent.Publish(this);
 
 	while (true) {
+		_frame_stop_watch.Reset();
 		// Read all pending events.
 		int ident;
 		int events;
@@ -46,6 +47,7 @@ void Application::run(struct android_app* state)
 			}
 		}
 		UpdateEvent.Publish(this);
+		FrameTimeEvent.Publish(this, last_frame_time);
 		Renderer& renderer = _components.Get<Renderer>();
 		if (renderer.CanDraw() && !renderer.IsDarkMode())
 		{
@@ -53,6 +55,7 @@ void Application::run(struct android_app* state)
 			DrawEvent.Publish(this);
 			_components.Get<Renderer>().EndFrame();
 		}
+		last_frame_time =_frame_stop_watch.GetDurationMS();
 	}
 }
 

@@ -17,12 +17,20 @@ namespace shared
 	enum class Transaction : uint32_t
 	{
 		NO_TRANSACTION = 0,
+		ERROR,
 		CLIENT_START,
+		CLIENT_CONNECTED,
 		CLIENT_RECEIVE_LOBBIES,
 		CLIENT_CONFIRM_JOIN_LOBBY,
 		CLIENT_START_ANALYZE_NAT,
 		CLIENT_RECEIVE_COLLECTED_PORTS,
+		CLIENT_RECEIVE_NAT_TYPE,
 		CLIENT_RECEIVE_PREDICTION,
+		CLIENT_RECEIVE_TRACEROUTE,
+		CLIENT_RECEIVE_VERSION_DATA,
+		CLIENT_RECEIVE_INFORMATION_DATA,
+		CLIENT_RECEIVE_SCORES,
+		CLIENT_TIMER_OVER,
 		CLIENT_START_TRAVERSAL,
 		CLIENT_TRAVERSAL_RESULT,
 		CLIENT_UPLOAD_SUCCESS,
@@ -54,7 +62,8 @@ namespace shared
 		JOIN_SESSION_KEY,
 		USER_SESSION_KEY,
 		HOLEPUNCH_ROLE,
-		SUCCESS
+		SUCCESS,
+		NAT_TYPE
 	};
 
 	inline const std::map<MetaDataField, std::string> meta_data_to_string{
@@ -70,7 +79,8 @@ namespace shared
 		{MetaDataField::JOIN_SESSION_KEY, "join_session_key"},
 		{MetaDataField::USER_SESSION_KEY, "user_session_key"},
 		{MetaDataField::HOLEPUNCH_ROLE, "holepunch_role"},
-		{MetaDataField::SUCCESS, "success"}
+		{MetaDataField::SUCCESS, "success"},
+		{MetaDataField::NAT_TYPE, "nat_type"}
 	};
 
 	enum class HolepunchRole : uint8_t

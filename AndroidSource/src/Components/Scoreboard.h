@@ -5,6 +5,7 @@
 #include <future>
 #include "CustomCollections/SimpleTimer.h"
 #include "UDPCollectTask.h"
+#include "NatTraverserClient.h"
 
 
 class Application;
@@ -26,8 +27,8 @@ public:
 
 	shared::Scores scores;
 private:
+	void Shutdown(DataPackage pkg);
+	void HandleTransaction(Application* app, DataPackage pkg);
 	void RequestScores(Application* app);
-	// State
-	ScoreboardSteps current = ScoreboardSteps::Idle;
-	std::future<shared::DataPackage> scoreboard_transaction;
+	NatTraverserClient client;
 };

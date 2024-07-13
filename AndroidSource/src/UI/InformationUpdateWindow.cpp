@@ -32,11 +32,12 @@ void InformationUpdateWindow::Draw(class Application* app)
 	ImGui::PushFont(Renderer::small_font);
 	
 	ImGui::TextWrapped("%s", info_update.information_details.c_str());
-
-	ImGui::PopFont();
 	
 	ImGui::Dummy(ImVec2(0, Renderer::CentimeterToPixel(0.2f)));
+	ImGui::Checkbox(" Don't show this window again", &ignore_pop_up);
+	ImGui::Dummy(ImVec2(0, Renderer::CentimeterToPixel(0.2f)));
 
+	ImGui::PopFont();
 	ImGui::PushFont(Renderer::medium_font);
 	ImGui::SetCursorPosX(ImGui::GetWindowSize().x / 2.0f - ImGui::CalcTextSize("Close").x / 2.0f);
 	if (utilities::StyledButton("Close", close_button_style))

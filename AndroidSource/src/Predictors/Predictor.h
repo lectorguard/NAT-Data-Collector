@@ -9,114 +9,68 @@ struct AnalyzerDynamic
 {
 	struct Config
 	{
-		std::string server_address;
-		uint16_t sample_size;
-		uint16_t sample_rate;
+		UDPCollectTask::Stage candidates;
+		UDPCollectTask::Stage duplicates;
+		uint16_t first_n_predict{};
 	};
-
 
 	static std::optional<std::vector<Address>> analyze(NatTraverserClient& nc, const Config& config)
 	{
-		const UDPCollectTask::Stage collect_config
-		{
-			/* remote address */				config.server_address,
-			/* start port */					10'000,
-			/* num port services */				1'000,
-			/* local port */					0,
-			/* amount of ports */				config.sample_size,
-			/* time between requests in ms */	config.sample_rate,
-			/* close sockets early*/			true
-		};
+		auto first_stage_ports = std::make_shared<std::set<uint16_t>>();
+		std::function<bool(Address, uint32_t)> should_shutdown = [first_stage_ports](Address addr, uint32_t stage)
+			{
+				if (stage == 0)
+				{
+					first_stage_ports->insert(addr.port);
+				}
+				else if (stage == 1)
+				{
+					return first_stage_ports->contains(addr.port);
+				}
+				return false;
+			};
+		auto copy = config;
+		copy.candidates.cond = should_shutdown;
+		copy.duplicates.cond = should_shutdown;
 
-		auto pkg = nc.CollectPorts(collect_config);
+		auto pkg = nc.CollectPorts({copy.candidates, copy.duplicates});
 
 		// Retrieve result
 		if (pkg.error) return std::nullopt;
-		shared::AddressVector av;
+		shared::MultiAddressVector av;
 		if (auto err = pkg.Get(av)) return std::nullopt;
 
-		// map from port to index
-		std::map<uint16_t, std::vector<uint16_t>> index_map;
-		for (const auto& addr : av.address_vector)
+		if (av.stages.size() > 0 && av.stages[0].address_vector.size() > 0)
 		{
-			if (index_map.contains(addr.port))
-			{
-				index_map[addr.port].push_back(addr.index);
-			}
-			else
-			{
-				index_map[addr.port] = { addr.index };
-			}
+			auto& vec = av.stages[0].address_vector;
+			auto first_n = std::clamp((const uint16_t)vec.size(), (const uint16_t)0, config.first_n_predict);
+			return std::vector<Address>(vec.begin(), vec.begin() + first_n);
 		}
-		// get diff of indices
-		for (auto& [port, indices] : index_map)
-		{
-			std::vector<uint16_t> toReplace;
-			for (size_t i = 1; i < indices.size(); ++i)
-			{
-				toReplace.push_back(indices[i] - indices[i - 1]);
-			}
-			indices = toReplace;
-		}
-		// get diff most frequent
-		std::map<uint16_t, uint16_t> diff_occurences;
-		for (auto& [port, indices] : index_map)
-		{
-			for (const auto& diff : indices)
-			{
-				if (diff_occurences.contains(diff))
-				{
-					++diff_occurences[diff];
-				}
-				else
-				{
-					diff_occurences[diff] = 1;
-				}
-			}
-		}
-
-		uint16_t max_frequent_diff = std::max_element(diff_occurences.begin(), diff_occurences.end(), [](auto l, auto r)
-			{
-				return l.second < r.second;
-			})->first;
-
-		Log::Warning("Most frequent index diff : %d", max_frequent_diff);
-		return std::vector<Address>(av.address_vector.begin(), av.address_vector.begin() + (av.address_vector.size() - max_frequent_diff));
+		return std::nullopt;
 	};
 };
 
 
 struct AnalyzerConeNAT
 {
-	struct Config
-	{
-		std::string server_address;
-		uint16_t server_port{};
-		uint16_t local_port{};
-	};
+	using Config = UDPCollectTask::Stage;
 
-	static std::optional<std::vector<Address>> analyze(NatTraverserClient& nc, const Config& config)
+	static std::optional<std::vector<Address>> analyze(NatTraverserClient& nc, const UDPCollectTask::Stage& config)
 	{
-		const UDPCollectTask::Stage collect_config
-		{
-			/* remote address */				SERVER_IP,
-			/* start port */					10'000,
-			/* num port services */				1'000,
-			/* local port */					config.local_port,
-			/* amount of ports */				1,
-			/* time between requests in ms */	NAT_COLLECT_REQUEST_DELAY_MS,
-		};
-
-		auto pkg = nc.CollectPorts(collect_config);
+		auto pkg = nc.CollectPorts({ config });
 
 		// Retrieve result
 		if (pkg.error) return std::nullopt;
-		shared::AddressVector av;
-		if (auto err = pkg.Get(av)) return std::nullopt;
-
-		if (av.address_vector.size() == 1)
+		shared::MultiAddressVector av;
+		if (auto err = pkg.Get(av))
 		{
-			return av.address_vector;
+			Log::HandleResponse(err, "analyze cone nat");
+			return std::nullopt;
+		}
+
+		if (av.stages.size() == 1)
+		{
+			return av.stages[0].address_vector;
 		}
 		return std::nullopt;
 	};

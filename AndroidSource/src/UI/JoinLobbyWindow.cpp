@@ -29,7 +29,7 @@ void JoinLobbyWindow::Draw(class Application* app)
 	ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x * 0.1, io.DisplaySize.y * 0.25));
 	ImGui::Begin("##Join Lobby Window", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoScrollbar);
 
-	if (step == TraverseStep::ConfirmLobby)
+	if (step == TraverseStep::CONFIRM_LOBBY)
 	{
 		
 		if (confirm_lobby.joined.size() != 1) return;

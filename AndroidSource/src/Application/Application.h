@@ -24,6 +24,7 @@
 #include "Components/CopyLog.h"
 #include "Components/GlobTraverse.h"
 #include "UI/TraversalWindow.h"
+#include "CustomCollections/SimpleTimer.h"
 
 
 #define LOGI(...) ((void)__android_log_print(ANDROID_LOG_INFO, "native-activity", __VA_ARGS__))
@@ -53,9 +54,14 @@ public:
 	Event<struct android_app*> AndroidShutdownEvent{};
 	// Called every frame when animating
 	Event<Application*> UpdateEvent{};
+	Event<Application*, uint64_t> FrameTimeEvent{};
 	Event<Application*> DrawEvent{};
 	// Every component needs Activate(Application*) and Deactivate(Application*) function
 	// By default every component is instantiated once
 	ComponentsType _components;
 	struct android_app* android_state = nullptr;
+	uint64_t GetFrameTime() const { return last_frame_time; }
+private:
+	SimpleStopWatch _frame_stop_watch;
+	uint64_t last_frame_time = 0;
 };

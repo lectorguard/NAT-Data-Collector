@@ -19,23 +19,15 @@ This app does not collect any user content of your phone.
 ```
 cmake_minimum_required(VERSION 3.20)
 
-set(APP_VERSION "v0.0.1") # specify the current version of the app
-set(SERVER_IP "192.168.2.110") # your server ip address
-set(SERVER_NAT_UDP_PORT_1 7777) # server port for nat information request
-set(SERVER_NAT_UDP_PORT_2 7778) # server port for nat information request
-set(SERVER_TRANSACTION_TCP_PORT 7779) # server port to upload 
-set(NAT_IDENT_REQUEST_FREQUNCY_MS 20) # Frequency of nat requests for NAT identification
-set(NAT_IDENT_AMOUNT_SAMPLES_USED 5) # Number of samples used, to identify NAT type
-set(NAT_IDENT_MAX_PROG_SYM_DELTA 50) # Maximum delta between 2 consecutive ports, to classify NAT as progressing
-set(NAT_COLLECT_REQUEST_DELAY_MS 200) # Time between NAT requests during collection step 
-set(NAT_COLLECT_PORTS_PER_SAMPLE 200) # Total amount of ports requested during collection step
-set(NAT_COLLECT_SAMPLE_DELAY_MS 30000) # Delay between two consecutive NAT collection steps
-set(MONGO_DB_NAME "NatInfo") # Mongo db name, where collected NAT Samples will be stored
-set(MONGO_NAT_SAMPLES_COLL_NAME "data") # Monog collection name, where collected NAT Samples will be stored
-set(MONGO_NAT_USERS_COLL_NAME "users") # Mongo collection name, where app user information are stored
-set(MONGO_VERSION_COLL_NAME "VersionUpdate") # Mongo collection name, where new version pop up information are stored
-set(MONGO_INFORMATION_COLL_NAME "InformationUpdate") # Mongo collection name, where general information for popups are stored
-set(RANDOM_SYM_NAT_REQUIRED 1) #If set to 1, ports are only collected if NAT type is random symmetric
+set(SERVER_IP "192.168.18.10") # your server ip address	
+set(SERVER_TRANSACTION_TCP_PORT 9999) # server port to perform transactions (TCP) 
+set(SERVER_ECHO_UDP_START_PORT 10000) # first server echo service runs on this port 
+set(SERVER_ECHO_UDP_SERVICES 1000) # amount of echo services supported by server 
+set(MONGO_DB_NAME "NAT") # Mongo db name, where collected NAT Samples will be stored 
+set(MONGO_NAT_USERS_COLL_NAME "UsersColl") # Mongo collection name, where app user information are stored 
+set(MONGO_VERSION_COLL_NAME "VersionUpdate") # Mongo collection name, where new version pop up information are stored 
+set(MONGO_INFORMATION_COLL_NAME "InformationUpdate") # Mongo collection name, where general information for popups are stored 
+set(APP_VERSION "v0.0.2") # Version of the app 
 ```
 
 ### Server Config

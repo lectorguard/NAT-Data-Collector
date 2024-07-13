@@ -8,17 +8,9 @@
 
 using namespace shared;
 
-class NatClassifier
+struct NatClassifier
 {
-public:
-	using NatFuture = std::future<DataPackage>;
-
-	Error AsyncClassifyNat(uint16_t num_nat_samples);
-	std::optional<shared::NATType> TryGetAsyncClassifyNatResult(Error& all_responses);
-
+	static DataPackage ClassifyNAT(const std::vector<UDPCollectTask::Stage>& config, const std::shared_ptr<std::atomic<bool>>& shutdown_flag);
 	static shared::NATType IdentifyNatType(const shared::Address& first, const shared::Address& second);
 	static shared::NATType GetMostFrequentNatType(const std::vector<shared::NATType>& nat_types);
-private:
-	std::atomic<bool> shutdown_flag = false;
-	NatFuture nat_future;
 };

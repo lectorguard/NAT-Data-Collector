@@ -5,11 +5,11 @@ class Application;
 
 enum class TraverseStep
 {
-	Idle = 0,
-	Connected,
-	JoinLobby,
-	ConfirmLobby,
-	NonInterruptable,
+	DISCONNECTED = 0,
+	CONNECTED,
+	JOIN_LOBBY,
+	CONFIRM_LOBBY,
+	NO_INTERRUPT,
 };
 
 struct JoinLobbyInfo
@@ -31,20 +31,25 @@ public:
 	// Either join lobby id or new merged lobby
 	JoinLobbyInfo join_info;
 private:
-
-	NatTraverserClient traversal_client{};
-	AddressVector collected_analyze_ports{};
 	Address predicted_address;
 	std::string start_traversal_timestamp{};
-	TraverseStep currentTraversalStep = TraverseStep::Idle;
+	TraverseStep currentTraversalStep = TraverseStep::DISCONNECTED;
 
 	void OnJoinLobbyAccept(Application* app, Lobby join_lobby);
-	void HandlePackage(Application* app, DataPackage& data_package);
 	void JoinLobby(Application* app, uint64_t join_sesssion);
 	void StartDraw(Application* app);
 	void Update(Application* app);
 	void EndDraw(Application* app);
-	void Shutdown(Application* app);
 
 	asio::io_service io;
+	NatTraverserClient client;
+	void Shutdown(Application* app, DataPackage pkg);
+	void HandleTransaction(Application* app, DataPackage pkg);
+
+	Error AnalyzeNAT(const NatCollectorModel& model);
+	Error TraverseNAT(const NatCollectorModel& model, const Address& prediction);
+	uint16_t cone_local_port;
+	uint16_t _traversal_attempts;
+
+
 };

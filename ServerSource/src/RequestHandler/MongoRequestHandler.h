@@ -32,7 +32,14 @@ struct ServerHandler<shared::Transaction::SERVER_INSERT_MONGO>
 		if (meta_data.error) return DataPackage::Create(meta_data.error);
 		auto const [db_name, coll_name] = meta_data.values;
 
-		return shared::DataPackage::Create(WriteFileToDatabase(pkg.data.dump(), db_name, coll_name));
+		if (auto err = WriteFileToDatabase(pkg.data.dump(), db_name, coll_name))
+		{
+			return DataPackage::Create(err);
+		}
+		else
+		{
+			return shared::DataPackage::Create(nullptr, Transaction::CLIENT_UPLOAD_SUCCESS);
+		}
 	}
 };
 
@@ -56,7 +63,7 @@ struct ServerHandler<shared::Transaction::SERVER_GET_VERSION_DATA>
 		Error err =  mongoUtils::FindElementsInCollection("{}", db_name,coll_name ,
 			[old_version = pkg.version, &version_upate](mongoc_cursor_t* cursor, int64_t length)
 			{
-				if (length == 0) return Error(ErrorType::OK);
+				if (length == 0) return Error(ErrorType::ANSWER);
 				else return 
 					std::visit(shared::helper::Overloaded
 					{
@@ -66,12 +73,8 @@ struct ServerHandler<shared::Transaction::SERVER_GET_VERSION_DATA>
 							{
 								return Error{ ErrorType::ERROR, {"Latest release of app does not match server version"} };
 							}
-							else if (old_version != vu[0].latest_version)
-							{
-								version_upate = vu[0];
-								return Error(ErrorType::ANSWER);
-							}
-							else return Error(ErrorType::OK);
+							version_upate = vu[0];
+							return Error(ErrorType::ANSWER);
 						},
 						[](Error err) { return err; }
 
@@ -79,7 +82,7 @@ struct ServerHandler<shared::Transaction::SERVER_GET_VERSION_DATA>
 			});
 		if (err.Is<ErrorType::ANSWER>())
 		{
-			return shared::DataPackage::Create(&version_upate, Transaction::NO_TRANSACTION);
+			return shared::DataPackage::Create(&version_upate, Transaction::CLIENT_RECEIVE_VERSION_DATA);
 		}
 		else
 		{
@@ -112,25 +115,20 @@ struct ServerHandler<shared::Transaction::SERVER_GET_INFORMATION_DATA>
 		Error err =  mongoUtils::FindElementsInCollection("{}", db_name, coll_name,
 			[passed_ident = identifier, &info_update](mongoc_cursor_t* cursor, int64_t length)
 			{
-				if (length == 0) return Error(ErrorType::OK);
+				if (length == 0) return Error(ErrorType::ANSWER);
 				else return std::visit(shared::helper::Overloaded
 					{
 						[passed_ident, &info_update](std::vector<shared::InformationUpdate> iu)
 						{
-						// If identifier does match, message was never sent before -> send message
-						if (iu[0].identifier.compare(passed_ident) != 0)
-						{
 							info_update = iu[0];
 							return Error(ErrorType::ANSWER);
-						}
-						else return Error(ErrorType::OK);
 					},
 					[](Error err) { return err; }
 					}, mongoUtils::CursorToJserVector<shared::InformationUpdate>(cursor));
 			});
 		if (err.Is<ErrorType::ANSWER>())
 		{
-			return shared::DataPackage::Create(&info_update, Transaction::NO_TRANSACTION);
+			return shared::DataPackage::Create(&info_update, Transaction::CLIENT_RECEIVE_INFORMATION_DATA);
 		}
 		else
 		{
@@ -269,6 +267,6 @@ struct ServerHandler<shared::Transaction::SERVER_GET_SCORES>
 				});
 			if (err) return DataPackage::Create(err);
 		}
-		return DataPackage::Create(&all_scores, Transaction::NO_TRANSACTION);
+		return DataPackage::Create(&all_scores, Transaction::CLIENT_RECEIVE_SCORES);
 	}
 };

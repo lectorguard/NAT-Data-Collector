@@ -8,6 +8,7 @@
 #include "SharedHelpers.h"
 #include "functional"
 #include "CustomCollections/Log.h"
+#include "GlobalConstants.h"
 
  void LogTimeMs(const std::string& prepend)
 {
@@ -17,7 +18,7 @@
 }
 
 
- shared::DataPackage UDPCollectTask::StartCollectTask(const std::vector<Stage> collect_info, std::atomic<bool>& shutdown_flag)
+ shared::DataPackage UDPCollectTask::StartCollectTask(const std::vector<Stage>& collect_info, std::shared_ptr<std::atomic<bool>> shutdown_flag)
  {
 	 std::vector<Stage> copy;
 	 for (const Stage& st : collect_info)
@@ -37,10 +38,10 @@
 		 Log::Info("Close sockets early:  %s", temp.close_socket_early ? "true" : "false");
 		 Log::Info("Has shutdown cond. :  %s", temp.cond ? "true" : "false");
 	 }
-	 return start_task_internal([&copy, &shutdown_flag](asio::io_service& io) { return UDPCollectTask(copy,shutdown_flag, io); });
+	 return start_task_internal([&copy, shutdown_flag](asio::io_service& io) { return UDPCollectTask(copy,shutdown_flag, io); });
  }
 
-UDPCollectTask::UDPCollectTask(const std::vector<Stage>& info, std::atomic<bool>& shutdown_flag, asio::io_service& io_service) :
+UDPCollectTask::UDPCollectTask(const std::vector<Stage>& info, std::shared_ptr<std::atomic<bool>> shutdown_flag, asio::io_service& io_service) :
 	_global_deadline(asio::system_timer(io_service)),
 	_stages(info),
 	_shutdown_flag(shutdown_flag)
@@ -158,7 +159,7 @@ void UDPCollectTask::PrepareStage(const uint16_t& stage_index, asio::io_service&
 						return;
 					}
 
-					if (_shutdown_flag.load())
+					if (_shutdown_flag->load())
 					{
 						_error = Error(ErrorType::ERROR, { "Abort Collecting Ports, shutdown requested from main thread" });
 						io_service.stop();
@@ -181,7 +182,7 @@ void UDPCollectTask::PrepareStage(const uint16_t& stage_index, asio::io_service&
 
 	if (!stage.close_socket_early)
 	{
-		_global_deadline.expires_from_now(std::chrono::milliseconds(stage.sample_size * stage.sample_rate_ms + SOCKET_TIMEOUT_MS));
+		_global_deadline.expires_from_now(std::chrono::milliseconds(stage.sample_size * stage.sample_rate_ms + GlobServerConst::global_socket_timeout_ms));
 		_global_deadline.async_wait([this, stage_index, &io_service](auto error)
 			{
 				if (error != asio::error::operation_aborted)
@@ -402,7 +403,7 @@ void UDPCollectTask::handle_receive(Socket& local_socket, std::shared_ptr<Addres
 asio::system_timer UDPCollectTask::CreateDeadline(asio::io_service& service, uint32_t min_duration, const std::function<void(asio::io_service&)>& action)
 {
 	auto timer = asio::system_timer(service);
-	timer.expires_from_now(std::chrono::milliseconds(min_duration + SOCKET_TIMEOUT_MS));
+	timer.expires_from_now(std::chrono::milliseconds(min_duration + GlobServerConst::global_socket_timeout_ms));
 	timer.async_wait(
 		[&service, action](auto error) 
 		{

@@ -170,6 +170,14 @@ namespace shared
 		}
 
 		template<typename T>
+		auto Get() -> MetaVariant<T>
+		{
+			T t{};
+			Error err = Get<T>(t);
+			return MetaVariant<T>(std::make_tuple(t), err, meta_data);
+		}
+
+		template<typename T>
 		Error Get(T& object)
 		{
 			if (!error.Is<ErrorType::ANSWER>())
@@ -220,6 +228,11 @@ namespace shared
 			}
 			pkg.transaction = transaction;
 			return pkg;
+		}
+
+		bool Has(shared::MetaDataField field) const
+		{
+			return meta_data.contains(meta_data_to_string.at(field));
 		}
 
 		template<typename T>

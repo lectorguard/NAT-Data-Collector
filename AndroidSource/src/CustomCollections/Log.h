@@ -5,6 +5,7 @@
 #include "SharedProtocol.h"
 #include "Utilities/NetworkHelpers.h"
 #include "mutex"
+#include "Components/GlobalConstants.h"
 
 #define FORCE_LOG(x, ...) ((void)__android_log_buf_print(LOG_ID_CRASH, ANDROID_LOG_ERROR, "native-activity", x, __VA_ARGS__))
 
@@ -153,7 +154,7 @@ private:
 		default:
 			break;
 		}
-		if (log_buffer.size() >= MAX_LOG_LINES)
+		if (log_buffer.size() >= AppConfig::max_log_lines)
 		{
 			// Not very efficient should be a deque instead
 			log_buffer.erase(log_buffer.begin());

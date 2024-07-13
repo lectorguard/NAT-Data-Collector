@@ -27,8 +27,7 @@ public:
 		uint16_t traversal_rate{};
 		uint16_t local_port{};
 		uint32_t deadline_duration_ms{};
-		uint32_t keep_alive_duration{};
-		HolepunchRole role;
+		uint32_t keep_alive_rate_ms{};
 		asio::io_service& io;
 	};
 
@@ -36,8 +35,8 @@ public:
 	{
 		SharedEndpoint endpoint = nullptr;
 		SharedSocket socket = nullptr;
-		uint16_t rcvd_index{};
-		uint16_t send_index{};
+		uint16_t rcvd_index = 0;
+		uint16_t send_index = 0;
 	};
 
 	static Result StartHolepunching(const RandomInfo& holepunch_info, AsyncQueue read_queue);

@@ -7,6 +7,7 @@
 #include "LogWindow.h"
 #include "StyleConstants.h"
 #include "misc/cpp/imgui_stdlib.h"
+#include <Components/GlobalConstants.h>
 
 
 
@@ -26,7 +27,7 @@ void MainScreen::Draw(Application* app)
 	ImGui::SetNextWindowPos(ImVec2(0, io.DisplaySize.y * MainScreenConst::UserWinCursor));
 
 	ImGui::PushFont(Renderer::large_font);
-	ImGui::Begin("", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoScrollbar);
+	ImGui::Begin("", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoBringToFrontOnFocus);
 	// MAIN HEADER
 	const std::string header = "NAT DATA COLLECTOR";
 	ImGui::SetCursorPosX(io.DisplaySize.x / 2.0f - ImGui::CalcTextSize(header.c_str()).x / 2.0f);
@@ -60,21 +61,19 @@ void MainScreen::Draw(Application* app)
 	ImGui::Text("Select App Task ");
 	for (auto& tab : glob_tabs)
 	{
-#if RANDOM_SYM_NAT_REQUIRED
-		if (tab.state == NatCollectorGlobalState::Traverse &&
+		if(AppConfig::random_nat_required &&
+			tab.state == NatCollectorGlobalState::Traverse &&
 			modelRef.GetClientMetaData().nat_type != NATType::RANDOM_SYM) continue;
-#endif
 
-#if !TRAVERSAL_FEATURE_ENABLED
-		if (tab.state == NatCollectorGlobalState::Traverse) continue;
-#endif
+		if (!AppConfig::traversal_feature_enabled &&
+			tab.state == NatCollectorGlobalState::Traverse) continue;
+	
 		ImGui::SameLine();
 		if (utilities::StyledButton(tab.label.data(), tab.button_color, modelRef.GetCurrentGlobState() == tab.state, modelRef.GetNextGlobState() == tab.state))
 		{
 			modelRef.SetNextGlobalState(tab.state);
 		}
 	}
-
 
 	ImGui::Dummy(ImVec2(0, Renderer::CentimeterToPixel(0.1f)));
 	ImGui::Separator();
@@ -137,7 +136,7 @@ void MainScreen::Draw(Application* app)
 	// Tabs selection
 	ImGui::SetNextWindowSize(ImVec2(io.DisplaySize.x, io.DisplaySize.y * MainScreenConst::TabWinSize));
 	ImGui::SetNextWindowPos(ImVec2(0, io.DisplaySize.y * MainScreenConst::TabWinCursor));
-	ImGui::Begin("Tabs", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoScrollbar);
+	ImGui::Begin("Tabs", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoBringToFrontOnFocus);
 	for (auto& tab: context_tabs)
 	{
 		// Ignore traversal tab when not traversing

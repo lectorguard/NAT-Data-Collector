@@ -4,6 +4,15 @@
 #include "Application/Application.h"
 #include "SharedHelpers.h"
 
+DataPackage HTTPTask::TraceRouteRequest()
+{
+	std::stringstream requestHeader;
+	requestHeader << "GET /json/ HTTP/1.1\r\n";
+	requestHeader << "Host: ip-api.com\r\n";
+	requestHeader << "\r\n";
+	return SimpleHttpRequest(requestHeader.str(), std::string("ip-api.com"), true, "80");
+}
+
 shared::DataPackage HTTPTask::SimpleHttpRequest(std::string_view request, std::string url, bool ignoreRespondHeader, std::string port)
 {
 	using asio_tcp = asio::ip::tcp;
@@ -64,7 +73,7 @@ shared::DataPackage HTTPTask::SimpleHttpRequest(std::string_view request, std::s
 		}
 		DataPackage pkg;
 		pkg.data = j;
-		pkg.transaction = Transaction::NO_TRANSACTION;
+		pkg.transaction = Transaction::CLIENT_RECEIVE_TRACEROUTE;
 		pkg.error = Error{ ErrorType::ANSWER };
 		return pkg;
 	}

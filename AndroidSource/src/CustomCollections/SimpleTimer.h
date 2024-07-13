@@ -50,3 +50,24 @@ private:
 	bool bIsActive = false;
 };
 
+struct SimpleStopWatch
+{
+public:
+	SimpleStopWatch()
+	{
+		Reset();
+	}
+
+	void Reset()
+	{
+		startTime = std::chrono::system_clock::now();
+	}
+
+	uint64_t GetDurationMS()
+	{
+		const auto time_now = std::chrono::system_clock::now();
+		return std::chrono::duration_cast<std::chrono::milliseconds>(time_now - startTime).count();
+	}
+private:
+	std::chrono::system_clock::time_point startTime;
+};

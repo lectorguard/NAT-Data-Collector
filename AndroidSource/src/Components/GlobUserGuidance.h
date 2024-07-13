@@ -9,27 +9,17 @@
 #include "UDPCollectTask.h"
 #include "CustomCollections/Event.h"
 #include "NatClassifier.h"
+#include "Components/NatTraverserClient.h"
 
 
 
 
 
-enum class UserGuidanceStep : uint16_t
+enum class UserGuidanceStates : uint16_t
 {
-	Idle = 0,
-	Start,
-	StartRetrieveAndroidID,
-	StartMainPopUp,
-	StartVersionUpdate,
-	UpdateVersionUpdate,
-	StartInformationUpdate,
-	UpdateInformationUpdate,
-	WaitForDialogsToClose,
-	StartIPInfo,
-	UpdateIPInfo,
-	StartNATInfo,
-	UpdateNATInfo,
-	FinishUserGuidance
+	DISCONNECTED = 0,
+	CONNECTED_NO_INTERRUPT,
+	WAIT_FOR_UI
 };
 
 using namespace shared;
@@ -40,28 +30,22 @@ class GlobUserGuidance
 
 public:
 	void Activate(class Application* app);
-	void StartGlobState();
+	void StartGlobState(Application* app);
 	void UpdateGlobState(class Application* app);
 	void Deactivate(class Application* app) {};
-
-
 
 	shared::VersionUpdate version_update_info;
 	shared::InformationUpdate information_update_info;
 private:
+	void ShowMainPopUp(Application* app);
+	void SetAndroidID(Application* app);
+	void Shutdown(DataPackage pkg);
+	void OnNatClientEvent(Application* app, DataPackage pkg);
 	void OnClosePopUpWindow(Application* app);
 	void OnCloseInfoUpdateWindow(Application* app);
 	void OnRecalcNAT();
 
 	// State
-	UserGuidanceStep current = UserGuidanceStep::Idle;
-
-	// Tasks
-	TransactionTask ip_info_task;
-	NatClassifier nat_classifier;
-	TransactionTask version_update;
-	TransactionTask information_update;
-
-	// Data
-	std::vector<shared::NATType> identified_nat_types;
+	UserGuidanceStates current = UserGuidanceStates::DISCONNECTED;
+	NatTraverserClient client;
 };

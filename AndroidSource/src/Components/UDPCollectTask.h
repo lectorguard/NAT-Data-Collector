@@ -35,10 +35,10 @@ public:
 		ShutdownCondition cond = nullptr;
 	};
 
-	static DataPackage StartCollectTask(const std::vector<Stage> collect_info, std::atomic<bool>& shutdown_flag);
+	static DataPackage StartCollectTask(const std::vector<Stage>& collect_info, std::shared_ptr<std::atomic<bool>> shutdown_flag);
 
 	// Normal Collect Task
-	UDPCollectTask(const std::vector<Stage>& info, std::atomic<bool>& shutdown_flag, asio::io_service& io_service);
+	UDPCollectTask(const std::vector<Stage>& info, std::shared_ptr<std::atomic<bool>> shutdown_flag, asio::io_service& io_service);
 
 private:
 	struct Socket
@@ -74,7 +74,7 @@ private:
 	std::vector<Socket> _socket_list;
 	
 	PhysicalDeviceError _system_error_state = PhysicalDeviceError::NO_ERROR;
-	std::atomic<bool>& _shutdown_flag;
+	std::shared_ptr<std::atomic<bool>> _shutdown_flag;
 
 	Error _error{ ErrorType::OK };
 	shared::MultiAddressVector _result{};
