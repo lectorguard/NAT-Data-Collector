@@ -38,9 +38,9 @@ set(APP_VERSION "v0.0.2") # Version of the app
 
 ```
 {
-	"udp_address_server1_port": 7777,
-	"udp_address_server2_port": 7778,
-	"tcp_session_server_port": 7779,
+	"udp_starting_port" : 10000,
+	"udp_amount_services" : 1000,
+	"tcp_session_server_port" : 9999,
 	"mongo_server_url": "mongodb://<user>:<password>@<server_ip_address>/?authSource=<db name>",
 	"mongo_app_name": "<mongo app name>"
 }

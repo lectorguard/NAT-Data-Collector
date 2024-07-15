@@ -6,9 +6,9 @@
 
 struct ServerConfig : public jser::JSerializable
 {
-	uint16_t udp_starting_port = 10000;
-	uint16_t udp_amount_services = 15000;
-	uint16_t tcp_session_server_port = 0;
+	uint16_t udp_starting_port = 10'000;
+	uint16_t udp_amount_services = 1'000;
+	uint16_t tcp_session_server_port = 9999;
 	std::string mongo_server_url = "";
 	std::string mongo_app_name = "";
 

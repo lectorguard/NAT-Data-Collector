@@ -1,9 +1,9 @@
 @echo off
 REM Server Config
 echo {	> ..\server_template_config.json
-echo    "udp_address_server1_port": 7777, >> ..\server_template_config.json
-echo    "udp_address_server2_port": 7778, >> ..\server_template_config.json
-echo    "tcp_session_server_port": 7779, >> ..\server_template_config.json
+echo    "udp_starting_port" : 10000, >> ..\server_template_config.json
+echo    "udp_amount_services" : 1000, >> ..\server_template_config.json
+echo    "tcp_session_server_port" : 9999, >> ..\server_template_config.json
 echo    "mongo_server_url": "mongodb://<user>:<password>@<server_ip_address>/?authSource=<db name>", >> ..\server_template_config.json
 echo    "mongo_app_name": "<mongo app name>" >> ..\server_template_config.json
 echo } >> ..\server_template_config.json
