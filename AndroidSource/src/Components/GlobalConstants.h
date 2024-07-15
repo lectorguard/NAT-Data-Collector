@@ -43,7 +43,7 @@ namespace CollectConfig
 		uint16_t sample_size;
 	};
 
-	inline const std::string coll_name = "testotest";
+	inline const std::string coll_name = "DifferentTraversalFrequencies";
 	inline const uint32_t delay_collection_steps_ms = 180'000;
 
 	namespace Candidates
