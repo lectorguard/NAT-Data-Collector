@@ -43,6 +43,40 @@ struct ServerHandler<shared::Transaction::SERVER_INSERT_MONGO>
 	}
 };
 
+template<>
+struct ServerHandler<shared::Transaction::SERVER_GET_COLLECTION>
+{
+	static const shared::DataPackage Handle(shared::DataPackage pkg, Server* ref, uint64_t session_hash)
+	{
+		auto meta_data = pkg
+			.Get<std::string>(MetaDataField::DB_NAME)
+			.Get<std::string>(MetaDataField::COLL_NAME);
+		if (meta_data.error) return DataPackage::Create(meta_data.error);
+		auto const [db_name, coll_name] = meta_data.values;
+
+		shared::DataPackage found;
+		found.error = mongoUtils::FindElementsInCollection("{}", db_name, coll_name,
+			[&found](mongoc_cursor_t* cursor, int64_t length)
+			{
+				if (length == 0) return Error(ErrorType::ERROR, {"Collection is empty"});		
+				if (auto error = mongoUtils::CheckMongocCursor(cursor))
+					return error;
+				const bson_t* doc;
+				if (mongoc_cursor_next(cursor, &doc))
+				{
+					std::size_t len;
+					auto str = bson_as_json(doc, &len);
+					found.data = nlohmann::json::parse(str, nullptr, false);
+					bson_free(str);
+					return Error(ErrorType::ANSWER);
+				}
+				return Error(ErrorType::ERROR, { "Failed to get document from mongoc cursor" });
+			});
+		found.transaction = Transaction::CLIENT_RECEIVE_COLLECTION;
+		return found;
+	}
+};
+
 
 template<>
 struct ServerHandler<shared::Transaction::SERVER_GET_VERSION_DATA>
@@ -90,9 +124,6 @@ struct ServerHandler<shared::Transaction::SERVER_GET_VERSION_DATA>
 		}
 	}
 };
-
-
-
 
 template<>
 struct ServerHandler<shared::Transaction::SERVER_GET_INFORMATION_DATA>

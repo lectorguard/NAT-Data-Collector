@@ -14,20 +14,30 @@
 #include "UserData.h"
 #include "Components/GlobalConstants.h"
 
-std::vector<UDPCollectTask::Stage> GlobCollectSamples::GetCollectStages()
+std::vector<UDPCollectTask::Stage> GlobCollectSamples::CreateCollectStages(const shared::CollectingConfig& config)
 {
 	using namespace CollectConfig;
-	// all steps must have equal sized configs
-	if (Candidates::config.size() != Duplicates::config.size() ||
-		Duplicates::config.size() != Traverse::config.size())
+	if (config.stages.empty())
 	{
-		Log::Error("Config sizes of analyze, intersect and traversal are not equal");
+		Log::Error("Stages for collection step is empty");
 		return {};
+	}
+
+	// Validate that each stage has same number of configs
+	for (size_t i = 1; i < config.stages.size(); ++i)
+	{
+		const auto prev_stage = config.stages[i - 1];
+		const auto stage = config.stages[i];
+		if (stage.configs.size() != prev_stage.configs.size())
+		{
+			Log::Error("Config sizes of analyze, intersect and traversal are not equal");
+			return {};
+		}
 	}
 
 	// Randomly generate the index every time
 	srand((uint32_t)std::chrono::system_clock::now().time_since_epoch().count());
-	_config_index = rand() / ((RAND_MAX + 1u) / Candidates::config.size());
+	_config_index = rand() / ((RAND_MAX + 1u) / config.stages[0].configs.size());
 
 	auto first_stage_ports = std::make_shared<std::set<uint16_t>>();
 	std::function<bool(Address, uint32_t)> should_shutdown = [first_stage_ports](Address addr, uint32_t stage)
@@ -43,44 +53,24 @@ std::vector<UDPCollectTask::Stage> GlobCollectSamples::GetCollectStages()
 			return false;
 		};
 
-	const UDPCollectTask::Stage candidates
+	std::vector<UDPCollectTask::Stage> stages;
+	for (const auto& stage : config.stages)
 	{
-		/* remote address */				GlobServerConst::server_address,
-		/* start port */					GlobServerConst::server_echo_start_port,
-		/* num port services */				Candidates::num_echo_services,
-		/* local port */					Candidates::local_port,
-		/* amount of ports */				Candidates::config[_config_index].sample_size,
-		/* time between requests in ms */	Candidates::config[_config_index].sample_rate,
-		/* close sockets early */			Candidates::close_sockets_early,
-		/* shutdown condition */			should_shutdown
-	};
+		const auto config = stage.configs[_config_index];
 
-	const UDPCollectTask::Stage duplicates
-	{
-		/* remote address */				GlobServerConst::server_address,
-		/* start port */					GlobServerConst::server_echo_start_port,
-		/* num port services */				Duplicates::num_echo_services,
-		/* local port */					Duplicates::local_port,
-		/* amount of ports */				Duplicates::config[_config_index].sample_size,
-		/* time between requests in ms */	Duplicates::config[_config_index].sample_rate,
-		/* close sockets early */			Duplicates::close_sockets_early,
-		/* shutdown condition */			should_shutdown
-	};
-
-
-	const UDPCollectTask::Stage traverse_stage
-	{
-		/* remote address */				GlobServerConst::server_address,
-		/* start port */					GlobServerConst::server_echo_start_port,
-		/* num port services */				Traverse::num_echo_services,
-		/* local port */					Traverse::local_port,
-		/* amount of ports */				Traverse::config[_config_index].sample_size,
-		/* time between requests in ms */	Traverse::config[_config_index].sample_rate,
-		/* close sockets early */			Traverse::close_sockets_early,
-		/* shutdown condition */			nullptr
-	};
-
-	const std::vector<UDPCollectTask::Stage> stages = { candidates, duplicates, traverse_stage };
+		const UDPCollectTask::Stage s
+		{
+			/* remote address */				GlobServerConst::server_address,
+			/* start port */					config.start_echo_service,
+			/* num port services */				config.num_echo_services,
+			/* local port */					config.local_port,
+			/* amount of ports */				config.sample_size,
+			/* time between requests in ms */	config.sample_rate_ms,
+			/* close sockets early */			config.close_sockets_early,
+			/* shutdown condition */			config.use_shutdown_condition ? should_shutdown : nullptr
+		};
+		stages.push_back(s);
+	}
 	return stages;
 }
 
@@ -93,10 +83,11 @@ void GlobCollectSamples::Activate(Application* app)
 		[this](auto app, auto s) {UpdateGlobState(app); },
 		[this](auto s) {EndGlobState(); });
 	app->FrameTimeEvent.Subscribe([this](auto app, auto dur) {OnFrameTime(app, dur); });
-	client.Subscribe({	Transaction::ERROR }, [this](auto pkg) {Shutdown(pkg); });
-	client.Subscribe({	Transaction::CLIENT_CONNECTED,
+	_client.Subscribe({	Transaction::ERROR }, [this](auto pkg) {Shutdown(pkg); });
+	_client.Subscribe({	Transaction::CLIENT_CONNECTED,
 						Transaction::CLIENT_RECEIVE_NAT_TYPE,
 						Transaction::CLIENT_RECEIVE_TRACEROUTE,
+						Transaction::CLIENT_RECEIVE_COLLECTION,
 						Transaction::CLIENT_RECEIVE_COLLECTED_PORTS,
 						Transaction::CLIENT_UPLOAD_SUCCESS,
 						Transaction::CLIENT_TIMER_OVER},
@@ -108,9 +99,11 @@ void GlobCollectSamples::Activate(Application* app)
 
 void GlobCollectSamples::OnFrameTime(Application* app, uint64_t frameTimeMS)
 {
-	if (frameTimeMS > 5'000 && current != CollectSamplesStep::DISCONNECTED)
+	if (frameTimeMS > 5'000 && _current != CollectSamplesStep::DISCONNECTED)
 	{
 		Shutdown(DataPackage::Create(Error(ErrorType::ERROR, { "Frame time is above 5 sec, app is sleeping.Abort .." })));
+		_client.CreateTimerAsync(_config.delay_collection_steps_ms);
+		Log::Info("Wait to collect next sample");
 	}
 }
 
@@ -118,17 +111,21 @@ void GlobCollectSamples::OnFrameTime(Application* app, uint64_t frameTimeMS)
 void GlobCollectSamples::Shutdown(DataPackage pkg)
 {
 	Log::HandleResponse(pkg.error, "NAT client error");
-	client.Disconnect();
-	current = CollectSamplesStep::DISCONNECTED;
+	_client.Disconnect();
+	_config_index = 0;
+	_config = {};
+	_readable_time_stamp = {};
+	_analyze_collect_ports = {};
+	_current = CollectSamplesStep::DISCONNECTED;
 }
 
 void GlobCollectSamples::StartGlobState()
 {
 	Log::Info("Start Collect Samples");
-	if (current == CollectSamplesStep::DISCONNECTED)
+	if (_current == CollectSamplesStep::DISCONNECTED)
 	{
-		client.ConnectAsync(GlobServerConst::server_address, GlobServerConst::server_transaction_port);
-		current = CollectSamplesStep::CONNECTED_IDLE;
+		_client.ConnectAsync(GlobServerConst::server_address, GlobServerConst::server_transaction_port);
+		_current = CollectSamplesStep::CONNECTED_IDLE;
 	}
 }
 
@@ -142,7 +139,7 @@ void GlobCollectSamples::OnTransactionEvent(DataPackage pkg, Application* app)
 	{
 	case Transaction::CLIENT_CONNECTED:
 	{
-		err = client.IdentifyNATAsync(NATConfig::sample_size,
+		err = _client.IdentifyNATAsync(NATConfig::sample_size,
 			GlobServerConst::server_address,
 			GlobServerConst::server_echo_start_port);
 		break;
@@ -161,14 +158,14 @@ void GlobCollectSamples::OnTransactionEvent(DataPackage pkg, Application* app)
 				Log::Warning("Disconnected from random symmetric NAT device.");
 				Log::Warning("Wait ...");
 				// correct nat type continue
-				client.CreateTimerAsync(CollectConfig::delay_collection_steps_ms);
-				current = CollectSamplesStep::CONNECTED_IDLE;
+				_client.CreateTimerAsync(_config.delay_collection_steps_ms);
+				_current = CollectSamplesStep::CONNECTED_IDLE;
 				break;
 			}
 		}
-		current = CollectSamplesStep::CONNECT_NO_INTERRUPT;
-		err = client.CollectTraceRouteInfoAsync();
-		readable_time_stamp = shared::helper::CreateTimeStampNow();
+		_current = CollectSamplesStep::CONNECT_NO_INTERRUPT;
+		err = _client.CollectTraceRouteInfoAsync();
+		_readable_time_stamp = shared::helper::CreateTimeStampNow();
 		break;
 	}
 	case Transaction::CLIENT_RECEIVE_TRACEROUTE:
@@ -176,44 +173,76 @@ void GlobCollectSamples::OnTransactionEvent(DataPackage pkg, Application* app)
 		shared::IPMetaData metaData{};
 		if((err = pkg.Get(metaData)))break;
 		model.SetClientMetaData(metaData);
-		err = client.CollectPortsAsync(GetCollectStages());
+		Log::Info("Received Tracerout Info");
+		if (AppConfig::use_debug_collect_config)
+		{
+			_config = CollectConfig::config;
+			auto config_pkg = DataPackage::Create(&_config, Transaction::NO_TRANSACTION);
+			const std::string config_str = config_pkg.data.dump();
+			Log::Warning("%s", config_str.c_str());
+			err = _client.CollectPortsAsync(CreateCollectStages(_config));
+		}
+		else
+		{
+			auto config_req = DataPackage::Create(nullptr, Transaction::SERVER_GET_COLLECTION)
+				.Add(MetaDataField::DB_NAME, GlobServerConst::Mongo::db_name)
+				.Add(MetaDataField::COLL_NAME, GlobServerConst::Mongo::coll_collect_config);
+			err = _client.ServerTransactionAsync(config_req);
+		}
+		break;
+	}
+	case Transaction::CLIENT_RECEIVE_COLLECTION:
+	{
+		err = pkg.Get(_config);
+		if (err) break;
+		Log::Info("Received Collect Config");
+		err = _client.CollectPortsAsync(CreateCollectStages(_config));
 		break;
 	}
 	case Transaction::CLIENT_RECEIVE_COLLECTED_PORTS:
 	{
 		using namespace CollectConfig;
 
-		if ((err = pkg.Get(analyze_collect_ports)))break;
+		if ((err = pkg.Get(_analyze_collect_ports)))break;
 		Log::Info("%s Received Collect Data", shared::helper::CreateTimeStampNow().c_str());
-		for (size_t i = 0; i < analyze_collect_ports.stages.size(); ++i)
+		for (size_t i = 0; i < _analyze_collect_ports.stages.size(); ++i)
 		{
-			Log::Info("Received %d remote address samples in stage %d", analyze_collect_ports.stages[i].address_vector.size(), i);
+			Log::Info("Received %d remote address samples in stage %d", _analyze_collect_ports.stages[i].address_vector.size(), i);
 		}
-		NATSample sampleToInsert{ model.GetClientMetaData(), readable_time_stamp,
-					  connect_type,
-					  CollectVector(analyze_collect_ports.stages[0].address_vector, Candidates::config[_config_index].sample_rate),
-					  CollectVector(analyze_collect_ports.stages[1].address_vector, Duplicates::config[_config_index].sample_rate),
-					  CollectVector(analyze_collect_ports.stages[2].address_vector, Traverse::config[_config_index].sample_rate),
-					  CollectConfig::delay_collection_steps_ms };
-		err = client.UploadToMongoDBAsync(&sampleToInsert, GlobServerConst::Mongo::db_name, CollectConfig::coll_name);
+		std::vector<CollectVector> coll_data;
+		std::transform(_analyze_collect_ports.stages.begin(), _analyze_collect_ports.stages.end(), std::back_inserter(coll_data),
+			[this, i = 0u](auto elem) mutable
+			{
+				return CollectVector(elem.address_vector, _config.stages[i++].configs[_config_index].sample_rate_ms);
+			});
+		NATSample sampleToInsert{ model.GetClientMetaData(), _readable_time_stamp,
+					  connect_type,coll_data, _config.delay_collection_steps_ms };
+		err = _client.UploadToMongoDBAsync(&sampleToInsert, GlobServerConst::Mongo::db_name, _config.coll_name);
 		break;
 	}
 	case Transaction::CLIENT_UPLOAD_SUCCESS:
 	{
 		Log::Info("Upload Success");
 		Log::Info("Start wait for next collection step");
-		client.CreateTimerAsync(CollectConfig::delay_collection_steps_ms);
-		current = CollectSamplesStep::CONNECTED_IDLE;
+		_client.CreateTimerAsync(_config.delay_collection_steps_ms);
+		_current = CollectSamplesStep::CONNECTED_IDLE;
 		break;
 	}
 	case Transaction::CLIENT_TIMER_OVER:
 	{
 		Log::Info("Timer is over");
-		// DONE continue loop with identify nat type again
-		err = client.IdentifyNATAsync(NATConfig::sample_size,
-			GlobServerConst::server_address,
-			GlobServerConst::server_echo_start_port);
-		current = CollectSamplesStep::CONNECT_NO_INTERRUPT;
+		if (_current == CollectSamplesStep::DISCONNECTED)
+		{
+			StartGlobState();
+		}
+		else
+		{
+			// DONE continue loop with identify nat type again
+			err = _client.IdentifyNATAsync(NATConfig::sample_size,
+				GlobServerConst::server_address,
+				GlobServerConst::server_echo_start_port);
+			_current = CollectSamplesStep::CONNECT_NO_INTERRUPT;
+		}
 		break;
 	}
 	default:
@@ -231,8 +260,8 @@ void GlobCollectSamples::UpdateGlobState(class Application* app)
 	NatCollectorModel& model = app->_components.Get<NatCollectorModel>();
 	auto& connect_type = app->_components.Get<ConnectionReader>().GetAtomicRef();
 
-	client.Update();
-	switch (current)
+	_client.Update();
+	switch (_current)
 	{
 	case CollectSamplesStep::DISCONNECTED:
 	{

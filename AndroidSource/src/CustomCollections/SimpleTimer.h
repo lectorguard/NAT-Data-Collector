@@ -46,7 +46,7 @@ public:
 	}
 	
 private:
-	std::chrono::system_clock::time_point expiry_time;
+	std::chrono::system_clock::time_point expiry_time{};
 	bool bIsActive = false;
 };
 
@@ -69,5 +69,5 @@ public:
 		return std::chrono::duration_cast<std::chrono::milliseconds>(time_now - startTime).count();
 	}
 private:
-	std::chrono::system_clock::time_point startTime;
+	std::chrono::system_clock::time_point startTime{};
 };

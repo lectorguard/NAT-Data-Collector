@@ -18,5 +18,6 @@ echo set(MONGO_DB_NAME "NatInfo") # Mongo db name, where collected NAT Samples w
 echo set(MONGO_NAT_USERS_COLL_NAME "users") # Mongo collection name, where app user information are stored >> ..\android.config
 echo set(MONGO_VERSION_COLL_NAME "VersionUpdate") # Mongo collection name, where new version pop up information are stored >> ..\android.config
 echo set(MONGO_INFORMATION_COLL_NAME "InformationUpdate") # Mongo collection name, where general information for popups are stored >> ..\android.config
+echo set(MONGO_COLL_CONFIG_NAME "CollectConfig") # Name of mongo collection, where nat collect config is stored >> ..\android.config
 echo set(APP_VERSION "v0.0.2") # Version of the app >> ..\android.config
 

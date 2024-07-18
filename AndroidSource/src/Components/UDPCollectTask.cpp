@@ -24,8 +24,11 @@
 	 for (const Stage& st : collect_info)
 	 {
 		 Stage temp = st;
-		 auto err = utilities::ClampIfNotEnoughFiles(temp.sample_size, temp.echo_server_num_services);
-		 Log::HandleResponse(err, "Socket Usage Exceeds File Descriptors");
+		 if (st.sample_rate_ms == 0u || st.close_socket_early == false)
+		 {
+			 auto err = utilities::ClampIfNotEnoughFiles(temp.sample_size, temp.echo_server_num_services);
+			 Log::HandleResponse(err, "Socket Usage Exceeds File Descriptors");
+		 }
 		 copy.push_back(temp);
 
 		 Log::Info("--- Collect Task Stage %d ---", copy.size());

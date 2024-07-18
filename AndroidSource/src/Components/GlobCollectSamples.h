@@ -39,13 +39,14 @@ private:
 	void Shutdown(DataPackage pkg);
 	void OnTransactionEvent(DataPackage pkg, Application* app);
 	// State
-	CollectSamplesStep current = CollectSamplesStep::DISCONNECTED;
+	CollectSamplesStep _current = CollectSamplesStep::DISCONNECTED;
 
 	// Data
-	std::string readable_time_stamp;
-	MultiAddressVector analyze_collect_ports;
+	std::string _readable_time_stamp;
+	MultiAddressVector _analyze_collect_ports;
 
-	std::vector<UDPCollectTask::Stage> GetCollectStages();
-	NatTraverserClient client{};
+	std::vector<UDPCollectTask::Stage> CreateCollectStages(const shared::CollectingConfig& config);
+	NatTraverserClient _client{};
 	uint32_t _config_index;
+	shared::CollectingConfig _config;
 };

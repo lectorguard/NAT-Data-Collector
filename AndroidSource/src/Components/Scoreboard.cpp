@@ -42,7 +42,7 @@
 		 DataPackage pkg = DataPackage::Create(&client_id, Transaction::SERVER_GET_SCORES)
 			 .Add<std::string>(MetaDataField::DB_NAME, Mongo::db_name)
 			 .Add<std::string>(MetaDataField::USERS_COLL_NAME, Mongo::coll_users_name)
-			 .Add<std::string>(MetaDataField::DATA_COLL_NAME, CollectConfig::coll_name)
+			 .Add<std::string>(MetaDataField::DATA_COLL_NAME, "random_nat")
 			 .Add<std::string>(MetaDataField::ANDROID_ID, model.GetClientMetaData().android_id);
 		 client.ServerTransactionAsync(pkg);
 		 break;

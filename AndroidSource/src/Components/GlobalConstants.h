@@ -19,6 +19,7 @@ namespace GlobServerConst
 		inline const std::string coll_version_name = MONGO_VERSION_COLL_NAME;
 		inline const std::string coll_information_name = MONGO_INFORMATION_COLL_NAME;
 		inline const std::string coll_users_name = MONGO_NAT_USERS_COLL_NAME;
+		inline const std::string coll_collect_config = MONGO_COLL_CONFIG_NAME;
 	}
 }
 
@@ -30,50 +31,54 @@ namespace NATConfig
 
 namespace AppConfig
 {
-	inline const bool random_nat_required = true;
+	inline const bool random_nat_required = false;
 	inline const bool traversal_feature_enabled = true;
 	inline const uint32_t max_log_lines = 400;
+	inline const bool use_debug_collect_config = false;
 }
 
 namespace CollectConfig
 {
-	struct Conf
+	inline const shared::CollectingConfig::Stage candidates
 	{
-		uint16_t sample_rate;
-		uint16_t sample_size;
+		{7, {
+			10'000, // sample size
+			0,		// sample rate
+			10'000,	// start echo service
+			1000,	// echo services
+			0,		// local port
+			true,	// close sockets early
+			true	// use shutdown condition
+	}}
 	};
 
-	inline const std::string coll_name = "DifferentTraversalFrequencies";
-	inline const uint32_t delay_collection_steps_ms = 180'000;
-
-	namespace Candidates
+	inline const shared::CollectingConfig::Stage intersect
 	{
-		inline const uint16_t num_echo_services = 1'000;
-		inline const uint16_t local_port = 0;
-		inline const bool close_sockets_early = true;
+		{7, {10000, 10,10'000, 1000, 0, true, true}}
+	};
 
-		inline const std::vector<Conf> config{ 7, {0,10'000} };
-	}
+	inline const shared::CollectingConfig::Stage traverse
+	{ {
+		{10'000, 0, 10'000, 1, 0, false, false},
+		{10'000, 3, 10'000, 1, 0, false, false},
+		{10'000, 6, 10'000, 1, 0, false, false},
+		{10'000, 9, 10'000, 1, 0, false, false},
+		{10'000, 12, 10'000, 1, 0, false, false},
+		{10'000, 15, 10'000, 1, 0, false, false},
+		{10'000, 18, 10'000, 1, 0, false, false},
+	} };
 
-	namespace Duplicates
-	{
-		inline const uint16_t num_echo_services = 1'000;
-		inline const uint16_t local_port = 0;
-		inline const bool close_sockets_early = true;
-
-		inline const std::vector<Conf> config{ 7, {10,12'000} };
-	}
-
-	namespace Traverse
-	{
-		inline const uint16_t num_echo_services = 1;
-		inline const uint16_t local_port = 0;
-		inline const bool close_sockets_early = false;
-
-		inline const std::vector<Conf> config{ {0 , 10'000}, {3 , 10'000},  {6 , 10'000},
-											   {9 , 10'000}, {12 , 10'000}, {15 , 10'000}, {18 , 10'000} };
-	}
+	inline const shared::CollectingConfig config(
+		"coll_trash",
+		180'000u,
+		{
+			candidates,
+			intersect,
+			traverse
+		}
+	);
 }
+
 
 namespace TraversalConfig
 {
