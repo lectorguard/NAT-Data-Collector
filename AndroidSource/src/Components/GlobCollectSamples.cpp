@@ -217,7 +217,11 @@ void GlobCollectSamples::OnTransactionEvent(DataPackage pkg, Application* app)
 			});
 		NATSample sampleToInsert{ model.GetClientMetaData(), _readable_time_stamp,
 					  connect_type,coll_data, _config.delay_collection_steps_ms };
-		err = _client.UploadToMongoDBAsync(&sampleToInsert, GlobServerConst::Mongo::db_name, _config.coll_name);
+		err = _client.UploadToMongoDBAsync(&sampleToInsert,
+			GlobServerConst::Mongo::db_name,
+			_config.coll_name,
+			GlobServerConst::Mongo::coll_users_name,
+			model.GetClientMetaData().android_id);
 		break;
 	}
 	case Transaction::CLIENT_UPLOAD_SUCCESS:

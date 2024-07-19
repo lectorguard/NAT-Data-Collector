@@ -27,19 +27,40 @@ struct ServerHandler<shared::Transaction::SERVER_INSERT_MONGO>
 
 		auto meta_data = pkg
 			.Get<std::string>(MetaDataField::DB_NAME)
-			.Get<std::string>(MetaDataField::COLL_NAME);
+			.Get<std::string>(MetaDataField::COLL_NAME)
+			.Get<std::string>(MetaDataField::USERS_COLL_NAME)
+			.Get<std::string>(MetaDataField::ANDROID_ID);
 
 		if (meta_data.error) return DataPackage::Create(meta_data.error);
-		auto const [db_name, coll_name] = meta_data.values;
+		auto const [db_name, coll_name, users_coll_name, android_id] = meta_data.values;
 
 		if (auto err = WriteFileToDatabase(pkg.data.dump(), db_name, coll_name))
 		{
 			return DataPackage::Create(err);
 		}
-		else
+		// Update score
+		ClientID dummy{ android_id, "", false, 0 };
+		const nlohmann::json dummy_json = DataPackage::Create(&dummy, Transaction::NO_TRANSACTION).data;
+
+		// Mongo Update Parameter
+		nlohmann::json query;
+		query["android_id"] = android_id;
+		nlohmann::json update;
+		update["$setOnInsert"] = dummy_json;
+		update["$inc"]["uploaded_samples"] = 1;
+		nlohmann::json update_options;
+		update_options["upsert"] = true;
+		// Update Users accordingly
+
 		{
-			return shared::DataPackage::Create(nullptr, Transaction::CLIENT_UPLOAD_SUCCESS);
+			//helper::ScopeTimer sc{ "Update user info" };
+			std::scoped_lock lock{ mongoWriteMutex };
+			if (Error update_err = mongoUtils::UpdateElementInCollection(query.dump(), update.dump(), update_options.dump(), db_name, users_coll_name))
+			{
+				return DataPackage::Create(update_err);
+			}
 		}
+		return shared::DataPackage::Create(nullptr, Transaction::CLIENT_UPLOAD_SUCCESS);
 	}
 };
 
@@ -175,22 +196,21 @@ struct ServerHandler<shared::Transaction::SERVER_GET_SCORES>
 	{
 		using namespace shared;
 
-		//helper::ScopeTimer all{ "Server Get Scores Fun" };
-
 		auto meta_data = pkg
 			.Get<std::string>(MetaDataField::DB_NAME)
 			.Get<std::string>(MetaDataField::USERS_COLL_NAME)
-			.Get<std::string>(MetaDataField::DATA_COLL_NAME)
 			.Get<std::string>(MetaDataField::ANDROID_ID);
 
 		if (meta_data.error) return DataPackage::Create(meta_data.error);
-		auto const [db_name, users_coll_name, data_coll_name, android_id] = meta_data.values;
+		auto const [db_name, users_coll_name, android_id] = meta_data.values;
 
 		// Mongo Update Parameter
 		nlohmann::json query;
 		query["android_id"] = android_id;
 		nlohmann::json update;
-		update["$set"] = pkg.data;
+		update["$setOnInsert"] = pkg.data;
+		update["$set"]["username"] = pkg["username"];
+		update["$set"]["show_score"] = pkg["show_score"];
 		nlohmann::json update_options;
 		update_options["upsert"] = true;
 		// Update Users accordingly
@@ -204,6 +224,8 @@ struct ServerHandler<shared::Transaction::SERVER_GET_SCORES>
 				return DataPackage::Create(err);
 			}
 		}
+
+
 
 		Error err;
 		// Get all users
@@ -228,76 +250,6 @@ struct ServerHandler<shared::Transaction::SERVER_GET_SCORES>
 
 		// Remove users to be ignored
 		all_scores.scores.erase(std::remove_if(all_scores.scores.begin(), all_scores.scores.end(), [](ClientID a) { return !a.show_score; }), all_scores.scores.end());
-
-		{
-			//helper::ScopeTimer sc{ "Get samples per user" };
-			err = mongoUtils::OpenCollection(db_name, data_coll_name, [db_name, data_coll_name, &all_scores](mongoc_database_t* db, mongoc_collection_t* coll)
-				{
-					using namespace SD;
-					using namespace shared;
-
-					// Create the aggregation pipeline
-
-					SmartDestruct<bson_t> pipeline
-					{
-						BCON_NEW(
-							"pipeline", "[",
-								"{", "$group", "{",
-									"_id", BCON_UTF8("$meta_data.android_id"),
-									"count", "{", "$sum", BCON_INT32(1), "}",
-								"}", "}",
-							"]"),
-						[](auto b) {bson_destroy(b); }
-					};
-
-					SmartDestruct<mongoc_cursor_t> cursor
-					{
-						 mongoc_collection_aggregate(coll, MONGOC_QUERY_NONE, pipeline.Value, NULL, NULL),
-						 [](auto c) {mongoc_cursor_destroy(c); }
-					};
-
-					const bson_t* doc;
-					bson_error_t error;
-					std::map<std::string, uint64_t> samples{};
-					// Iterate through the results and print the counts
-					while (mongoc_cursor_next(cursor.Value, &doc)) {
-						bson_iter_t iter;
-						if (bson_iter_init(&iter, doc)) {
-							std::string android_id{};
-							uint32_t count{0};
-
-							while (bson_iter_next(&iter)) {
-								if (strcmp(bson_iter_key(&iter), "_id") == 0 && BSON_ITER_HOLDS_UTF8(&iter)) {
-									android_id = bson_iter_utf8(&iter, NULL);
-								}
-								else if (strcmp(bson_iter_key(&iter), "count") == 0 && BSON_ITER_HOLDS_INT32(&iter)) {
-									count = bson_iter_int32(&iter);
-								}
-							}
-
-							if (!android_id.empty()) 
-							{
-								samples[android_id] = count;
-							}
-						}
-					}
-
-					if (mongoc_cursor_error(cursor.Value, &error)) {
-						return Error(ErrorType::ERROR, { "Query sample amount", error.message });
-					}
-
-
-					for (ClientID& user : all_scores.scores)
-					{
-						if (samples.contains(user.android_id))
-						{
-							user.uploaded_samples = samples[user.android_id];
-						}
-					}
- 					return Error{ ErrorType::OK };
-				});
-			if (err) return DataPackage::Create(err);
-		}
 		return DataPackage::Create(&all_scores, Transaction::CLIENT_RECEIVE_SCORES);
 	}
 };

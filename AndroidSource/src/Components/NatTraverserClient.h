@@ -141,10 +141,7 @@ public:
 	// Tries to establish communication with other peer 
 	Error TraverseNATAsync(UDPHolepunching::RandomInfo const& info);
 
-	Error UploadToMongoDBAsync(jser::JSerializable* data, const std::string& db_name, const std::string& coll_name);
-	
-	// Pkg must have minimum meta data fields : db_name and coll_name
-	Error UploadToMongoDBAsync(shared::DataPackage pkg);
+	Error UploadToMongoDBAsync(jser::JSerializable* data, const std::string& db_name, const std::string& coll_name, const std::string& user_coll, const std::string& android_id);
 
 
 	// Any transactions declared as server can be requested with this function : 

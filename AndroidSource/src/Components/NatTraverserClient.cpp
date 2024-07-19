@@ -275,23 +275,15 @@ shared::Error NatTraverserClient::TraverseNATAsync(UDPHolepunching::RandomInfo c
 	return Error{ ErrorType::OK };
 }
 
-Error NatTraverserClient::UploadToMongoDBAsync(jser::JSerializable* data, const std::string& db_name, const std::string& coll_name)
+Error NatTraverserClient::UploadToMongoDBAsync(jser::JSerializable* data, const std::string& db_name, const std::string& coll_name, const std::string& user_coll, const std::string& android_id)
 {
 	auto data_package =
 		DataPackage::Create(data, Transaction::SERVER_INSERT_MONGO)
 		.Add(MetaDataField::DB_NAME, db_name)
-		.Add(MetaDataField::COLL_NAME, coll_name);
-	return UploadToMongoDBAsync(data_package);
-}
-
-Error NatTraverserClient::UploadToMongoDBAsync(shared::DataPackage pkg)
-{
-	if (!pkg.Has(MetaDataField::COLL_NAME) || !pkg.Has(MetaDataField::DB_NAME) || pkg.data.is_null())
-	{
-		return Error{ ErrorType::ERROR, {"Data package for upload to db must have data and meta data fields DB NAME and COLL NAME"} };
-	}
-	
-	return ServerTransactionAsync(pkg);
+		.Add(MetaDataField::COLL_NAME, coll_name)
+		.Add(MetaDataField::USERS_COLL_NAME, user_coll)
+		.Add(MetaDataField::ANDROID_ID, android_id);
+	return ServerTransactionAsync(data_package);
 }
 
 Error NatTraverserClient::ServerTransactionAsync(shared::DataPackage pkg)
@@ -312,7 +304,7 @@ shared::Error NatTraverserClient::UploadTraversalResultToMongoDBAsync(bool succe
 		.Add(MetaDataField::DB_NAME, db_name)
 		.Add(MetaDataField::COLL_NAME, coll_name);
 
-	return UploadToMongoDBAsync(data_package);
+	return ServerTransactionAsync(data_package);
 }
 
 std::optional<UDPHolepunching::Result> NatTraverserClient::GetTraversalResult()
