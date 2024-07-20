@@ -210,7 +210,7 @@ struct ServerHandler<shared::Transaction::SERVER_GET_SCORES>
 		nlohmann::json query;
 		query["android_id"] = android_id;
 		nlohmann::json update;
-		update["$setOnInsert"] = {"uploaded_samples", 0};
+		update["$setOnInsert"] = { {"uploaded_samples", 0} };
 		update["$set"] = { {"username", pkg["username"]},{"show_score", pkg["show_score"]}, {"android_id", android_id}};
 		nlohmann::json update_options;
 		update_options["upsert"] = true;
