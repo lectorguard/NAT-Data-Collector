@@ -46,7 +46,9 @@ struct ServerHandler<shared::Transaction::SERVER_INSERT_MONGO>
 		nlohmann::json query;
 		query["android_id"] = android_id;
 		nlohmann::json update;
-		update["$setOnInsert"] = dummy_json;
+		// only update the specific fields
+		update["$setOnInsert"] = { {"username", ""},{"show_score", false}, {"uploaded_samples",0} };
+		update["$set"] = {{"android_id", android_id} };
 		update["$inc"]["uploaded_samples"] = 1;
 		nlohmann::json update_options;
 		update_options["upsert"] = true;
@@ -208,8 +210,8 @@ struct ServerHandler<shared::Transaction::SERVER_GET_SCORES>
 		nlohmann::json query;
 		query["android_id"] = android_id;
 		nlohmann::json update;
-		update["$setOnInsert"] = pkg.data;
-		update["$set"] = {{"username", pkg["username"]},{"show_score", pkg["show_score"]}};
+		update["$setOnInsert"] = {"uploaded_samples", 0};
+		update["$set"] = { {"username", pkg["username"]},{"show_score", pkg["show_score"]}, {"android_id", android_id}};
 		nlohmann::json update_options;
 		update_options["upsert"] = true;
 		// Update Users accordingly
