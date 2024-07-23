@@ -3,6 +3,14 @@
 #include "Utilities/NetworkHelpers.h"
 #include "GlobalConstants.h"
 
+
+uint16_t NatClassifier::_max_prog_nat_delta = 30;
+
+void NatClassifier::SetMaxDeltaProgressingNAT(uint16_t delta)
+{
+	_max_prog_nat_delta = delta;
+}
+
 shared::DataPackage NatClassifier::ClassifyNAT(const std::vector<UDPCollectTask::Stage>& config, const std::shared_ptr<std::atomic<bool>>& shutdown_flag)
 {
 	for (const auto& elem : config)
@@ -61,7 +69,7 @@ shared::DataPackage NatClassifier::ClassifyNAT(const std::vector<UDPCollectTask:
 	return to_return;
 }
 
-shared::NATType NatClassifier::IdentifyNatType(const shared::Address& first, const shared::Address& second, uint16_t max_delta_progressing_nat /*= 50*/)
+shared::NATType NatClassifier::IdentifyNatType(const shared::Address& first, const shared::Address& second)
 {
 	if (first.ip_address.compare(second.ip_address) != 0)
 	{
@@ -72,7 +80,7 @@ shared::NATType NatClassifier::IdentifyNatType(const shared::Address& first, con
 	{
 		return shared::NATType::CONE;
 	}
-	if (std::abs((int)first.port - (int)second.port) < max_delta_progressing_nat)
+	if (std::abs((int)first.port - (int)second.port) < _max_prog_nat_delta)
 	{
 		return shared::NATType::PROGRESSING_SYM;
 	}
@@ -105,3 +113,5 @@ shared::NATType NatClassifier::GetMostFrequentNatType(const std::vector<shared::
 	}
 	return std::max_element(helper_map.begin(), helper_map.end())->first;
 }
+
+

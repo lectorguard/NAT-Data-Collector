@@ -240,6 +240,7 @@ void GlobUserGuidance::SetAppConfig(Application* app)
 	{
 		nat_model.SetAppConfig(data);
 		Log::SetLogBufferSize(data.app.max_log_lines);
+		NatClassifier::SetMaxDeltaProgressingNAT(data.nat_ident.max_delta_progressing_nat);
 	}
 }
 
