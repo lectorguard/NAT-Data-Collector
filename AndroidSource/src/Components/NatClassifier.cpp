@@ -4,7 +4,7 @@
 #include "GlobalConstants.h"
 
 
-uint16_t NatClassifier::_max_prog_nat_delta = 30;
+uint16_t NatClassifier::_max_prog_nat_delta = 50;
 
 void NatClassifier::SetMaxDeltaProgressingNAT(uint16_t delta)
 {

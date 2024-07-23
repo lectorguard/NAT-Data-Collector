@@ -117,7 +117,6 @@ void GlobCollectSamples::StartGlobState(Application* app)
 	Log::Info("Start Collect Samples");
 	if (_current == CollectSamplesStep::DISCONNECTED)
 	{
-		Log::Info("%s:%d", app_conf.server_address.c_str(), app_conf.server_transaction_port);
 		_client.ConnectAsync(app_conf.server_address,app_conf.server_transaction_port);
 		_current = CollectSamplesStep::CONNECTED_IDLE;
 	}
