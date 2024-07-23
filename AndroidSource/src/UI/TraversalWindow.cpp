@@ -1,10 +1,8 @@
+#include "pch.h"
 #include "TraversalWindow.h"
 #include "MainScreen.h"
 #include "Application/Application.h"
-#include "imgui.h"
-#include "string"
 #include "StyleConstants.h"
-#include "sstream"
 
 
 void TraversalWindow::Activate(Application* app)

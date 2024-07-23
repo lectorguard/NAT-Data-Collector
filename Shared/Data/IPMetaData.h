@@ -5,7 +5,7 @@
 
 namespace shared
 {
-	//{"status":"success", "country" : "Germany", "countryCode" : "DE", "region" : "BY", "regionName" : "Bavaria", "city" : "Würzburg", "zip" : "97072", "lat" : 49.7821, "lon" : 9.9285, "timezone" : "Europe/Berlin", "isp" : "Deutsche Telekom AG", "org" : "Deutsche Telekom
+	//{"status":"success", "country" : "Germany", "countryCode" : "DE", "region" : "BY", "regionName" : "Bavaria", "city" : "WÃ¼rzburg", "zip" : "97072", "lat" : 49.7821, "lon" : 9.9285, "timezone" : "Europe/Berlin", "isp" : "Deutsche Telekom AG", "org" : "Deutsche Telekom
 	//  AG", "as" : "AS3320 Deutsche Telekom AG", "query" : "84.190.19.245"}
 
 

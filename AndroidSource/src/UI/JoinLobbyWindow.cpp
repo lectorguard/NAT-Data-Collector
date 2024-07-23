@@ -1,11 +1,8 @@
+#include "pch.h"
 #include "JoinLobbyWindow.h"
 #include "MainScreen.h"
 #include "Application/Application.h"
 #include "Components/UserData.h"
-#include "Data/Address.h"
-#include "misc/cpp/imgui_stdlib.h"
-#include "string"
-#include "variant"
 
 
 void JoinLobbyWindow::Activate(Application* app)

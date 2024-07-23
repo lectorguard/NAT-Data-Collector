@@ -1,3 +1,4 @@
+#include "pch.h"
 #include "Application/Application.h"
 
 /**
@@ -7,7 +8,7 @@
  */
 void android_main(struct android_app* state) 
 {
-    Application app;
+    Application app; 
 	app.run(state);
 }
 //END_INCLUDE(all)

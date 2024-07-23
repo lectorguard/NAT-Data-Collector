@@ -1,14 +1,17 @@
 #pragma once
+#include "Model/NatCollectorModel.h"
 #include "Components/Renderer.h"
-#include "CustomCollections/Event.h"
-#include "CustomCollections/ComponentManager.h"
 #include "Components/SensorManager.h"
 #include "Components/InputManager.h"
 #include "Components/Scoreboard.h"
 #include "Components/UserData.h"
 #include "Components/AwakeManager.h"
-#include "Model/NatCollectorModel.h"
-#include "android/log.h"
+#include "Components/ConnectionReader.h"
+#include "Components/GlobCollectSamples.h"
+#include "Components/GlobUserGuidance.h"
+#include "Components/GlobIdle.h"
+#include "Components/CopyLog.h"
+#include "Components/GlobTraverse.h"
 #include "UI/MainScreen.h"
 #include "UI/LogWindow.h"
 #include "UI/ScoreboardWindow.h"
@@ -17,14 +20,8 @@
 #include "UI/VersionUpdateWindow.h"
 #include "UI/InformationUpdateWindow.h"
 #include "UI/JoinLobbyWindow.h"
-#include "Components/ConnectionReader.h"
-#include "Components/GlobCollectSamples.h"
-#include "Components/GlobUserGuidance.h"
-#include "Components/GlobIdle.h"
-#include "Components/CopyLog.h"
-#include "Components/GlobTraverse.h"
 #include "UI/TraversalWindow.h"
-#include "CustomCollections/SimpleTimer.h"
+
 
 
 #define LOGI(...) ((void)__android_log_print(ANDROID_LOG_INFO, "native-activity", __VA_ARGS__))

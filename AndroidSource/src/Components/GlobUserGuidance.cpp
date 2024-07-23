@@ -1,16 +1,8 @@
+#include "pch.h"
 #include "GlobUserGuidance.h"
 #include "Application/Application.h"
-#include <chrono>
-#include "SharedProtocol.h"
-#include "Data/Address.h"
-#include "Data/WindowData.h"
-#include <variant>
 #include "HTTPTask.h"
-#include "Data/IPMetaData.h"
-#include "nlohmann/json.hpp"
 #include "Utilities/NetworkHelpers.h"
-#include "ctime"
-#include "CustomCollections/Log.h"
 #include "UserData.h"
 #include "Model/NatCollectorModel.h"
 #include "GlobalConstants.h"

@@ -1,6 +1,6 @@
+#include "pch.h"
 #include "GlobIdle.h"
 #include "Application/Application.h"
-#include "CustomCollections/Log.h"
 
 void CopyLog::Activate(Application* app)
 {

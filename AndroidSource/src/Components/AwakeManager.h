@@ -1,7 +1,5 @@
 #pragma once
 #include "Utilities/NetworkHelpers.h"
-#include <android_native_app_glue.h>
-#include "CustomCollections/SimpleTimer.h"
 
 class AwakeManager
 {

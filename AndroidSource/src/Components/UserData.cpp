@@ -1,7 +1,6 @@
+#include "pch.h"
 #include "Components/UserData.h"
 #include "Application/Application.h"
-#include "CustomCollections/Log.h"
-#include "SharedHelpers.h"
 #include "Utilities/NetworkHelpers.h"
 
 

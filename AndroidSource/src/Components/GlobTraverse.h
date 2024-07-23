@@ -1,5 +1,5 @@
 #pragma once
-#include "NatTraverserClient.h"
+#include "Components/NatTraverserClient.h"
 
 class Application;
 

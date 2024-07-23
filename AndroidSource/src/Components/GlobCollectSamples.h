@@ -1,14 +1,6 @@
 #pragma once
-
-#include "SharedProtocol.h"
-#include "Data/Address.h"
-#include "Data/IPMetaData.h"
-#include "Data/WindowData.h"
-#include <future>
-#include "CustomCollections/SimpleTimer.h"
-#include "UDPCollectTask.h"
-#include "CustomCollections/Event.h"
-#include "NatClassifier.h"
+#include "Components/UDPCollectTask.h"
+#include "Components/NatClassifier.h"
 #include "Components/NatTraverserClient.h"
 
 class Application;

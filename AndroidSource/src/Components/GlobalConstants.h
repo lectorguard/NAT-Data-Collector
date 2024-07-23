@@ -1,6 +1,4 @@
 #pragma once
-#include <string>
-#include <vector>
 #include "Components/UDPCollectTask.h"
 
 namespace GlobServerConst

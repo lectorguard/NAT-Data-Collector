@@ -1,13 +1,12 @@
+#include "pch.h"
 #include "MainScreen.h"
 #include "Application/Application.h"
 #include "Components/Scoreboard.h"
-#include "CustomCollections/Log.h"
 #include "Components/UserData.h"
 #include "Utilities/NetworkHelpers.h"
 #include "LogWindow.h"
 #include "StyleConstants.h"
-#include "misc/cpp/imgui_stdlib.h"
-#include <Components/GlobalConstants.h>
+#include "Components/GlobalConstants.h"
 
 
 

@@ -1,11 +1,5 @@
+#include "pch.h"
 #include "NatTraverserClient.h"
-#include "SharedProtocol.h"
-#include "Compression.h"
-#include "CustomCollections/Log.h"
-#include <thread>
-#include <chrono>
-#include <thread>
-#include <algorithm>
 #include "Components/NatClassifier.h"
 #include "Components/HTTPTask.h"
 #include "GlobalConstants.h"

@@ -1,9 +1,5 @@
 #pragma once
 #include "Components/NatTraverserClient.h"
-#include <optional>
-#include <algorithm>
-#include <set>
-
 
 struct AnalyzerDynamic
 {

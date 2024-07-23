@@ -1,6 +1,4 @@
 #pragma once
-#include "JSerializer.h"
-#include "SharedProtocol.h"
 
 using namespace shared;
 

@@ -1,14 +1,9 @@
 #pragma once
-#include <cstdint>
-#include "imgui.h"
-#include <vector>
-#include <string>
 #include "Components/Renderer.h"
 #include "LogWindow.h"
 #include "PopUpWindow.h"
 #include "WrongNatTypeWindow.h"
 #include "ScoreboardWindow.h"
-#include "imgui.h"
 #include "UIObject.h"
 #include "Model/NatCollectorModel.h"
 

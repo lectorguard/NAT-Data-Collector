@@ -1,3 +1,4 @@
+#include "pch.h"
 #include "NatClassifier.h"
 #include "Utilities/NetworkHelpers.h"
 #include "GlobalConstants.h"

@@ -1,8 +1,5 @@
+#include "pch.h"
 #include "UDPHolepunching.h"
-#include "asio/awaitable.hpp"
-#include "asio/use_awaitable.hpp"
-#include "asio/deadline_timer.hpp"
-#include "CustomCollections/Log.h"
 #include "Components/NatTraverserClient.h"
 
 #define SEND_ID "send_id"

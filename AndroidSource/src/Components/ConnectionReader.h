@@ -1,10 +1,5 @@
 #pragma once
 
-#include "SharedProtocol.h"
-#include "SharedTypes.h"
-#include "atomic"
-#include "CustomCollections/SimpleTimer.h"
-
 
 enum class ConnectionReaderStep : uint16_t
 {

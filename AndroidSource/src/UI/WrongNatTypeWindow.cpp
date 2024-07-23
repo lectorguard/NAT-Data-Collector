@@ -1,10 +1,8 @@
+#include "pch.h"
 #include "WrongNatTypeWindow.h"
 #include "MainScreen.h"
 #include "Application/Application.h"
 #include "Components/UserData.h"
-#include "Data/Address.h"
-#include "misc/cpp/imgui_stdlib.h"
-#include "string"
 
 
 void WrongNatTypeWindow::Activate(Application* app)

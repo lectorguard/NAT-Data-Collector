@@ -1,9 +1,5 @@
 #pragma once
-#include "SharedTypes.h"
-#include "Data/Address.h"
-#include "UDPCollectTask.h"
-#include <vector>
-#include "future"
+#include "Components/UDPCollectTask.h"
 
 
 using namespace shared;

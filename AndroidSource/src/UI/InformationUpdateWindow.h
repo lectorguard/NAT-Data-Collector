@@ -1,9 +1,4 @@
 #pragma once
-#include <cstdint>
-#include "imgui.h"
-#include <vector>
-#include <string>
-#include "Data/WindowData.h"
 
 class InformationUpdateWindow
 {

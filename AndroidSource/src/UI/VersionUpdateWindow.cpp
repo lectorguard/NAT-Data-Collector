@@ -1,10 +1,8 @@
+#include "pch.h"
 #include "VersionUpdateWindow.h"
 #include "MainScreen.h"
 #include "Application/Application.h"
 #include "Components/UserData.h"
-#include "Data/Address.h"
-#include "misc/cpp/imgui_stdlib.h"
-#include "string"
 
 
 void VersionUpdateWindow::Activate(Application* app)

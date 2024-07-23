@@ -1,8 +1,8 @@
+#include "pch.h"
 #include "HTTPTask.h"
 #include "Application/Application.h"
 #include "Utilities/NetworkHelpers.h"
 #include "Application/Application.h"
-#include "SharedHelpers.h"
 
 DataPackage HTTPTask::TraceRouteRequest()
 {

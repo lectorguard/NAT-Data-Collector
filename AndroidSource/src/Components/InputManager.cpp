@@ -1,11 +1,8 @@
+#include "pch.h"
 #include "Components/InputManager.h"
 #include "Application/Application.h"
-#include "backends/imgui_impl_android.h"
-#include "imgui.h"
-#include "CustomCollections/Log.h"
 #include "Application/Application.h"
-#include "android/keycodes.h"
-#include "android/window.h"
+
 
 void InputManager::Activate(Application* app)
 {

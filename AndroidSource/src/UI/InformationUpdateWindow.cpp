@@ -1,8 +1,7 @@
+#include "pch.h"
 #include "InformationUpdateWindow.h"
 #include "MainScreen.h"
 #include "Application/Application.h"
-#include "misc/cpp/imgui_stdlib.h"
-#include "string"
 #include "Components/GlobUserGuidance.h"
 
 void InformationUpdateWindow::Activate(Application* app)

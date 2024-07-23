@@ -198,20 +198,19 @@ struct ServerHandler<shared::Transaction::SERVER_GET_SCORES>
 	{
 		using namespace shared;
 
-		auto meta_data = pkg
+		auto meta_data = pkg.Get<ClientID>()
 			.Get<std::string>(MetaDataField::DB_NAME)
-			.Get<std::string>(MetaDataField::USERS_COLL_NAME)
-			.Get<std::string>(MetaDataField::ANDROID_ID);
+			.Get<std::string>(MetaDataField::USERS_COLL_NAME);
 
 		if (meta_data.error) return DataPackage::Create(meta_data.error);
-		auto const [db_name, users_coll_name, android_id] = meta_data.values;
+		auto const [client_id, db_name, users_coll_name, android_id] = meta_data.values;
 
 		// Mongo Update Parameter
 		nlohmann::json query;
-		query["android_id"] = android_id;
+		query["android_id"] = client_id.android_id;
 		nlohmann::json update;
 		update["$setOnInsert"] = { {"uploaded_samples", 0} };
-		update["$set"] = { {"username", pkg["username"]},{"show_score", pkg["show_score"]}, {"android_id", android_id}};
+		update["$set"] = { {"username", client_id.username},{"show_score", client_id.show_score}, {"android_id", client_id.android_id}};
 		nlohmann::json update_options;
 		update_options["upsert"] = true;
 		// Update Users accordingly

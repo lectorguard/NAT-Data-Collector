@@ -1,11 +1,4 @@
 #pragma once
-#include <EGL/egl.h>
-#include <GLES/gl.h>
-#include <android_native_app_glue.h>
-#include <cassert>
-#include <stdexcept>
-#include <memory>
-#include <string>
 
 enum class ClearColor
 {

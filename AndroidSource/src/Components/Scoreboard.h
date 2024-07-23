@@ -1,11 +1,5 @@
 #pragma once
-
-#include "SharedProtocol.h"
-#include "Data/ScoreboardData.h"
-#include <future>
-#include "CustomCollections/SimpleTimer.h"
-#include "UDPCollectTask.h"
-#include "NatTraverserClient.h"
+#include "Components/NatTraverserClient.h"
 
 
 class Application;

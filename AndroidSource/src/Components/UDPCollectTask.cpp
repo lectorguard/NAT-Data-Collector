@@ -1,13 +1,6 @@
+#include "pch.h"
 #include "UDPCollectTask.h"
-#include "optional"
-#include "asio/awaitable.hpp"
-#include "asio/use_awaitable.hpp"
-#include "asio/deadline_timer.hpp"
 #include "Application/Application.h"
-#include "Data/Address.h"
-#include "SharedHelpers.h"
-#include "functional"
-#include "CustomCollections/Log.h"
 #include "GlobalConstants.h"
 
  void LogTimeMs(const std::string& prepend)

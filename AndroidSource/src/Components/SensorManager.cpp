@@ -1,3 +1,4 @@
+#include "pch.h"
 #include "SensorManager.h"
 #include "Application/Application.h"
 

@@ -1,9 +1,6 @@
+#include "pch.h"
 #include "Components/Renderer.h"
 #include "Application/Application.h"
-#include "imgui.h"
-#include "backends/imgui_impl_android.h"
-#include "backends/imgui_impl_opengl3.h"
-#include "CustomCollections/Log.h"
 #include "UI/StyleConstants.h"
 
 void Renderer::Activate(class Application* app)

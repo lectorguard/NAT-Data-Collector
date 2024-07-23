@@ -1,3 +1,4 @@
+#include "pch.h"
 #include "GlobIdle.h"
 #include "Application/Application.h"
 #include "Components/UserData.h"

@@ -1,6 +1,6 @@
+#include "pch.h"
 #include "NatCollectorModel.h"
 #include "Application/Application.h"
-#include "Data/Traversal.h"
 
 void NatCollectorModel::Activate(Application* app)
 {

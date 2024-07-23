@@ -1,3 +1,4 @@
+#include "pch.h"
 #include "AwakeManager.h"
 #include "Application/Application.h"
 
