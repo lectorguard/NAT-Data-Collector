@@ -6,12 +6,13 @@
 #include "UserData.h"
 #include "Model/NatCollectorModel.h"
 #include "GlobalConstants.h"
+#include "Components/Config.h"
 
 
 void GlobUserGuidance::Activate(Application* app)
 {
 	NatCollectorModel& nat_model = app->_components.Get<NatCollectorModel>();
-	app->_components.Get<NatCollectorModel>().SubscribeRecalculateNAT([this](bool b) {OnRecalcNAT(); });
+	app->_components.Get<NatCollectorModel>().SubscribeRecalculateNAT([this, app](bool b) {OnRecalcNAT(app); });
 	nat_model.SubscribePopUpEvent(NatCollectorPopUpState::PopUp, nullptr, nullptr, [this, app](auto st) {OnClosePopUpWindow(app); });
 	nat_model.SubscribePopUpEvent(NatCollectorPopUpState::InformationUpdateWindow,
 		nullptr,
@@ -31,14 +32,15 @@ void GlobUserGuidance::Activate(Application* app)
 		[this, app](auto pkg) {OnNatClientEvent(app, pkg); });
 }
 
-void GlobUserGuidance::OnRecalcNAT()
+void GlobUserGuidance::OnRecalcNAT(Application* app)
 {
+	const auto app_conf = app->_components.Get<NatCollectorModel>().GetAppConfig();
 	Error err;
 	if (current == UserGuidanceStates::WAIT_FOR_UI)
 	{
-		err = client.IdentifyNATAsync(NATConfig::sample_size,
-			GlobServerConst::server_address,
-			GlobServerConst::server_echo_start_port);
+		err = client.IdentifyNATAsync(app_conf.nat_ident.sample_size,
+			app_conf.server_address,
+			app_conf.server_echo_start_port);
 		current = UserGuidanceStates::CONNECTED_NO_INTERRUPT;
 	}
 	if (err)
@@ -71,10 +73,12 @@ void GlobUserGuidance::StartGlobState(Application* app)
 	Log::Info("Start User Guidance");
 	if (current == UserGuidanceStates::DISCONNECTED)
 	{
+		SetAppConfig(app);
 		SetAndroidID(app);
 		ShowMainPopUp(app);
-		Log::Info("Connect to server");
-		client.ConnectAsync(GlobServerConst::server_address, GlobServerConst::server_transaction_port);
+		
+		const auto app_conf = app->_components.Get<NatCollectorModel>().GetAppConfig();
+		client.ConnectAsync(app_conf.server_address, app_conf.server_transaction_port);
 		current = UserGuidanceStates::CONNECTED_NO_INTERRUPT;
 	}
 }
@@ -84,22 +88,21 @@ void GlobUserGuidance::OnNatClientEvent(Application* app, DataPackage pkg)
 	Error err;
 	UserData::Information& user_info = app->_components.Get<UserData>().info;
 	NatCollectorModel& nat_model = app->_components.Get<NatCollectorModel>();
+	const auto app_conf = nat_model.GetAppConfig();
 	switch (pkg.transaction)
 	{
 	case Transaction::CLIENT_CONNECTED:
 	{
-		using namespace GlobServerConst;
 		Log::Info("Get Version Data");
 		DataPackage version_request = DataPackage::Create(nullptr, Transaction::SERVER_GET_VERSION_DATA)
-			.Add<std::string>(MetaDataField::DB_NAME, Mongo::db_name)
-			.Add<std::string>(MetaDataField::COLL_NAME, Mongo::coll_version_name)
-			.Add<std::string>(MetaDataField::CURR_VERSION, GlobServerConst::app_version);
+			.Add<std::string>(MetaDataField::DB_NAME, app_conf.mongo.db_name)
+			.Add<std::string>(MetaDataField::COLL_NAME,app_conf.mongo.coll_version_name)
+			.Add<std::string>(MetaDataField::CURR_VERSION, app_conf.app_version);
 		err = client.ServerTransactionAsync(version_request);
 		break;
 	}
 	case Transaction::CLIENT_RECEIVE_VERSION_DATA:
 	{
-		using namespace GlobServerConst;
 		if (auto error = pkg.Get(version_update_info))
 		{
 			err = error;
@@ -112,8 +115,8 @@ void GlobUserGuidance::OnNatClientEvent(Application* app, DataPackage pkg)
 		}
 		// Get Information data
 		DataPackage info_request = DataPackage::Create(nullptr, Transaction::SERVER_GET_INFORMATION_DATA)
-			.Add<std::string>(MetaDataField::DB_NAME, Mongo::db_name)
-			.Add<std::string>(MetaDataField::COLL_NAME, Mongo::coll_information_name)
+			.Add<std::string>(MetaDataField::DB_NAME, app_conf.mongo.db_name)
+			.Add<std::string>(MetaDataField::COLL_NAME, app_conf.mongo.coll_information_name)
 			.Add<std::string>(MetaDataField::IDENTIFIER, user_info.information_identifier);
 		err = client.ServerTransactionAsync(info_request);
 		break;
@@ -142,9 +145,9 @@ void GlobUserGuidance::OnNatClientEvent(Application* app, DataPackage pkg)
 			break;
 		}
 		nat_model.SetClientMetaData(metaData);
-		err = client.IdentifyNATAsync(NATConfig::sample_size,
-			GlobServerConst::server_address,
-			GlobServerConst::server_echo_start_port);
+		err = client.IdentifyNATAsync(app_conf.nat_ident.sample_size,
+			app_conf.server_address,
+			app_conf.server_echo_start_port);
 		break;
 	}
 	case Transaction::CLIENT_RECEIVE_NAT_TYPE:
@@ -158,7 +161,7 @@ void GlobUserGuidance::OnNatClientEvent(Application* app, DataPackage pkg)
 		const auto [nat_type] = result.values;
 		nat_model.SetClientNATType(nat_type);
 		Log::Info("Identified NAT type %s", shared::nat_to_string.at(nat_type).c_str());
-		if (AppConfig::random_nat_required &&
+		if (app_conf.app.random_nat_required &&
 			nat_type != shared::NATType::RANDOM_SYM)
 		{
 			nat_model.PushPopUpState(NatCollectorPopUpState::NatInfoWindow);
@@ -220,6 +223,23 @@ void GlobUserGuidance::ShowMainPopUp(Application* app)
 	{
 		Log::Info("Show Start Pop Up");
 		nat_model.PushPopUpState(NatCollectorPopUpState::PopUp);
+	}
+}
+
+void GlobUserGuidance::SetAppConfig(Application* app)
+{
+	Log::Info("Read App Config File");
+	NatCollectorModel& nat_model = app->_components.Get<NatCollectorModel>();
+	auto pkg = Config::ReadConfigFile(app);
+	Config::Data data;
+	if (auto error = pkg.Get(data))
+	{
+		Log::HandleResponse(error, "Reading App Config File");
+	}
+	else
+	{
+		nat_model.SetAppConfig(data);
+		Log::SetLogBufferSize(data.app.max_log_lines);
 	}
 }
 

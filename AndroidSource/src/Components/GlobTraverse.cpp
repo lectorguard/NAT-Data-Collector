@@ -4,6 +4,7 @@
 #include "Components/UserData.h"
 #include "Predictors/Predictor.h"
 #include "GlobalConstants.h"
+#include "Components/Config.h"
 
 shared::Error GlobTraverse::AnalyzeNAT(const NatCollectorModel& model)
 {
@@ -16,6 +17,7 @@ shared::Error GlobTraverse::AnalyzeNAT(const NatCollectorModel& model)
 		cone_local_port = rand() / ((RAND_MAX + 1u) / 16000) + 10'000;
 
 		AnalyzerConeNAT::Config conf = AnalyzeConeNAT::config;
+		conf.echo_server_addr = model.GetAppConfig().server_address;
 		conf.local_port = cone_local_port;
 
 		err = client.PredictPortAsync<AnalyzerConeNAT::Config>(conf, AnalyzerConeNAT::analyze, PredictorTakeFirst::predict);
@@ -96,6 +98,7 @@ void GlobTraverse::StartDraw(Application* app)
 {
 	//Validate username
 	auto& user_data = app->_components.Get<UserData>();
+	const auto app_conf = app->_components.Get<NatCollectorModel>().GetAppConfig();
 	if (auto err = user_data.ValidateUsername())
 	{
 		Shutdown(app, DataPackage::Create(err));
@@ -105,7 +108,7 @@ void GlobTraverse::StartDraw(Application* app)
 	user_data.WriteToDisc();
 
 	// Connect to Server
-	if (auto err = client.ConnectAsync(GlobServerConst::server_address, GlobServerConst::server_transaction_port))
+	if (auto err = client.ConnectAsync(app_conf.server_address, app_conf.server_transaction_port))
 	{
 		Shutdown(app, DataPackage::Create(err));
 		return;
@@ -217,6 +220,7 @@ void GlobTraverse::HandleTransaction(Application* app, DataPackage pkg)
 	Error err;
 	UserData::Information& user_info = app->_components.Get<UserData>().info;
 	auto& model = app->_components.Get<NatCollectorModel>();
+	const auto app_conf = model.GetAppConfig();
 	switch (pkg.transaction)
 	{
 	case Transaction::CLIENT_CONNECTED:
@@ -309,7 +313,7 @@ void GlobTraverse::HandleTransaction(Application* app, DataPackage pkg)
 			start_traversal_timestamp,
 			model.GetClientMetaData()
 		};
-		err = client.UploadTraversalResultToMongoDBAsync(success, result_info, GlobServerConst::Mongo::db_name, TraversalConfig::coll_traversal_name);
+		err = client.UploadTraversalResultToMongoDBAsync(success, result_info, app_conf.mongo.db_name, TraversalConfig::coll_traversal_name);
 		break;
 	}
 	case Transaction::CLIENT_UPLOAD_SUCCESS:

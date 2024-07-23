@@ -1,40 +1,6 @@
 #pragma once
 #include "Components/UDPCollectTask.h"
 
-namespace GlobServerConst
-{
-	inline const std::string server_address = SERVER_IP;
-	inline const uint16_t server_transaction_port = SERVER_TRANSACTION_TCP_PORT;
-	inline const uint16_t server_echo_start_port = SERVER_ECHO_UDP_START_PORT;
-	inline const uint16_t server_echo_port_size = SERVER_ECHO_UDP_SERVICES;
-	inline const uint32_t global_socket_timeout_ms = SOCKET_TIMEOUT_MS;
-	inline const std::string app_version = APP_VERSION;
-	inline const uint32_t max_msg_length_decimals = MAX_MSG_LENGTH_DECIMALS;
-	
-	namespace Mongo
-	{
-		inline const std::string db_name = MONGO_DB_NAME;
-		inline const std::string coll_version_name = MONGO_VERSION_COLL_NAME;
-		inline const std::string coll_information_name = MONGO_INFORMATION_COLL_NAME;
-		inline const std::string coll_users_name = MONGO_NAT_USERS_COLL_NAME;
-		inline const std::string coll_collect_config = MONGO_COLL_CONFIG_NAME;
-	}
-}
-
-namespace NATConfig
-{
-	inline const uint32_t sample_size = 5;
-	inline const uint16_t max_delta_progressing_nat = 50;
-}
-
-namespace AppConfig
-{
-	inline const bool random_nat_required = false;
-	inline const bool traversal_feature_enabled = true;
-	inline const uint32_t max_log_lines = 400;
-	inline const bool use_debug_collect_config = false;
-}
-
 namespace CollectConfig
 {
 	inline const shared::CollectingConfig::Stage candidates
@@ -86,8 +52,8 @@ namespace TraversalConfig
 	{
 		inline const UDPCollectTask::Stage config
 		{
-			/* remote address */				GlobServerConst::server_address,
-			/* start port */					GlobServerConst::server_echo_start_port,
+			/* remote address */				"",
+			/* start port */					10'000,
 			/* num port services */				1,
 			/* local port */					7744,
 			/* amount of ports */				1,
@@ -109,8 +75,8 @@ namespace TraversalConfig
 	{
 		inline const UDPCollectTask::Stage candidates
 		{
-			/* remote address */				GlobServerConst::server_address,
-			/* start port */					GlobServerConst::server_echo_start_port,
+			/* remote address */				"",
+			/* start port */					10000,
 			/* num port services */				1'000,
 			/* local port */					0,
 			/* amount of ports */				10'000,
@@ -121,8 +87,8 @@ namespace TraversalConfig
 
 		const UDPCollectTask::Stage duplicates
 		{
-			/* remote address */				GlobServerConst::server_address,
-			/* start port */					GlobServerConst::server_echo_start_port,
+			/* remote address */				"",
+			/* start port */					10000,
 			/* num port services */				1'000,
 			/* local port */					0,
 			/* amount of ports */				12'000,

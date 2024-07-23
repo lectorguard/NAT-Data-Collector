@@ -108,18 +108,7 @@ if(${CMAKE_SYSTEM_NAME} STREQUAL "Android")
 	message(STATUS "Created successfully library with name: ${imgui_name}")
 
 	add_subdirectory(AndroidSource) 
-	INCLUDE(android.config)
-	message(STATUS "IP address from android config ${SERVER_IP}")
-	target_compile_definitions(native-activity PRIVATE 
-										SERVER_IP="${SERVER_IP}"
-										SERVER_TRANSACTION_TCP_PORT=${SERVER_TRANSACTION_TCP_PORT}
-										SERVER_ECHO_UDP_START_PORT=${SERVER_ECHO_UDP_START_PORT}
-										SERVER_ECHO_UDP_SERVICES=${SERVER_ECHO_UDP_SERVICES}
-										MONGO_DB_NAME="${MONGO_DB_NAME}"
-										MONGO_NAT_USERS_COLL_NAME="${MONGO_NAT_USERS_COLL_NAME}"
-										MONGO_INFORMATION_COLL_NAME="${MONGO_INFORMATION_COLL_NAME}"
-										MONGO_VERSION_COLL_NAME="${MONGO_VERSION_COLL_NAME}"
-										MONGO_COLL_CONFIG_NAME="${MONGO_COLL_CONFIG_NAME}"
+	target_compile_definitions(native-activity PRIVATE
 										APP_VERSION="${APP_VERSION}"
 									    SOCKET_TIMEOUT_MS=${SOCKET_TIMEOUT_MS}
 										MAX_MSG_LENGTH_DECIMALS=${MAX_MSG_LENGTH_DECIMALS}

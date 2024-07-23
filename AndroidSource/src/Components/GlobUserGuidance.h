@@ -26,12 +26,13 @@ public:
 	shared::InformationUpdate information_update_info;
 private:
 	void ShowMainPopUp(Application* app);
+	void SetAppConfig(Application* app);
 	void SetAndroidID(Application* app);
 	void Shutdown(DataPackage pkg);
 	void OnNatClientEvent(Application* app, DataPackage pkg);
 	void OnClosePopUpWindow(Application* app);
 	void OnCloseInfoUpdateWindow(Application* app);
-	void OnRecalcNAT();
+	void OnRecalcNAT(Application* app);
 
 	// State
 	UserGuidanceStates current = UserGuidanceStates::DISCONNECTED;

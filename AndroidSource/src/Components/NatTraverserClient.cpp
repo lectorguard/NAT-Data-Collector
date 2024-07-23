@@ -34,7 +34,7 @@ shared::Error NatTraverserClient::ConnectAsync(std::string_view server_addr, uin
 		write_queue = std::make_shared<ConcurrentQueue<std::vector<uint8_t>>>();
 		read_queue = std::make_shared<ConcurrentQueue<std::vector<uint8_t>>>();
 		shutdown_flag = std::make_shared<std::atomic<bool>>(false);
-		TraversalInfo info{ write_queue, read_queue, server_addr, server_port, shutdown_flag };
+		TraversalInfo info{ write_queue, read_queue, std::string(server_addr), server_port, shutdown_flag};
 		rw_future = std::async([info]() { return NatTraverserClient::connect_internal(info); });
 		return Error{ ErrorType::OK };
 	}
@@ -311,103 +311,6 @@ std::optional<UDPHolepunching::Result> NatTraverserClient::GetTraversalResult()
 	return std::nullopt;
 }
 
-// 
-// std::optional<Address> NatTraverserClient::PredictPort(const AddressVector& address_vector, PredictionStrategy strategy)
-// {
-// 	const std::vector<Address> addresses = address_vector.address_vector;
-// 	if (addresses.size() == 0)
-// 	{
-// 		return std::nullopt;
-// 	}
-// 
-// 	switch (strategy)
-// 	{
-// 	case PredictionStrategy::RANDOM:
-// 	{
-// 		srand((uint32_t)std::chrono::system_clock::now().time_since_epoch().count());
-// 		const std::uint64_t prediction_index = rand() / ((RAND_MAX + 1u) / addresses.size());
-// 		return addresses.at(prediction_index);
-// 	}
-// 	case PredictionStrategy::HIGHEST_FREQUENCY:
-// 	{
-// 		std::map<uint16_t, std::vector<Address>> port_occurence_map{};
-// 		for (auto const& addr : addresses)
-// 		{
-// 			if (port_occurence_map.contains(addr.port))
-// 			{
-// 				port_occurence_map[addr.port].push_back(addr);
-// 			}
-// 			else
-// 			{
-// 				port_occurence_map[addr.port] = {addr};
-// 			}
-// 		}
-// 		return port_occurence_map.rbegin()->second[0];
-// 	}
-// 	case PredictionStrategy::MINIMUM_DELTA:
-// 	{
-// 		std::map<uint16_t, std::vector<Address>> port_occurence_map{};
-// 		for (auto const& addr : addresses)
-// 		{
-// 			if (port_occurence_map.contains(addr.port))
-// 			{
-// 				port_occurence_map[addr.port].push_back(addr);
-// 			}
-// 			else
-// 			{
-// 				port_occurence_map[addr.port] = { addr };
-// 			}
-// 		}
-// 		// minimum 2 occurences
-// 		std::erase_if(port_occurence_map, [](auto const tuple)
-// 			{
-// 				return tuple.second.size() < 2;
-// 			});
-// 		// minimum distance between reocurring ports
-// 		auto result = std::min_element(port_occurence_map.begin(), port_occurence_map.end(),
-// 			[addresses](auto l, auto r)
-// 			{
-// 				uint64_t min_distance_l = UINT64_MAX;
-// 				for (auto it = addresses.begin(); it != addresses.end(); ++it)
-// 				{
-// 					if (it->port == l.first)
-// 					{
-// 						auto found = std::find_if(it + 1, addresses.end(), [p = l.first](Address x) { return p == x.port; });
-// 						if (found == addresses.end()) break;
-// 						const uint64_t distance = found - it;
-// 						min_distance_l = std::min(distance, min_distance_l);
-// 					}
-// 				}
-// 
-// 				uint64_t min_distance_r = UINT64_MAX;
-// 				for (auto it = addresses.begin(); it != addresses.end(); ++it)
-// 				{
-// 					if (it->port == r.first)
-// 					{
-// 						auto found = std::find_if(it + 1, addresses.end(), [p = r.first](Address x) { return p == x.port; });
-// 						if (found == addresses.end()) break;
-// 						const uint64_t distance = found - it;
-// 						min_distance_r = std::min(distance, min_distance_r);
-// 					}
-// 				}
-// 
-// 				return min_distance_l < min_distance_r;
-// 			});
-// 		if(result != port_occurence_map.end())
-// 		{
-// 			return result->second[0];
-// 		}
-// 		else
-// 		{
-// 			return std::nullopt;
-// 		}
-// 	}
-// 	default:
-// 		break;
-// 	}
-// 	return std::nullopt;
-// }
-
 std::optional<shared::DataPackage> NatTraverserClient::TryGetResponse()
 {
 	if (!read_queue)return std::nullopt;
@@ -501,7 +404,7 @@ bool NatTraverserClient::FindUserSession(const std::string& username, const GetA
 
 
 
-Error NatTraverserClient::connect_internal(TraversalInfo const& info)
+Error NatTraverserClient::connect_internal(const TraversalInfo& info)
 {
 	using namespace asio::ip;
 	using namespace shared::helper;
@@ -518,7 +421,6 @@ Error NatTraverserClient::connect_internal(TraversalInfo const& info)
 		return Error::FromAsio(asio_error, "Opening socket for NAT Traversal Client");
 	}
 		
-
 	auto resolved = resolver.resolve(info.server_addr, std::to_string(info.server_port), asio_error);
 	if (auto error = Error::FromAsio(asio_error, "Resolve address"))
 	{
@@ -632,10 +534,10 @@ void NatTraverserClient::write_loop(asio::io_service& s, asio::system_timer& tim
 
 void NatTraverserClient::async_read_msg_length(TraversalInfo const& info, asio::ip::tcp::socket& s)
 {
-	auto buffer_data = std::make_unique<std::uint8_t[]>(GlobServerConst::max_msg_length_decimals);
-	auto buffer = asio::buffer(buffer_data.get(), GlobServerConst::max_msg_length_decimals);
+	auto buffer_data = std::make_unique<std::uint8_t[]>(MAX_MSG_LENGTH_DECIMALS);
+	auto buffer = asio::buffer(buffer_data.get(), MAX_MSG_LENGTH_DECIMALS);
 	async_read(s, buffer,
-		asio::transfer_exactly(GlobServerConst::max_msg_length_decimals),
+		asio::transfer_exactly(MAX_MSG_LENGTH_DECIMALS),
 		[buf = std::move(buffer_data), info, &s](asio::error_code ec, size_t length)
 		{
 			if (auto error = Error::FromAsio(ec, "Read length of server answer"))
@@ -643,7 +545,7 @@ void NatTraverserClient::async_read_msg_length(TraversalInfo const& info, asio::
 				
 				info.read_queue->push_error(error);
 			}
-			else if (length != GlobServerConst::max_msg_length_decimals)
+			else if (length != MAX_MSG_LENGTH_DECIMALS)
 			{
 				info.read_queue->push_error(Error(ErrorType::WARNING, { "Received invalid message length when reading msg length" }));
 				async_read_msg_length(info, s);
@@ -653,7 +555,7 @@ void NatTraverserClient::async_read_msg_length(TraversalInfo const& info, asio::
 				uint32_t next_msg_len{};
 				try
 				{
-					next_msg_len = std::stoi(std::string(buf.get(), buf.get() + GlobServerConst::max_msg_length_decimals));
+					next_msg_len = std::stoi(std::string(buf.get(), buf.get() + MAX_MSG_LENGTH_DECIMALS));
 				}
 				catch (...)
 				{

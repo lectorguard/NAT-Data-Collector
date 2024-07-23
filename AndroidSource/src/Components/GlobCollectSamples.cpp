@@ -6,20 +6,20 @@
 #include "UserData.h"
 #include "Components/GlobalConstants.h"
 
-std::vector<UDPCollectTask::Stage> GlobCollectSamples::CreateCollectStages(const shared::CollectingConfig& config)
+std::vector<UDPCollectTask::Stage> GlobCollectSamples::CreateCollectStages(const Config::Data& app_conf, const shared::CollectingConfig& coll_conf)
 {
 	using namespace CollectConfig;
-	if (config.stages.empty())
+	if (coll_conf.stages.empty())
 	{
 		Log::Error("Stages for collection step is empty");
 		return {};
 	}
 
 	// Validate that each stage has same number of configs
-	for (size_t i = 1; i < config.stages.size(); ++i)
+	for (size_t i = 1; i < coll_conf.stages.size(); ++i)
 	{
-		const auto prev_stage = config.stages[i - 1];
-		const auto stage = config.stages[i];
+		const auto prev_stage = coll_conf.stages[i - 1];
+		const auto stage = coll_conf.stages[i];
 		if (stage.configs.size() != prev_stage.configs.size())
 		{
 			Log::Error("Config sizes of analyze, intersect and traversal are not equal");
@@ -29,7 +29,7 @@ std::vector<UDPCollectTask::Stage> GlobCollectSamples::CreateCollectStages(const
 
 	// Randomly generate the index every time
 	srand((uint32_t)std::chrono::system_clock::now().time_since_epoch().count());
-	_config_index = rand() / ((RAND_MAX + 1u) / config.stages[0].configs.size());
+	_config_index = rand() / ((RAND_MAX + 1u) / coll_conf.stages[0].configs.size());
 
 	auto first_stage_ports = std::make_shared<std::set<uint16_t>>();
 	std::function<bool(Address, uint32_t)> should_shutdown = [first_stage_ports](Address addr, uint32_t stage)
@@ -46,13 +46,13 @@ std::vector<UDPCollectTask::Stage> GlobCollectSamples::CreateCollectStages(const
 		};
 
 	std::vector<UDPCollectTask::Stage> stages;
-	for (const auto& stage : config.stages)
+	for (const auto& stage : coll_conf.stages)
 	{
 		const auto config = stage.configs[_config_index];
 
 		const UDPCollectTask::Stage s
 		{
-			/* remote address */				GlobServerConst::server_address,
+			/* remote address */				app_conf.server_address,
 			/* start port */					config.start_echo_service,
 			/* num port services */				config.num_echo_services,
 			/* local port */					config.local_port,
@@ -71,7 +71,7 @@ void GlobCollectSamples::Activate(Application* app)
 {
 	NatCollectorModel& model = app->_components.Get<NatCollectorModel>();
 	model.SubscribeGlobEvent(NatCollectorGlobalState::Collect,
-		[this](auto s) {StartGlobState(); },
+		[this,app](auto s) {StartGlobState(app); },
 		[this](auto app, auto s) {UpdateGlobState(app); },
 		[this](auto s) {EndGlobState(); });
 	app->FrameTimeEvent.Subscribe([this](auto app, auto dur) {OnFrameTime(app, dur); });
@@ -111,12 +111,14 @@ void GlobCollectSamples::Shutdown(DataPackage pkg)
 	_current = CollectSamplesStep::DISCONNECTED;
 }
 
-void GlobCollectSamples::StartGlobState()
+void GlobCollectSamples::StartGlobState(Application* app)
 {
+	const Config::Data app_conf = app->_components.Get<NatCollectorModel>().GetAppConfig();
 	Log::Info("Start Collect Samples");
 	if (_current == CollectSamplesStep::DISCONNECTED)
 	{
-		_client.ConnectAsync(GlobServerConst::server_address, GlobServerConst::server_transaction_port);
+		Log::Info("%s:%d", app_conf.server_address.c_str(), app_conf.server_transaction_port);
+		_client.ConnectAsync(app_conf.server_address,app_conf.server_transaction_port);
 		_current = CollectSamplesStep::CONNECTED_IDLE;
 	}
 }
@@ -124,6 +126,7 @@ void GlobCollectSamples::StartGlobState()
 void GlobCollectSamples::OnTransactionEvent(DataPackage pkg, Application* app)
 {
 	NatCollectorModel& model = app->_components.Get<NatCollectorModel>();
+	const Config::Data app_conf = model.GetAppConfig();
 	std::atomic<shared::ConnectionType>& connect_type = app->_components.Get<ConnectionReader>().GetAtomicRef();
 
 	Error err;
@@ -131,9 +134,10 @@ void GlobCollectSamples::OnTransactionEvent(DataPackage pkg, Application* app)
 	{
 	case Transaction::CLIENT_CONNECTED:
 	{
-		err = _client.IdentifyNATAsync(NATConfig::sample_size,
-			GlobServerConst::server_address,
-			GlobServerConst::server_echo_start_port);
+		Log::Info("Connected");
+		err = _client.IdentifyNATAsync(app_conf.nat_ident.sample_size,
+			app_conf.server_address,
+			app_conf.server_echo_start_port);
 		break;
 	}
 	case Transaction::CLIENT_RECEIVE_NAT_TYPE:
@@ -143,7 +147,7 @@ void GlobCollectSamples::OnTransactionEvent(DataPackage pkg, Application* app)
 		auto [nat_type] = res.values;
 		model.SetClientNATType(nat_type);
 		Log::Info("Identified NAT type %s", shared::nat_to_string.at(nat_type).c_str());
-		if (AppConfig::random_nat_required)
+		if (app_conf.app.random_nat_required)
 		{
 			if (nat_type != shared::NATType::RANDOM_SYM)
 			{
@@ -166,19 +170,19 @@ void GlobCollectSamples::OnTransactionEvent(DataPackage pkg, Application* app)
 		if((err = pkg.Get(metaData)))break;
 		model.SetClientMetaData(metaData);
 		Log::Info("Received Tracerout Info");
-		if (AppConfig::use_debug_collect_config)
+		if (app_conf.app.use_debug_collect_config)
 		{
 			_config = CollectConfig::config;
 			auto config_pkg = DataPackage::Create(&_config, Transaction::NO_TRANSACTION);
 			const std::string config_str = config_pkg.data.dump();
 			Log::Warning("%s", config_str.c_str());
-			err = _client.CollectPortsAsync(CreateCollectStages(_config));
+			err = _client.CollectPortsAsync(CreateCollectStages(app_conf,_config));
 		}
 		else
 		{
 			auto config_req = DataPackage::Create(nullptr, Transaction::SERVER_GET_COLLECTION)
-				.Add(MetaDataField::DB_NAME, GlobServerConst::Mongo::db_name)
-				.Add(MetaDataField::COLL_NAME, GlobServerConst::Mongo::coll_collect_config);
+				.Add(MetaDataField::DB_NAME, app_conf.mongo.db_name)
+				.Add(MetaDataField::COLL_NAME, app_conf.mongo.coll_collect_config);
 			err = _client.ServerTransactionAsync(config_req);
 		}
 		break;
@@ -188,7 +192,7 @@ void GlobCollectSamples::OnTransactionEvent(DataPackage pkg, Application* app)
 		err = pkg.Get(_config);
 		if (err) break;
 		Log::Info("Received Collect Config");
-		err = _client.CollectPortsAsync(CreateCollectStages(_config));
+		err = _client.CollectPortsAsync(CreateCollectStages(app_conf,_config));
 		break;
 	}
 	case Transaction::CLIENT_RECEIVE_COLLECTED_PORTS:
@@ -210,9 +214,9 @@ void GlobCollectSamples::OnTransactionEvent(DataPackage pkg, Application* app)
 		NATSample sampleToInsert{ model.GetClientMetaData(), _readable_time_stamp,
 					  connect_type,coll_data, _config.delay_collection_steps_ms };
 		err = _client.UploadToMongoDBAsync(&sampleToInsert,
-			GlobServerConst::Mongo::db_name,
+			app_conf.mongo.db_name,
 			_config.coll_name,
-			GlobServerConst::Mongo::coll_users_name,
+			app_conf.mongo.coll_users_name,
 			model.GetClientMetaData().android_id);
 		break;
 	}
@@ -229,14 +233,14 @@ void GlobCollectSamples::OnTransactionEvent(DataPackage pkg, Application* app)
 		Log::Info("Timer is over");
 		if (_current == CollectSamplesStep::DISCONNECTED)
 		{
-			StartGlobState();
+			StartGlobState(app);
 		}
 		else
 		{
 			// DONE continue loop with identify nat type again
-			err = _client.IdentifyNATAsync(NATConfig::sample_size,
-				GlobServerConst::server_address,
-				GlobServerConst::server_echo_start_port);
+			err = _client.IdentifyNATAsync(app_conf.nat_ident.sample_size,
+				app_conf.server_address,
+				app_conf.server_echo_start_port);
 			_current = CollectSamplesStep::CONNECT_NO_INTERRUPT;
 		}
 		break;
@@ -275,7 +279,7 @@ void GlobCollectSamples::UpdateGlobState(class Application* app)
 	case CollectSamplesStep::CONNECT_NO_INTERRUPT:
 	{
 		if (connect_type == shared::ConnectionType::NOT_CONNECTED ||
-			(AppConfig::random_nat_required && connect_type == shared::ConnectionType::WIFI))
+			(model.GetAppConfig().app.random_nat_required && connect_type == shared::ConnectionType::WIFI))
 		{
 			Shutdown(DataPackage::Create<ErrorType::ERROR>({"Disconnected from random symmetric NAT device"}));
 		}

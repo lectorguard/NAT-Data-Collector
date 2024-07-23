@@ -19,6 +19,7 @@ void MainScreen::Draw(Application* app)
 {
 	ImGuiIO& io = ImGui::GetIO();
 	NatCollectorModel& modelRef = app->_components.Get<NatCollectorModel>();
+	const auto app_conf = modelRef.GetAppConfig();
 	ConnectionReader& connection_reader = app->_components.Get<ConnectionReader>();
 
 	// User Window
@@ -60,11 +61,11 @@ void MainScreen::Draw(Application* app)
 	ImGui::Text("Select App Task ");
 	for (auto& tab : glob_tabs)
 	{
-		if(AppConfig::random_nat_required &&
+		if(app_conf.app.random_nat_required &&
 			tab.state == NatCollectorGlobalState::Traverse &&
 			modelRef.GetClientMetaData().nat_type != NATType::RANDOM_SYM) continue;
 
-		if (!AppConfig::traversal_feature_enabled &&
+		if (!app_conf.app.traversal_feature_enabled &&
 			tab.state == NatCollectorGlobalState::Traverse) continue;
 	
 		ImGui::SameLine();

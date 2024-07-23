@@ -90,6 +90,11 @@
     <ProjectReference Include="..\bin\Android\AndroidSource\native-activity.vcxproj" />
     <ProjectReference Include="..\bin\Android\ThirdParty\zstd\build\cmake\lib\libzstd_shared.vcxproj" />
   </ItemGroup>
+  <ItemGroup>
+    <Content Include="app\src\main\assets\config.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
   <Import Project="$(AndroidTargetsPath)\Android.targets" />
   <ImportGroup Label="ExtensionTargets" />
 </Project>

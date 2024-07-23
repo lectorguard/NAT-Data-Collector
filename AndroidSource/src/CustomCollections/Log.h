@@ -135,6 +135,7 @@ public:
 		 Log::HandleResponse(response, "Write Log to clipboard");
 	 }
 
+	 static void SetLogBufferSize(uint32_t size) { max_log_lines = size; };
 private:
 
 	static void Log_Internal(const Entry& helper)
@@ -154,7 +155,7 @@ private:
 		default:
 			break;
 		}
-		if (log_buffer.size() >= AppConfig::max_log_lines)
+		if (log_buffer.size() >= max_log_lines)
 		{
 			// Not very efficient should be a deque instead
 			log_buffer.erase(log_buffer.begin());
@@ -166,4 +167,5 @@ private:
 	inline static std::vector<Entry> log_buffer{};
 	inline static bool scrollToBottom = false;
 	inline static std::mutex log_mutex{};
+	inline static uint32_t max_log_lines = 400;
 };

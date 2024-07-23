@@ -39,6 +39,7 @@
 #include "android/sensor.h"
 #include "android/keycodes.h"
 #include "android/window.h"
+#include "android/asset_manager.h"
 #include "dirent.h"
 
 // Networking

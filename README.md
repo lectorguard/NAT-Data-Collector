@@ -11,23 +11,37 @@ This app does not collect any user content of your phone.
 
 ## Config files
 
+* You can automatically generate config templates for both server and client with ```BuildScripts/GenerateConfigs.bat```
+
 ### Android Config
 
-* Create a new file named `android.config` in the top level folder in the repository
-* Copy the following settings and modify it if necessary
+* This config is located at ```AndroidPackaging/app/src/main/assets/config.json```
+* The config must contain the following fields
 
 ```
-cmake_minimum_required(VERSION 3.20)
-
-set(SERVER_IP "192.168.18.10") # your server ip address	
-set(SERVER_TRANSACTION_TCP_PORT 9999) # server port to perform transactions (TCP) 
-set(SERVER_ECHO_UDP_START_PORT 10000) # first server echo service runs on this port 
-set(SERVER_ECHO_UDP_SERVICES 1000) # amount of echo services supported by server 
-set(MONGO_DB_NAME "NAT") # Mongo db name, where collected NAT Samples will be stored 
-set(MONGO_NAT_USERS_COLL_NAME "UsersColl") # Mongo collection name, where app user information are stored 
-set(MONGO_VERSION_COLL_NAME "VersionUpdate") # Mongo collection name, where new version pop up information are stored 
-set(MONGO_INFORMATION_COLL_NAME "InformationUpdate") # Mongo collection name, where general information for popups are stored 
-set(APP_VERSION "v0.0.2") # Version of the app 
+{
+  "server_address": "192.168.2.109", // server address
+  "server_transaction_port": 9999, // server tcp transaction port
+  "server_echo_start_port": 10000, // udp echo service start port
+  "server_echo_port_size": 1000,   // udp echo service size (Total services), last port is server_echo_start_port + server_echo_port_size
+  "mongo": {		// mongo related fields
+    "db_name": "NatInfo", // name of database
+    "coll_version_name": "VersionUpdate", // version collection
+    "coll_information_name": "InformationUpdate", // information update collection (popup window only shown if not empty)
+    "coll_users_name": "testUsers",  // Collection of users which uploaded samples, used for calculating scoreboard
+    "coll_collect_config": "CollectConfig" //  Collection containing the config for collecting step
+  },
+  "nat_ident": {
+    "sample_size": 5,	// Amount of samples used to identify NAT
+    "max_delta_progressing_nat": 50 // Max port distance to classify NAT as progressing
+  },
+  "app": {
+    "random_nat_required": false, // If true, only random nat connected devices can collect samples
+    "traversal_feature_enabled": true, // If true, traversal button is visible
+    "max_log_lines": 400, // Maximum history in log
+    "use_debug_collect_config": false // If true, the debug config hardcoded in the app is used
+  }
+}
 ```
 
 ### Server Config
@@ -37,13 +51,13 @@ set(APP_VERSION "v0.0.2") # Version of the app
 * Copy the following settings and modify it if necessary
 
 ```
-{
-	"udp_starting_port" : 10000,
-	"udp_amount_services" : 1000,
-	"tcp_session_server_port" : 9999,
-	"mongo_server_url": "mongodb://<user>:<password>@<server_ip_address>/?authSource=<db name>",
-	"mongo_app_name": "<mongo app name>"
-}
+{	
+   "udp_starting_port" : 10000, // Start port of udp echo service
+   "udp_amount_services" : 20,  // Number of udp echo services (ports allocated in sequence)
+   "tcp_session_server_port" : 9999, // TCP transaction port
+   "mongo_server_url": "mongodb://<username>:<password>@<Server IP>/?authSource=<DB Name>", // Mongo server url
+   "mongo_app_name": "DataCollectorServer"  // Name of mongo app
+} 
 ```
 
 

@@ -10,7 +10,6 @@
 
 inline static std::mutex mongoWriteMutex{};
 
-
 static Error WriteFileToDatabase(const std::string& data, const std::string& db_name, const std::string& coll_name)
 {
 	// Data races are possible when same user writes to same document/collection
@@ -40,22 +39,22 @@ struct ServerHandler<shared::Transaction::SERVER_INSERT_MONGO>
 		}
 		// Update score
 		ClientID dummy{ android_id, "", false, 0 };
-		const nlohmann::json dummy_json = DataPackage::Create(&dummy, Transaction::NO_TRANSACTION).data;
 
 		// Mongo Update Parameter
 		nlohmann::json query;
-		query["android_id"] = android_id;
+		query["android_id"] = dummy.android_id;
 		nlohmann::json update;
 		// only update the specific fields
-		update["$setOnInsert"] = { {"username", ""},{"show_score", false}, {"uploaded_samples",0} };
-		update["$set"] = {{"android_id", android_id} };
+		update["$setOnInsert"] = { 
+			{"username", dummy.username},
+			{"show_score", dummy.show_score}
+		};
+		update["$set"]["android_id"] = dummy.android_id;
 		update["$inc"]["uploaded_samples"] = 1;
 		nlohmann::json update_options;
 		update_options["upsert"] = true;
-		// Update Users accordingly
 
 		{
-			//helper::ScopeTimer sc{ "Update user info" };
 			std::scoped_lock lock{ mongoWriteMutex };
 			if (Error update_err = mongoUtils::UpdateElementInCollection(query.dump(), update.dump(), update_options.dump(), db_name, users_coll_name))
 			{
@@ -203,7 +202,7 @@ struct ServerHandler<shared::Transaction::SERVER_GET_SCORES>
 			.Get<std::string>(MetaDataField::USERS_COLL_NAME);
 
 		if (meta_data.error) return DataPackage::Create(meta_data.error);
-		auto const [client_id, db_name, users_coll_name, android_id] = meta_data.values;
+		auto const [client_id, db_name, users_coll_name] = meta_data.values;
 
 		// Mongo Update Parameter
 		nlohmann::json query;

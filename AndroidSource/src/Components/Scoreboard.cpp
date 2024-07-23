@@ -30,18 +30,17 @@
  {
 	 UserData& user_data = app->_components.Get<UserData>();
 	 NatCollectorModel& model = app->_components.Get<NatCollectorModel>();
+	 const auto app_conf = model.GetAppConfig();
 	 Error err;
 	 switch (pkg.transaction)
 	 {
 	 case Transaction::CLIENT_CONNECTED:
 	 {
-		 using namespace GlobServerConst;
 		 // Create client id
 		 ClientID client_id{ model.GetClientMetaData().android_id, user_data.info.username, user_data.info.show_score, 0 };
 		 DataPackage pkg = DataPackage::Create(&client_id, Transaction::SERVER_GET_SCORES)
-			 .Add<std::string>(MetaDataField::DB_NAME, Mongo::db_name)
-			 .Add<std::string>(MetaDataField::USERS_COLL_NAME, Mongo::coll_users_name)
-			 .Add<std::string>(MetaDataField::ANDROID_ID, model.GetClientMetaData().android_id);
+			 .Add<std::string>(MetaDataField::DB_NAME, app_conf.mongo.db_name)
+			 .Add<std::string>(MetaDataField::USERS_COLL_NAME, app_conf.mongo.coll_users_name);
 		 client.ServerTransactionAsync(pkg);
 		 break;
 	 }
@@ -60,6 +59,7 @@
 
  void Scoreboard::RequestScores(Application* app)
 {
+	 const auto app_conf = app->_components.Get<NatCollectorModel>().GetAppConfig();
 	 if (client.IsRunning())
 	 {
 		 Log::Warning("Scoreboard is already requested. Wait until request finishes");
@@ -79,7 +79,7 @@
 	 else
 	 {
 		 user_data.WriteToDisc();
-		 client.ConnectAsync(GlobServerConst::server_address, GlobServerConst::server_transaction_port);
+		 client.ConnectAsync(app_conf.server_address, app_conf.server_transaction_port);
 	 }
  }
 

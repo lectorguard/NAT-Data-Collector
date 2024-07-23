@@ -176,7 +176,7 @@ private:
 	{
 		AsyncQueue write_queue;
 		AsyncQueue read_queue;
-		std::string_view server_addr;
+		std::string server_addr;
 		uint16_t server_port;
 		ShutdownSignal shutdown;
 	};
@@ -186,7 +186,7 @@ private:
 	[[nodiscard]]
 	Error prepare_http_task_async(const std::function<shared::DataPackage()>& cb);
 
-	static Error connect_internal(TraversalInfo const& info);
+	static Error connect_internal(const TraversalInfo& info);
 	static Error execute_task_async(const std::function<shared::DataPackage()>& cb, AsyncQueue read_queue);
 	static void async_read_msg_length(TraversalInfo const& info, asio::ip::tcp::socket& s);
 

@@ -2,6 +2,7 @@
 #include "Components/UDPCollectTask.h"
 #include "Components/NatClassifier.h"
 #include "Components/NatTraverserClient.h"
+#include "Components/Config.h"
 
 class Application;
 
@@ -21,7 +22,7 @@ class GlobCollectSamples
 public:
 
 	void Activate(Application* app);
-	void StartGlobState();
+	void StartGlobState(Application* app);
 	void UpdateGlobState(Application* app);
 	void OnFrameTime(Application* app, uint64_t frameTimeMS);
 	void EndGlobState();
@@ -37,7 +38,7 @@ private:
 	std::string _readable_time_stamp;
 	MultiAddressVector _analyze_collect_ports;
 
-	std::vector<UDPCollectTask::Stage> CreateCollectStages(const shared::CollectingConfig& config);
+	std::vector<UDPCollectTask::Stage> CreateCollectStages(const Config::Data& app_conf, const shared::CollectingConfig& coll_conf);
 	NatTraverserClient _client{};
 	uint32_t _config_index;
 	shared::CollectingConfig _config;

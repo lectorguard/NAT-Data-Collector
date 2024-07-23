@@ -5,6 +5,7 @@
 #include "Components/ConnectionReader.h"
 #include "Data/IPMetaData.h"
 #include "Data/Traversal.h"
+#include "Components/Config.h"
 
 
 enum class NatCollectorGlobalState : uint8_t
@@ -59,9 +60,11 @@ public:
 	NatCollectorGlobalState GetCurrentGlobState() const { return current_global_state; }
 	bool TrySwitchGlobState();
 	const shared::ClientMetaData GetClientMetaData() const { return client_meta_data; }
+	const Config::Data GetAppConfig() const { return app_config; }
 	void SetClientMetaData(shared::IPMetaData val);
 	void SetClientNATType(shared::NATType val) { client_meta_data.nat_type = val; };
 	void SetClientAndroidId(const std::string& id) { client_meta_data.android_id = id; };
+	void SetAppConfig(const Config::Data& data) { app_config = data; }
 
 	// DarkMode
 	void SubscribeDarkModeEvent(const std::function<void(Application*)>& cb) { FlipDarkModeEvent.Subscribe(cb); };
@@ -112,6 +115,8 @@ private:
 	GlobEv<Event<NatCollectorGlobalState>> EndGlobEvent;
 	Event<NatCollectorGlobalState> OnNextGlobalStateChanged;
 	shared::ClientMetaData client_meta_data{};
+	Config::Data app_config{};
+
 
 	//Dark Mode
 	Event<Application*> FlipDarkModeEvent;

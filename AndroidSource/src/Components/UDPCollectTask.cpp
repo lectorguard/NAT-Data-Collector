@@ -178,7 +178,7 @@ void UDPCollectTask::PrepareStage(const uint16_t& stage_index, asio::io_service&
 
 	if (!stage.close_socket_early)
 	{
-		_global_deadline.expires_from_now(std::chrono::milliseconds(stage.sample_size * stage.sample_rate_ms + GlobServerConst::global_socket_timeout_ms));
+		_global_deadline.expires_from_now(std::chrono::milliseconds(stage.sample_size * stage.sample_rate_ms + SOCKET_TIMEOUT_MS));
 		_global_deadline.async_wait([this, stage_index, &io_service](auto error)
 			{
 				if (error != asio::error::operation_aborted)
@@ -399,7 +399,7 @@ void UDPCollectTask::handle_receive(Socket& local_socket, std::shared_ptr<Addres
 asio::system_timer UDPCollectTask::CreateDeadline(asio::io_service& service, uint32_t min_duration, const std::function<void(asio::io_service&)>& action)
 {
 	auto timer = asio::system_timer(service);
-	timer.expires_from_now(std::chrono::milliseconds(min_duration + GlobServerConst::global_socket_timeout_ms));
+	timer.expires_from_now(std::chrono::milliseconds(min_duration + SOCKET_TIMEOUT_MS));
 	timer.async_wait(
 		[&service, action](auto error) 
 		{

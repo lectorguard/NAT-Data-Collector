@@ -23,3 +23,4 @@ unix_build
 android.config
 server_template_config.json
 BuildScripts/*.txt
+AndroidPackaging/app/src/main/assets/config.json

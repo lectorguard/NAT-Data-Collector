@@ -8,16 +8,27 @@ echo    "mongo_server_url": "mongodb://<user>:<password>@<server_ip_address>/?au
 echo    "mongo_app_name": "<mongo app name>" >> ..\server_template_config.json
 echo } >> ..\server_template_config.json
 REM Android Config
-echo cmake_minimum_required(VERSION 3.20) > ..\android.config
-echo. >> ..\android.config
-echo set(SERVER_IP "192.168.18.10") # your server ip address	>> ..\android.config
-echo set(SERVER_TRANSACTION_TCP_PORT 9999) # server port to perform transactions (TCP) >> ..\android.config
-echo set(SERVER_ECHO_UDP_START_PORT 10000) # first server echo service runs on this port >> ..\android.config
-echo set(SERVER_ECHO_UDP_SERVICES 1000) # amount of echo services supported by server >> ..\android.config
-echo set(MONGO_DB_NAME "NatInfo") # Mongo db name, where collected NAT Samples will be stored >> ..\android.config
-echo set(MONGO_NAT_USERS_COLL_NAME "users") # Mongo collection name, where app user information are stored >> ..\android.config
-echo set(MONGO_VERSION_COLL_NAME "VersionUpdate") # Mongo collection name, where new version pop up information are stored >> ..\android.config
-echo set(MONGO_INFORMATION_COLL_NAME "InformationUpdate") # Mongo collection name, where general information for popups are stored >> ..\android.config
-echo set(MONGO_COLL_CONFIG_NAME "CollectConfig") # Name of mongo collection, where nat collect config is stored >> ..\android.config
-echo set(APP_VERSION "v0.0.2") # Version of the app >> ..\android.config
+echo { > ..\AndroidPackaging\app\src\main\assets\config.json
+echo   "server_address": "192.168.2.109", >> ..\AndroidPackaging\app\src\main\assets\config.json
+echo   "server_transaction_port": 9999,  >> ..\AndroidPackaging\app\src\main\assets\config.json
+echo   "server_echo_start_port": 10000,  >> ..\AndroidPackaging\app\src\main\assets\config.json
+echo   "server_echo_port_size": 1000,  >> ..\AndroidPackaging\app\src\main\assets\config.json
+echo   "mongo": {  >> ..\AndroidPackaging\app\src\main\assets\config.json
+echo     "db_name": "NatInfo", >> ..\AndroidPackaging\app\src\main\assets\config.json
+echo     "coll_version_name": "VersionUpdate", >> ..\AndroidPackaging\app\src\main\assets\config.json
+echo     "coll_information_name": "InformationUpdate", >> ..\AndroidPackaging\app\src\main\assets\config.json
+echo     "coll_users_name": "testUsers", >> ..\AndroidPackaging\app\src\main\assets\config.json
+echo     "coll_collect_config": "CollectConfig" >> ..\AndroidPackaging\app\src\main\assets\config.json
+echo   }, >> ..\AndroidPackaging\app\src\main\assets\config.json
+echo   "nat_ident": { >> ..\AndroidPackaging\app\src\main\assets\config.json
+echo     "sample_size": 5, >> ..\AndroidPackaging\app\src\main\assets\config.json
+echo     "max_delta_progressing_nat": 50 >> ..\AndroidPackaging\app\src\main\assets\config.json
+echo   }, >> ..\AndroidPackaging\app\src\main\assets\config.json
+echo   "app": { >> ..\AndroidPackaging\app\src\main\assets\config.json
+echo     "random_nat_required": false, >> ..\AndroidPackaging\app\src\main\assets\config.json
+echo     "traversal_feature_enabled": true, >> ..\AndroidPackaging\app\src\main\assets\config.json
+echo     "max_log_lines": 410, >> ..\AndroidPackaging\app\src\main\assets\config.json
+echo     "use_debug_collect_config": false >> ..\AndroidPackaging\app\src\main\assets\config.json
+echo   } >> ..\AndroidPackaging\app\src\main\assets\config.json
+echo } >> ..\AndroidPackaging\app\src\main\assets\config.json
 

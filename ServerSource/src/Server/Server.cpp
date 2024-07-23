@@ -117,6 +117,10 @@ void Server::do_accept()
 				_sessions[hash] = sess;
 				sess->start();
 			}
+			else
+			{
+				std::cout << "Failed Accept : " << ec.message() << std::endl;
+			}
 			do_accept();
 		});
 }
