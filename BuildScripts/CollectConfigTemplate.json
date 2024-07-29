@@ -1,9 +1,12 @@
 db.CollectConfig.replaceOne({},{
-    "coll_name":"coll_trash",
+    "coll_name":"f1",
     "delay_collection_steps_ms":180000,
     "stages":[
         {"configs":
             [
+            {"close_sockets_early":true,"local_port":0,"start_echo_service":10000,"num_echo_services":1000,"sample_rate_ms":0,"sample_size":10000,"use_shutdown_condition":true},
+            {"close_sockets_early":true,"local_port":0,"start_echo_service":10000,"num_echo_services":1000,"sample_rate_ms":0,"sample_size":10000,"use_shutdown_condition":true},
+            {"close_sockets_early":true,"local_port":0,"start_echo_service":10000,"num_echo_services":1000,"sample_rate_ms":0,"sample_size":10000,"use_shutdown_condition":true},
             {"close_sockets_early":true,"local_port":0,"start_echo_service":10000,"num_echo_services":1000,"sample_rate_ms":0,"sample_size":10000,"use_shutdown_condition":true},
             {"close_sockets_early":true,"local_port":0,"start_echo_service":10000,"num_echo_services":1000,"sample_rate_ms":0,"sample_size":10000,"use_shutdown_condition":true},
             {"close_sockets_early":true,"local_port":0,"start_echo_service":10000,"num_echo_services":1000,"sample_rate_ms":0,"sample_size":10000,"use_shutdown_condition":true},
@@ -15,25 +18,31 @@ db.CollectConfig.replaceOne({},{
         },  
         {"configs":
             [
-            {"close_sockets_early":true,"local_port":0,"start_echo_service":10000,"num_echo_services":1000,"sample_rate_ms":10,"sample_size":10000,"use_shutdown_condition":true},
-            {"close_sockets_early":true,"local_port":0,"start_echo_service":10000,"num_echo_services":1000,"sample_rate_ms":10,"sample_size":10000,"use_shutdown_condition":true},
-            {"close_sockets_early":true,"local_port":0,"start_echo_service":10000,"num_echo_services":1000,"sample_rate_ms":10,"sample_size":10000,"use_shutdown_condition":true},
-            {"close_sockets_early":true,"local_port":0,"start_echo_service":10000,"num_echo_services":1000,"sample_rate_ms":10,"sample_size":10000,"use_shutdown_condition":true},
-            {"close_sockets_early":true,"local_port":0,"start_echo_service":10000,"num_echo_services":1000,"sample_rate_ms":10,"sample_size":10000,"use_shutdown_condition":true},
-            {"close_sockets_early":true,"local_port":0,"start_echo_service":10000,"num_echo_services":1000,"sample_rate_ms":10,"sample_size":10000,"use_shutdown_condition":true},
-            {"close_sockets_early":true,"local_port":0,"start_echo_service":10000,"num_echo_services":1000,"sample_rate_ms":10,"sample_size":10000,"use_shutdown_condition":true} 
+            {"close_sockets_early":true,"local_port":0,"start_echo_service":10000,"num_echo_services":1000,"sample_rate_ms":10,"sample_size":18000,"use_shutdown_condition":true},
+            {"close_sockets_early":true,"local_port":0,"start_echo_service":10000,"num_echo_services":1000,"sample_rate_ms":10,"sample_size":18000,"use_shutdown_condition":true},
+            {"close_sockets_early":true,"local_port":0,"start_echo_service":10000,"num_echo_services":1000,"sample_rate_ms":10,"sample_size":18000,"use_shutdown_condition":true},
+            {"close_sockets_early":true,"local_port":0,"start_echo_service":10000,"num_echo_services":1000,"sample_rate_ms":10,"sample_size":18000,"use_shutdown_condition":true},
+            {"close_sockets_early":true,"local_port":0,"start_echo_service":10000,"num_echo_services":1000,"sample_rate_ms":10,"sample_size":18000,"use_shutdown_condition":true},
+            {"close_sockets_early":true,"local_port":0,"start_echo_service":10000,"num_echo_services":1000,"sample_rate_ms":10,"sample_size":18000,"use_shutdown_condition":true},
+            {"close_sockets_early":true,"local_port":0,"start_echo_service":10000,"num_echo_services":1000,"sample_rate_ms":10,"sample_size":18000,"use_shutdown_condition":true}, 
+            {"close_sockets_early":true,"local_port":0,"start_echo_service":10000,"num_echo_services":1000,"sample_rate_ms":10,"sample_size":18000,"use_shutdown_condition":true}, 
+            {"close_sockets_early":true,"local_port":0,"start_echo_service":10000,"num_echo_services":1000,"sample_rate_ms":10,"sample_size":18000,"use_shutdown_condition":true}, 
+            {"close_sockets_early":true,"local_port":0,"start_echo_service":10000,"num_echo_services":1000,"sample_rate_ms":10,"sample_size":18000,"use_shutdown_condition":true} 
             ]
         }
         ,
         {"configs":
             [
-            {"close_sockets_early":false,"local_port":0,"start_echo_service":10007,"num_echo_services":1,"sample_rate_ms":0,"sample_size":10000,"use_shutdown_condition":false},
-            {"close_sockets_early":false,"local_port":0,"start_echo_service":10007,"num_echo_services":1,"sample_rate_ms":3,"sample_size":10000,"use_shutdown_condition":false},
-            {"close_sockets_early":false,"local_port":0,"start_echo_service":10007,"num_echo_services":1,"sample_rate_ms":6,"sample_size":10000,"use_shutdown_condition":false},
-            {"close_sockets_early":false,"local_port":0,"start_echo_service":10007,"num_echo_services":1,"sample_rate_ms":9,"sample_size":10000,"use_shutdown_condition":false},
-            {"close_sockets_early":false,"local_port":0,"start_echo_service":10007,"num_echo_services":1,"sample_rate_ms":12,"sample_size":10000,"use_shutdown_condition":false},
-            {"close_sockets_early":false,"local_port":0,"start_echo_service":10007,"num_echo_services":1,"sample_rate_ms":15,"sample_size":10000,"use_shutdown_condition":false},
-            {"close_sockets_early":false,"local_port":0,"start_echo_service":10007,"num_echo_services":1,"sample_rate_ms":18,"sample_size":10000,"use_shutdown_condition":false}
+            {"close_sockets_early":false,"local_port":0,"start_echo_service":10000,"num_echo_services":1,"sample_rate_ms":0,"sample_size":10000,"use_shutdown_condition":false},
+            {"close_sockets_early":false,"local_port":0,"start_echo_service":10000,"num_echo_services":1,"sample_rate_ms":3,"sample_size":10000,"use_shutdown_condition":false},
+            {"close_sockets_early":false,"local_port":0,"start_echo_service":10000,"num_echo_services":1,"sample_rate_ms":6,"sample_size":10000,"use_shutdown_condition":false},
+            {"close_sockets_early":false,"local_port":0,"start_echo_service":10000,"num_echo_services":1,"sample_rate_ms":9,"sample_size":10000,"use_shutdown_condition":false},
+            {"close_sockets_early":false,"local_port":0,"start_echo_service":10000,"num_echo_services":1,"sample_rate_ms":12,"sample_size":10000,"use_shutdown_condition":false},
+            {"close_sockets_early":false,"local_port":0,"start_echo_service":10000,"num_echo_services":1,"sample_rate_ms":15,"sample_size":10000,"use_shutdown_condition":false},
+            {"close_sockets_early":false,"local_port":0,"start_echo_service":10000,"num_echo_services":1,"sample_rate_ms":18,"sample_size":10000,"use_shutdown_condition":false},
+            {"close_sockets_early":false,"local_port":0,"start_echo_service":10000,"num_echo_services":1,"sample_rate_ms":21,"sample_size":10000,"use_shutdown_condition":false},
+            {"close_sockets_early":false,"local_port":0,"start_echo_service":10000,"num_echo_services":1,"sample_rate_ms":24,"sample_size":10000,"use_shutdown_condition":false},
+            {"close_sockets_early":false,"local_port":0,"start_echo_service":10000,"num_echo_services":1,"sample_rate_ms":27,"sample_size":10000,"use_shutdown_condition":false}
             ]
         }
         ]}, {upsert : true})
