@@ -3,6 +3,7 @@ cmake -G "Visual Studio 17 2022" -A ARM -B ../bin/Android ^
 	-DCMAKE_SYSTEM_VERSION=24	^
 	-DCMAKE_ANDROID_ARCH_ABI=armeabi-v7a  ^
 	-DCMAKE_ANDROID_NDK=C:/Microsoft/AndroidNDK/android-ndk-r23c ^
+	"-DCMAKE_VS_GLOBALS=UseMultiToolTask=true;EnforceProcessCountAcrossBuilds=true" ^
 	-DCMAKE_ANDROID_STL_TYPE=c++_static ..
 
 devenv ..\bin\Android\AndroidNativeActivity.sln ^
