@@ -22,7 +22,7 @@ UDPCollectTask::UDPCollectTask(const std::vector<Stage>& info, std::shared_ptr<s
 	_shutdown_flag(shutdown_flag),
 	_start_time_task(std::chrono::system_clock::now())
 {
-	_result.stages = std::vector<AddressVector>(info.size(), AddressVector());
+	_result.stages = std::vector<CollectVector>(info.size(), CollectVector());
 	PrepareStage(0, io_service);
 }
 
@@ -85,7 +85,7 @@ void UDPCollectTask::PrepareStage(const uint16_t& stage_index, asio::io_service&
 		return;
 	}
 
-	Stage stage = _stages[stage_index];
+	Stage& stage = _stages[stage_index];
 	if (stage.start_stage_cb)
 	{
 		stage.start_stage_cb(stage, *this, stage_index);
@@ -106,6 +106,9 @@ void UDPCollectTask::PrepareStage(const uint16_t& stage_index, asio::io_service&
 	Log::Info("Request Delta Time :  %d ms", stage.sample_rate_ms);
 	Log::Info("Close sockets early:  %s", stage.close_socket_early ? "true" : "false");
 	Log::Info("Has shutdown cond. :  %s", stage.cond ? "true" : "false");
+
+	// Override the sample rate in case it was dynamically calculated
+	_result.stages[stage_index].sampling_rate_ms = stage.sample_rate_ms;
 
 	const uint16_t sockets_in_stage = stage.sample_size % stage.echo_server_num_services == 0 ? 
 		stage.sample_size / stage.echo_server_num_services :
@@ -248,7 +251,7 @@ DataPackage UDPCollectTask::start_task_internal(std::function<UDPCollectTask(asi
 		// sort all the stages
 		for (auto& stage : collectTask._result.stages)
 		{
-			auto& address_vector = stage.address_vector;
+			auto& address_vector = stage.data;
 			std::sort(address_vector.begin(), address_vector.end(), [](auto l, auto r) {return l.index < r.index; });
 		}
 		return DataPackage::Create(&collectTask._result, Transaction::CLIENT_RECEIVE_COLLECTED_PORTS);
@@ -374,7 +377,7 @@ void UDPCollectTask::handle_receive(Socket& local_socket, std::shared_ptr<Addres
 	}
 	address.rtt_ms = (uint16_t)std::abs((int32_t)shared::helper::CreateTimeStampOnlyMS() - (int32_t)address.rtt_ms);
 
-	_result.stages[local_socket.stage_index].address_vector.push_back(address);
+	_result.stages[local_socket.stage_index].data.push_back(address);
 	const Stage stage = _stages[local_socket.stage_index];
 	// Check shutdown condition
 	if (stage.cond)
@@ -387,7 +390,7 @@ void UDPCollectTask::handle_receive(Socket& local_socket, std::shared_ptr<Addres
 		}
 	}
 	// Check if we received all ports in stage
-	const uint32_t received_addresses = _result.stages[local_socket.stage_index].address_vector.size();
+	const uint32_t received_addresses = _result.stages[local_socket.stage_index].data.size();
 	if (received_addresses >= stage.sample_size)
 	{
 		Log::Info("Stage %d : Received all %d addresses in stage. Start next stage.", local_socket.stage_index, received_addresses);

@@ -40,15 +40,15 @@ shared::DataPackage NatClassifier::ClassifyNAT(const std::vector<UDPCollectTask:
 	std::vector<shared::NATType> identified_nat_types;
 	for (auto stage : rcvd.stages)
 	{
-		if (stage.address_vector.size() >= 2)
+		if (stage.data.size() >= 2)
 		{
-			identified_nat_types.push_back(IdentifyNatType(stage.address_vector[0], stage.address_vector[1]));
+			identified_nat_types.push_back(IdentifyNatType(stage.data[0], stage.data[1]));
 			all_errors.Add({ ErrorType::OK,
 			{
 				"-- Collected NAT Sample --",
-				"Address : " + stage.address_vector[0].ip_address,
-				"Port 1  : " + std::to_string(stage.address_vector[0].port),
-				"Port 2  : " + std::to_string(stage.address_vector[1].port)
+				"Address : " + stage.data[0].ip_address,
+				"Port 1  : " + std::to_string(stage.data[0].port),
+				"Port 2  : " + std::to_string(stage.data[1].port)
 			}
 				});
 		}

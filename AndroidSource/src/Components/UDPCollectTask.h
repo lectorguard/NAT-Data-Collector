@@ -72,7 +72,7 @@ private:
 	std::vector<std::shared_ptr<asio::system_timer>> _deadline_vector;
 	asio::system_timer _global_deadline;
 	
-	const std::vector<Stage> _stages;
+	std::vector<Stage> _stages;
 	std::vector<Socket> _socket_list;
 	
 	PhysicalDeviceError _system_error_state = PhysicalDeviceError::NO_ERROR;

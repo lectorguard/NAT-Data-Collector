@@ -70,9 +70,9 @@ std::vector<UDPCollectTask::Stage> GlobCollectSamples::CreateCollectStages(const
 		{
 			auto result = task.GetCurrentResult();
 			uint32_t received_addresses = std::accumulate(result.stages.begin(), result.stages.end(), 0u,
-				[](uint32_t result, const AddressVector& a)
+				[](uint32_t result, const CollectVector& a)
 				{
-					return result + a.address_vector.size();
+					return result + a.data.size();
 				});
 			const auto now = std::chrono::system_clock::now();
 			const auto start = task.GetTaskStartTime();
@@ -239,16 +239,10 @@ void GlobCollectSamples::OnTransactionEvent(DataPackage pkg, Application* app)
 		Log::Info("%s Received Collect Data", shared::helper::CreateTimeStampNow().c_str());
 		for (size_t i = 0; i < _analyze_collect_ports.stages.size(); ++i)
 		{
-			Log::Info("Received %d remote address samples in stage %d", _analyze_collect_ports.stages[i].address_vector.size(), i);
+			Log::Info("Received %d remote address samples in stage %d", _analyze_collect_ports.stages[i].data.size(), i);
 		}
-		std::vector<CollectVector> coll_data;
-		std::transform(_analyze_collect_ports.stages.begin(), _analyze_collect_ports.stages.end(), std::back_inserter(coll_data),
-			[this, i = 0u](auto elem) mutable
-			{
-				return CollectVector(elem.address_vector, _config.stages[i++].configs[_config_index].sample_rate_ms);
-			});
 		NATSample sampleToInsert{ model.GetClientMetaData(), _readable_time_stamp,
-					  connect_type,coll_data, _config.delay_collection_steps_ms };
+					  connect_type,_analyze_collect_ports.stages, _config.delay_collection_steps_ms };
 		err = _client.UploadToMongoDBAsync(&sampleToInsert,
 			app_conf.mongo.db_name,
 			_config.coll_name,

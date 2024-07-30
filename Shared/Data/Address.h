@@ -30,37 +30,11 @@ namespace shared
 	};
 
 
-	struct AddressVector : public jser::JSerializable
-	{
-		std::vector<Address> address_vector;
-		AddressVector() {};
-		AddressVector(const std::vector<Address>& address_vector) : address_vector(address_vector)
-		{}
-
-		jser::JserChunkAppender AddItem() override
-		{
-			return JSerializable::AddItem().Append(JSER_ADD(SerializeManagerType, address_vector));
-		}
-	};
-
-	struct MultiAddressVector : public jser::JSerializable
-	{
-		std::vector<AddressVector> stages{};
-		MultiAddressVector() {};
-		MultiAddressVector(const std::vector<AddressVector>& stages) : stages(stages)
-		{}
-
-		jser::JserChunkAppender AddItem() override
-		{
-			return JSerializable::AddItem().Append(JSER_ADD(SerializeManagerType, stages));
-		}
-	};
-
 	struct CollectVector : public jser::JSerializable
 	{
 		std::vector<Address> data{};
 		uint16_t sampling_rate_ms{};
-		
+
 		CollectVector() {};
 		CollectVector(const std::vector<Address>& data, uint16_t sampling_rate_ms) :
 			data(data),
@@ -72,6 +46,21 @@ namespace shared
 			return JSerializable::AddItem().Append(JSER_ADD(SerializeManagerType, data, sampling_rate_ms));
 		}
 	};
+
+	struct MultiAddressVector : public jser::JSerializable
+	{
+		std::vector<CollectVector> stages{};
+		MultiAddressVector() {};
+		MultiAddressVector(const std::vector<CollectVector>& stages) : stages(stages)
+		{}
+
+		jser::JserChunkAppender AddItem() override
+		{
+			return JSerializable::AddItem().Append(JSER_ADD(SerializeManagerType, stages));
+		}
+	};
+
+
 
 
 	struct NATSample : public jser::JSerializable

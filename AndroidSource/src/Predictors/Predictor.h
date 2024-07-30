@@ -36,9 +36,9 @@ struct AnalyzerDynamic
 		shared::MultiAddressVector av;
 		if (auto err = pkg.Get(av)) return std::nullopt;
 
-		if (av.stages.size() > 0 && av.stages[0].address_vector.size() > 0)
+		if (av.stages.size() > 0 && av.stages[0].data.size() > 0)
 		{
-			auto& vec = av.stages[0].address_vector;
+			auto& vec = av.stages[0].data;
 			auto first_n = std::clamp((const uint16_t)vec.size(), (const uint16_t)0, config.first_n_predict);
 			return std::vector<Address>(vec.begin(), vec.begin() + first_n);
 		}
@@ -66,7 +66,7 @@ struct AnalyzerConeNAT
 
 		if (av.stages.size() == 1)
 		{
-			return av.stages[0].address_vector;
+			return av.stages[0].data;
 		}
 		return std::nullopt;
 	};
