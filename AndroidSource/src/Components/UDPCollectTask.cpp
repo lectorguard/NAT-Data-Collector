@@ -13,34 +13,14 @@
 
  shared::DataPackage UDPCollectTask::StartCollectTask(const std::vector<Stage>& collect_info, std::shared_ptr<std::atomic<bool>> shutdown_flag)
  {
-	 std::vector<Stage> copy;
-	 for (const Stage& st : collect_info)
-	 {
-		 Stage temp = st;
-		 if (st.sample_rate_ms == 0u || st.close_socket_early == false)
-		 {
-			 auto err = utilities::ClampIfNotEnoughFiles(temp.sample_size, temp.echo_server_num_services);
-			 Log::HandleResponse(err, "Socket Usage Exceeds File Descriptors");
-		 }
-		 copy.push_back(temp);
-
-		 Log::Info("--- Collect Task Stage %d ---", copy.size());
-		 Log::Info("Server Address     :  %s", temp.echo_server_addr.c_str());
-		 Log::Info("First service port :  %d", temp.echo_server_start_port);
-		 Log::Info("Number of services :  %d", temp.echo_server_num_services);
-		 Log::Info("Local Port         :  %d", temp.local_port);
-		 Log::Info("Amount of Ports    :  %d", temp.sample_size);
-		 Log::Info("Request Delta Time :  %d ms", temp.sample_rate_ms);
-		 Log::Info("Close sockets early:  %s", temp.close_socket_early ? "true" : "false");
-		 Log::Info("Has shutdown cond. :  %s", temp.cond ? "true" : "false");
-	 }
-	 return start_task_internal([&copy, shutdown_flag](asio::io_service& io) { return UDPCollectTask(copy,shutdown_flag, io); });
+	 return start_task_internal([collect_info, shutdown_flag](asio::io_service& io) { return UDPCollectTask(collect_info,shutdown_flag, io); });
  }
 
 UDPCollectTask::UDPCollectTask(const std::vector<Stage>& info, std::shared_ptr<std::atomic<bool>> shutdown_flag, asio::io_service& io_service) :
 	_global_deadline(asio::system_timer(io_service)),
 	_stages(info),
-	_shutdown_flag(shutdown_flag)
+	_shutdown_flag(shutdown_flag),
+	_start_time_task(std::chrono::system_clock::now())
 {
 	_result.stages = std::vector<AddressVector>(info.size(), AddressVector());
 	PrepareStage(0, io_service);
@@ -105,7 +85,27 @@ void UDPCollectTask::PrepareStage(const uint16_t& stage_index, asio::io_service&
 		return;
 	}
 
-	const Stage& stage = _stages[stage_index];
+	Stage stage = _stages[stage_index];
+	if (stage.start_stage_cb)
+	{
+		stage.start_stage_cb(stage, *this, stage_index);
+	}
+
+	if (stage.sample_rate_ms == 0u || stage.close_socket_early == false)
+	{
+		auto err = utilities::ClampIfNotEnoughFiles(stage.sample_size, stage.echo_server_num_services);
+		Log::HandleResponse(err, "Socket Usage Exceeds File Descriptors");
+	}
+
+	Log::Info("--- Collect Task Stage %d ---", stage_index);
+	Log::Info("Server Address     :  %s", stage.echo_server_addr.c_str());
+	Log::Info("First service port :  %d", stage.echo_server_start_port);
+	Log::Info("Number of services :  %d", stage.echo_server_num_services);
+	Log::Info("Local Port         :  %d", stage.local_port);
+	Log::Info("Amount of Ports    :  %d", stage.sample_size);
+	Log::Info("Request Delta Time :  %d ms", stage.sample_rate_ms);
+	Log::Info("Close sockets early:  %s", stage.close_socket_early ? "true" : "false");
+	Log::Info("Has shutdown cond. :  %s", stage.cond ? "true" : "false");
 
 	const uint16_t sockets_in_stage = stage.sample_size % stage.echo_server_num_services == 0 ? 
 		stage.sample_size / stage.echo_server_num_services :

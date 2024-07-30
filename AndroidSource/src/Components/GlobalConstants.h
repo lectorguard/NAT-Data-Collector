@@ -32,14 +32,25 @@ namespace CollectConfig
 		{10'000, 18, 10'000, 1, 0, false, false},
 	} };
 
+	inline const shared::CollectingConfig::DynamicStage dynTraverse
+	{
+		/*k_multiple*/ 3,
+		/*max_sockets*/ 10'000,
+		/*start_echo_service*/ 10'000,
+		/*num_echo_services*/ 1,
+		/*local_port*/ 0,
+		/*close_sockets_early*/ false,
+		/*use_shutdown_condition*/ false
+	};
+
 	inline const shared::CollectingConfig config(
 		"coll_trash",
 		180'000u,
 		{
 			candidates,
-			intersect,
-			traverse
-		}
+			intersect
+		}, 
+		{ dynTraverse }
 	);
 }
 

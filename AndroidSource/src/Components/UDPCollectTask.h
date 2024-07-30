@@ -10,6 +10,8 @@ class UDPCollectTask
 public:
 	struct Stage
 	{
+		using StartFunc = std::function<void(Stage&, const UDPCollectTask&, uint16_t)>;
+
 		// Server address
 		std::string echo_server_addr{};
 		// First port with echo service
@@ -27,6 +29,8 @@ public:
 		bool close_socket_early = true;
 		// if condition function returns true, stage is stopped, next stage is initiated
 		ShutdownCondition cond = nullptr;
+		// This func can be used to dynamically update the stage just before execution
+		StartFunc start_stage_cb = nullptr;
 	};
 
 	static DataPackage StartCollectTask(const std::vector<Stage>& collect_info, std::shared_ptr<std::atomic<bool>> shutdown_flag);
@@ -34,6 +38,10 @@ public:
 	// Normal Collect Task
 	UDPCollectTask(const std::vector<Stage>& info, std::shared_ptr<std::atomic<bool>> shutdown_flag, asio::io_service& io_service);
 
+
+	const shared::MultiAddressVector GetCurrentResult() const { return _result; };
+	const std::vector<Stage> GetStages() const { return _stages; };
+	const std::chrono::system_clock::time_point GetTaskStartTime() const { return _start_time_task; };
 private:
 	struct Socket
 	{
@@ -72,4 +80,5 @@ private:
 
 	Error _error{ ErrorType::OK };
 	shared::MultiAddressVector _result{};
+	const std::chrono::system_clock::time_point _start_time_task{};
 };

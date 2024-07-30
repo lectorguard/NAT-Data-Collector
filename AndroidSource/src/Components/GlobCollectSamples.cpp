@@ -63,6 +63,43 @@ std::vector<UDPCollectTask::Stage> GlobCollectSamples::CreateCollectStages(const
 		};
 		stages.push_back(s);
 	}
+
+	for (const auto& stage : coll_conf.added_dynamic_stages)
+	{
+		auto startCB = [stage](UDPCollectTask::Stage& curr, const UDPCollectTask& task, uint16_t stage_index)
+		{
+			auto result = task.GetCurrentResult();
+			uint32_t received_addresses = std::accumulate(result.stages.begin(), result.stages.end(), 0u,
+				[](uint32_t result, const AddressVector& a)
+				{
+					return result + a.address_vector.size();
+				});
+			const auto now = std::chrono::system_clock::now();
+			const auto start = task.GetTaskStartTime();
+			uint32_t task_duration =
+				std::chrono::duration_cast<std::chrono::milliseconds>(now - start).count();
+			Log::Info("Received Addresses : %d", received_addresses);
+			Log::Info("Duration ms : %d", task_duration);
+			const uint16_t sample_rate = task_duration / (float)received_addresses;
+			const uint16_t sample_size = std::clamp(stage.k_multiple * received_addresses, 0u, stage.max_sockets);
+			curr.sample_size = sample_size;
+			curr.sample_rate_ms = sample_rate;
+		};
+
+		const UDPCollectTask::Stage s
+		{
+			/* remote address */				app_conf.server_address,
+			/* start port */					stage.start_echo_service,
+			/* num port services */				stage.num_echo_services,
+			/* local port */					stage.local_port,
+			/* amount of ports */				0,
+			/* time between requests in ms */	0,
+			/* close sockets early */			stage.close_sockets_early,
+			/* shutdown condition */			stage.use_shutdown_condition ? should_shutdown : nullptr,
+			/*start callback*/					startCB
+		};
+		stages.push_back(s);
+	}
 	return stages;
 }
 

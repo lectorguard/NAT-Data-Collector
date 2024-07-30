@@ -101,6 +101,43 @@ namespace shared
 
 	struct CollectingConfig : public jser::JSerializable
 	{
+		struct DynamicStage : public jser::JSerializable
+		{
+			uint16_t k_multiple = 3;
+			uint32_t max_sockets = 10'000;
+			uint16_t start_echo_service = 10'000;
+			uint16_t num_echo_services = 1'000;
+			uint16_t local_port = 0;
+			bool close_sockets_early = true;
+			bool use_shutdown_condition = false;
+
+			DynamicStage() {};
+
+			DynamicStage(uint16_t k_multiple,
+				uint32_t max_sockets,
+				uint16_t start_echo_service,
+				uint16_t num_echo_services,
+				uint16_t local_port,
+				bool close_sockets_early = true,
+				bool use_shutdown_condition = false)
+				: k_multiple(k_multiple),
+				max_sockets(max_sockets),
+				start_echo_service(start_echo_service),
+				num_echo_services(num_echo_services),
+				local_port(local_port),
+				close_sockets_early(close_sockets_early),
+				use_shutdown_condition(use_shutdown_condition)
+			{}
+
+			jser::JserChunkAppender AddItem() override
+			{
+				return JSerializable::AddItem().Append(JSER_ADD(SerializeManagerType, k_multiple,
+					max_sockets, start_echo_service, num_echo_services, local_port,
+					close_sockets_early, use_shutdown_condition));
+			}
+
+		};
+
 		struct StageConfig : public jser::JSerializable
 		{
 			uint16_t sample_size = 10'000;
@@ -152,18 +189,21 @@ namespace shared
 		std::string coll_name = "DifferentTraversalFrequencies";
 		uint32_t delay_collection_steps_ms = 180'000;
 		std::vector<Stage> stages;
+		std::vector<DynamicStage> added_dynamic_stages;
 
 		CollectingConfig() {};
 		CollectingConfig(const std::string& coll_name,
 			uint32_t delay_collection_steps_ms,
-			const std::vector<Stage>& stages) : 
+			const std::vector<Stage>& stages,
+			const std::vector<DynamicStage>& added_dynamic_stages) :
 			coll_name(coll_name),
 			delay_collection_steps_ms(delay_collection_steps_ms),
-			stages(stages)  {};
+			stages(stages),
+			added_dynamic_stages(added_dynamic_stages){};
 
 		jser::JserChunkAppender AddItem() override
 		{
-			return JSerializable::AddItem().Append(JSER_ADD(SerializeManagerType, coll_name, delay_collection_steps_ms, stages));
+			return JSerializable::AddItem().Append(JSER_ADD(SerializeManagerType, coll_name, delay_collection_steps_ms, stages, added_dynamic_stages));
 		}
 	};
 }
