@@ -109,6 +109,6 @@ db.CollectConfig.replaceOne({},{
         ],
 		"added_dynamic_stages":
 		[
-			{"k_multiple":3,"max_sockets":10000,"start_echo_service":10000,"num_echo_services":1,"local_port":0,"close_sockets_early":false,"use_shutdown_condition":false}  
+			{"k_multiple":3,"max_sockets":10000,"max_rate_ms":250,"start_echo_service":10000,"num_echo_services":1,"local_port":0,"close_sockets_early":false,"use_shutdown_condition":false}  
 		]
 }, {upsert : true})

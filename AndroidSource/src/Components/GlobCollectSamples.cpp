@@ -80,7 +80,7 @@ std::vector<UDPCollectTask::Stage> GlobCollectSamples::CreateCollectStages(const
 				std::chrono::duration_cast<std::chrono::milliseconds>(now - start).count();
 			Log::Info("Received Addresses : %d", received_addresses);
 			Log::Info("Duration ms : %d", task_duration);
-			const uint16_t sample_rate = task_duration / (float)received_addresses;
+			const uint16_t sample_rate = std::clamp(task_duration / received_addresses, 0u, stage.max_rate_ms);
 			const uint16_t sample_size = std::clamp(stage.k_multiple * received_addresses, 0u, stage.max_sockets);
 			curr.sample_size = sample_size;
 			curr.sample_rate_ms = sample_rate;

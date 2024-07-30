@@ -36,6 +36,7 @@ namespace CollectConfig
 	{
 		/*k_multiple*/ 3,
 		/*max_sockets*/ 10'000,
+		/*max rate ms*/		35,
 		/*start_echo_service*/ 10'000,
 		/*num_echo_services*/ 1,
 		/*local_port*/ 0,

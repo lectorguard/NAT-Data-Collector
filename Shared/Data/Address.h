@@ -94,6 +94,7 @@ namespace shared
 		{
 			uint16_t k_multiple = 3;
 			uint32_t max_sockets = 10'000;
+			uint32_t max_rate_ms = 35;
 			uint16_t start_echo_service = 10'000;
 			uint16_t num_echo_services = 1'000;
 			uint16_t local_port = 0;
@@ -104,6 +105,7 @@ namespace shared
 
 			DynamicStage(uint16_t k_multiple,
 				uint32_t max_sockets,
+				uint32_t max_rate_ms,
 				uint16_t start_echo_service,
 				uint16_t num_echo_services,
 				uint16_t local_port,
@@ -111,6 +113,7 @@ namespace shared
 				bool use_shutdown_condition = false)
 				: k_multiple(k_multiple),
 				max_sockets(max_sockets),
+				max_rate_ms(max_rate_ms),
 				start_echo_service(start_echo_service),
 				num_echo_services(num_echo_services),
 				local_port(local_port),
@@ -121,7 +124,7 @@ namespace shared
 			jser::JserChunkAppender AddItem() override
 			{
 				return JSerializable::AddItem().Append(JSER_ADD(SerializeManagerType, k_multiple,
-					max_sockets, start_echo_service, num_echo_services, local_port,
+					max_sockets, max_rate_ms, start_echo_service, num_echo_services, local_port,
 					close_sockets_early, use_shutdown_condition));
 			}
 
