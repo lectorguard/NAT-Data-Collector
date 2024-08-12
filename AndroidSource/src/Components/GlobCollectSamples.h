@@ -38,7 +38,7 @@ private:
 	std::string _readable_time_stamp;
 	MultiAddressVector _analyze_collect_ports;
 
-	std::vector<UDPCollectTask::Stage> CreateCollectStages(const Config::Data& app_conf, const shared::CollectingConfig& coll_conf);
+	std::vector<UDPCollectTask::Stage> CreateCollectStages(const Config::Data& app_conf, const shared::CollectingConfig& coll_conf, shared::ClientMetaData meta_data);
 	NatTraverserClient _client{};
 	uint32_t _config_index;
 	shared::CollectingConfig _config;

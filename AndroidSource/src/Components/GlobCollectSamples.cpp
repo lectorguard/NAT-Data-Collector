@@ -6,7 +6,7 @@
 #include "UserData.h"
 #include "Components/GlobalConstants.h"
 
-std::vector<UDPCollectTask::Stage> GlobCollectSamples::CreateCollectStages(const Config::Data& app_conf, const shared::CollectingConfig& coll_conf)
+std::vector<UDPCollectTask::Stage> GlobCollectSamples::CreateCollectStages(const Config::Data& app_conf, const shared::CollectingConfig& coll_conf, shared::ClientMetaData meta_data)
 {
 	using namespace CollectConfig;
 	if (coll_conf.stages.empty())
@@ -46,9 +46,48 @@ std::vector<UDPCollectTask::Stage> GlobCollectSamples::CreateCollectStages(const
 		};
 
 	std::vector<UDPCollectTask::Stage> stages;
-	for (const auto& stage : coll_conf.stages)
+	for (size_t i = 0; i < coll_conf.stages.size(); ++i)
 	{
-		const auto config = stage.configs[_config_index];
+		shared::CollectingConfig::StageConfig config = coll_conf.stages[i].configs[_config_index];
+
+		for (CollectingConfig::OverrideStage override_stage : coll_conf.override_stages)
+		{
+			if (override_stage.stage_index != i) continue;
+
+			auto dp_config = DataPackage::Create(&config, Transaction::NO_TRANSACTION);
+			auto dp_meta_data = DataPackage::Create(&meta_data, Transaction::NO_TRANSACTION);
+
+			// Get Equal Conditions
+			bool success = true;
+			for (auto& [key, val] : override_stage.equal_conditions.items())
+			{
+				if (dp_config.data.contains(key))
+				{
+					if (dp_config.data[key] != val)
+						success = false;
+				} 
+				else if (dp_meta_data.data.contains(key))
+				{
+					if (dp_meta_data.data[key] != val)
+						success = false;
+				}
+				else
+				{
+					Log::Warning("Warning during overriding collect config :");
+					Log::Warning("Key %s could not be found in config or meta data", key.c_str());
+					success = false;
+				}
+			}
+
+			if (success)
+			{
+				dp_config.data.update(override_stage.override_fields);
+				if (auto err = dp_config.Get(config))
+				{
+					Log::HandleResponse(err, "Overriding config");
+				}
+			}
+		}
 
 		const UDPCollectTask::Stage s
 		{
@@ -61,6 +100,7 @@ std::vector<UDPCollectTask::Stage> GlobCollectSamples::CreateCollectStages(const
 			/* close sockets early */			config.close_sockets_early,
 			/* shutdown condition */			config.use_shutdown_condition ? should_shutdown : nullptr
 		};
+
 		stages.push_back(s);
 	}
 
@@ -212,7 +252,7 @@ void GlobCollectSamples::OnTransactionEvent(DataPackage pkg, Application* app)
 			auto config_pkg = DataPackage::Create(&_config, Transaction::NO_TRANSACTION);
 			const std::string config_str = config_pkg.data.dump();
 			Log::Warning("%s", config_str.c_str());
-			err = _client.CollectPortsAsync(CreateCollectStages(app_conf,_config));
+			err = _client.CollectPortsAsync(CreateCollectStages(app_conf,_config, model.GetClientMetaData()));
 		}
 		else
 		{
@@ -228,7 +268,7 @@ void GlobCollectSamples::OnTransactionEvent(DataPackage pkg, Application* app)
 		err = pkg.Get(_config);
 		if (err) break;
 		Log::Info("Received Collect Config");
-		err = _client.CollectPortsAsync(CreateCollectStages(app_conf,_config));
+		err = _client.CollectPortsAsync(CreateCollectStages(app_conf,_config, model.GetClientMetaData()));
 		break;
 	}
 	case Transaction::CLIENT_RECEIVE_COLLECTED_PORTS:

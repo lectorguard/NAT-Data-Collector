@@ -5,20 +5,20 @@ namespace CollectConfig
 {
 	inline const shared::CollectingConfig::Stage candidates
 	{
-		{7, {
-			10'000, // sample size
-			0,		// sample rate
+		{1, {
+			20'000, // sample size
+			3,		// sample rate
 			10'000,	// start echo service
-			1000,	// echo services
+			1,	// echo services
 			0,		// local port
 			true,	// close sockets early
-			true	// use shutdown condition
+			false	// use shutdown condition
 	}}
 	};
 
 	inline const shared::CollectingConfig::Stage intersect
 	{
-		{7, {10000, 10,10'000, 1000, 0, true, true}}
+		{1, {20'000, 3,10'003, 1, 0, true, false}}
 	};
 
 	inline const shared::CollectingConfig::Stage traverse
@@ -44,17 +44,24 @@ namespace CollectConfig
 		/*use_shutdown_condition*/ false
 	};
 
+	inline const shared::CollectingConfig::OverrideStage overr_stage
+	{
+		0, // stage index
+		{{"isp","Vodafone D2 GmbH"}}, // equal conditions from ClientMetaData and StageConfig
+		{{"sample_rate_ms", 14}, {"sample_size", 100}} // overridden config fields
+	};
+
 	inline const shared::CollectingConfig config(
-		"coll_trash",
+		"f4b",
 		180'000u,
 		{
 			candidates,
 			intersect
 		}, 
-		{ dynTraverse }
+		{},
+		{ overr_stage }
 	);
 }
-
 
 namespace TraversalConfig
 {

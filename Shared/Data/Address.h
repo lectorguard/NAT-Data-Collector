@@ -130,6 +130,26 @@ namespace shared
 
 		};
 
+		struct OverrideStage : public jser::JSerializable
+		{
+			uint32_t stage_index = 0;
+			nlohmann::json equal_conditions{};
+			nlohmann::json override_fields{};
+
+			OverrideStage() {};
+			OverrideStage(uint32_t stage_index, const nlohmann::json& equal_conditions, const nlohmann::json& override_fields):
+			stage_index(stage_index),
+			equal_conditions(equal_conditions),
+			override_fields(override_fields)
+			{}
+
+			jser::JserChunkAppender AddItem() override
+			{
+				return JSerializable::AddItem().Append(JSER_ADD(SerializeManagerType,
+					stage_index, equal_conditions, override_fields));
+			}
+		};
+
 		struct StageConfig : public jser::JSerializable
 		{
 			uint16_t sample_size = 10'000;
@@ -182,20 +202,24 @@ namespace shared
 		uint32_t delay_collection_steps_ms = 180'000;
 		std::vector<Stage> stages;
 		std::vector<DynamicStage> added_dynamic_stages;
+		std::vector<OverrideStage> override_stages;
 
 		CollectingConfig() {};
 		CollectingConfig(const std::string& coll_name,
 			uint32_t delay_collection_steps_ms,
 			const std::vector<Stage>& stages,
-			const std::vector<DynamicStage>& added_dynamic_stages) :
+			const std::vector<DynamicStage>& added_dynamic_stages,
+			const std::vector<OverrideStage>& override_stages) :
 			coll_name(coll_name),
 			delay_collection_steps_ms(delay_collection_steps_ms),
 			stages(stages),
-			added_dynamic_stages(added_dynamic_stages){};
+			added_dynamic_stages(added_dynamic_stages),
+			override_stages(override_stages){};
 
 		jser::JserChunkAppender AddItem() override
 		{
-			return JSerializable::AddItem().Append(JSER_ADD(SerializeManagerType, coll_name, delay_collection_steps_ms, stages, added_dynamic_stages));
+			return JSerializable::AddItem().Append(JSER_ADD(SerializeManagerType,
+				coll_name, delay_collection_steps_ms, stages, added_dynamic_stages, override_stages));
 		}
 	};
 }
