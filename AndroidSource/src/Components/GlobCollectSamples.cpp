@@ -186,6 +186,9 @@ void GlobCollectSamples::Shutdown(DataPackage pkg)
 	_readable_time_stamp = {};
 	_analyze_collect_ports = {};
 	_current = CollectSamplesStep::DISCONNECTED;
+
+	// Try reconnect later again and continue collecting
+	_client.CreateTimerAsync(300'000u);
 }
 
 void GlobCollectSamples::StartGlobState(Application* app)

@@ -13,7 +13,7 @@ using namespace shared;
 struct ServerTransactionHandler
 {
 public:
-	static DataPackage Handle(DataPackage data, Server* server, uint64_t hash);
+	static void Handle(DataPackage data, Server* server, uint64_t hash);
 
 	using RequestMap = std::map<Transaction, std::function<DataPackage(DataPackage, Server*, uint64_t)>>;
 	inline static RequestMap request_map = 

@@ -79,17 +79,12 @@ void Session::do_read_msg(uint32_t msg_length)
 			}
 			// alloc answer memory
 			const std::vector<uint8_t> vec_buf{ buf.get(), buf.get() + length };
-			DataPackage response = ServerTransactionHandler::Handle(DataPackage::Decompress(vec_buf), _server_ref, _hash);
-			// Post response
-			if (auto buffer = response.Compress())
-			{
-				write(*buffer);
-			}
-			else
-			{
-				std::cout << "Failed to serialize server response" << std::endl;
-				return;
-			}
+			// defer request handling
+			// Operation could take long time, defer makes sure next message is read immediately after
+			asio::post(socket_.get_executor(), [vec_buf, server_ref = _server_ref, hash = _hash]()
+				{
+					ServerTransactionHandler::Handle(DataPackage::Decompress(vec_buf), server_ref, hash);
+				});
 			// next message check
 			do_read_msg_length();
 		});
