@@ -2,6 +2,8 @@
 #include "UDPCollectTask.h"
 #include "Application/Application.h"
 #include "GlobalConstants.h"
+#include <algorithm>
+#include "limits"
 
  void LogTimeMs(const std::string& prepend)
 {
@@ -63,15 +65,43 @@ bool UDPCollectTask::CreateSocket(asio::io_service& io_service, uint16_t sock_in
 		_system_error_state = PhysicalDeviceError::SOCKETS_EXHAUSTED;
 		return false;
 	}
-	shared_local_socket->bind(asio::ip::udp::endpoint{ asio::ip::udp::v4(), local_port }, ec);
-	if (ec)
+
+	if (local_port == 0)
 	{
-		Log::Warning("Bind socket at port %d failed ", local_port);
-		Log::Warning("Index : %d", sock_index);
-		Log::Warning("Error Msg : %s", ec.message().c_str());
-		_system_error_state = PhysicalDeviceError::SOCKETS_EXHAUSTED;
-		return false;
+		static uint16_t current_port = 1025u;
+		for (;;)
+		{
+			shared_local_socket->bind(asio::ip::udp::endpoint{ asio::ip::udp::v4(), current_port }, ec);
+			if (ec.value() == asio::error::address_in_use)
+			{
+				current_port = std::max(++current_port, (uint16_t)1025u);
+				continue;
+			}
+			
+			if (ec)
+			{
+				Log::Warning("Bind socket at port %d failed ", local_port);
+				Log::Warning("Index : %d", sock_index);
+				Log::Warning("Error Msg : %s", ec.message().c_str());
+				_system_error_state = PhysicalDeviceError::SOCKETS_EXHAUSTED;
+				return false;
+			}
+			break;
+		}
 	}
+	else
+	{
+		shared_local_socket->bind(asio::ip::udp::endpoint{ asio::ip::udp::v4(), local_port }, ec);
+		if (ec)
+		{
+			Log::Warning("Bind socket at port %d failed ", local_port);
+			Log::Warning("Index : %d", sock_index);
+			Log::Warning("Error Msg : %s", ec.message().c_str());
+			_system_error_state = PhysicalDeviceError::SOCKETS_EXHAUSTED;
+			return false;
+		}
+	}
+	
 	_socket_list[sock_index].socket = shared_local_socket;
 	return true;
 }
@@ -130,7 +160,6 @@ void UDPCollectTask::PrepareStage(const uint16_t& stage_index, asio::io_service&
 		const uint16_t remaining_requests_clamped = std::clamp(remaining_requests, (const uint16_t)0u, stage.echo_server_num_services);
 		const uint16_t local_socket_index = (const uint16_t)(sock_index * stage.echo_server_num_services);
 		const bool is_last_socket = sock_index == sockets_in_stage - 1;
-
 		for (uint16_t req_index = 0; req_index < remaining_requests_clamped; ++req_index)
 		{
 			const uint16_t local_request_index = (const uint16_t)(local_socket_index + req_index);
