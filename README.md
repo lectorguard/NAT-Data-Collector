@@ -227,7 +227,11 @@ DEBUG   :     #01 pc 0000001d  <unknown>
 * Drop old entries (only first one is used) `db.VersionUpdate.drop()`
 * Add new entry
 ```
-db.VersionUpdate.insertOne({"download_link":"https://github.com/lectorguard/NAT-Data-Collector/releases","latest_version":"v0.0.2","version_details":"A new version of the NAT Collector is available. Please copy the link below, delete this version and download the new version. You progress in the scoreboard will be maintained. :) Thank you.","version_header":"New Version 0.0.2"})
+db.VersionUpdate.replaceOne({},{
+	"download_link":"https://github.com/lectorguard/NAT-Data-Collector/releases",
+	"latest_version":"v0.0.2",
+	"version_details":"A new version of the NAT Collector is available. Please copy the link below, delete this version and download the new version. You progress in the scoreboard will be maintained. :) Thank you.",
+	"version_header":"New Version 0.0.2"},{upsert : true})
 ```
 
 ## Notify user about new general informationen
