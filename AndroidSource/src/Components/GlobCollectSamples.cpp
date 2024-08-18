@@ -225,6 +225,7 @@ void GlobCollectSamples::OnTransactionEvent(DataPackage pkg, Application* app)
 		if ((err = res.error)) break;
 		auto [nat_type] = res.values;
 		model.SetClientNATType(nat_type);
+		Log::HandleResponse(pkg.error, "Receive NAT Type");
 		Log::Info("Identified NAT type %s", shared::nat_to_string.at(nat_type).c_str());
 		if (app_conf.app.random_nat_required)
 		{

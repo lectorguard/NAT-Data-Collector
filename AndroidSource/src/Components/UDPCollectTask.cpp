@@ -77,7 +77,6 @@ bool UDPCollectTask::CreateSocket(asio::io_service& io_service, uint16_t sock_in
 				current_port = std::max(++current_port, (uint16_t)1025u);
 				continue;
 			}
-			
 			if (ec)
 			{
 				Log::Warning("Bind socket at port %d failed ", local_port);
@@ -86,6 +85,7 @@ bool UDPCollectTask::CreateSocket(asio::io_service& io_service, uint16_t sock_in
 				_system_error_state = PhysicalDeviceError::SOCKETS_EXHAUSTED;
 				return false;
 			}
+			++current_port;
 			break;
 		}
 	}

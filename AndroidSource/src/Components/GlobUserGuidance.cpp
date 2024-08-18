@@ -160,6 +160,7 @@ void GlobUserGuidance::OnNatClientEvent(Application* app, DataPackage pkg)
 		}
 		const auto [nat_type] = result.values;
 		nat_model.SetClientNATType(nat_type);
+		Log::HandleResponse(pkg.error, "Receive NAT Type");
 		Log::Info("Identified NAT type %s", shared::nat_to_string.at(nat_type).c_str());
 		if (app_conf.app.random_nat_required &&
 			nat_type != shared::NATType::RANDOM_SYM)

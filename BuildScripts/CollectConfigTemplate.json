@@ -176,7 +176,7 @@ db.CollectConfig.replaceOne({},{
 			{"stage_index" : 2, "equal_conditions" : {"isp" : "Videotron Telecom Ltee"}, "override_fields" : {"sample_rate_ms": 3, "sample_size": 10000, "start_echo_service" : 6007} },			
 			{"stage_index" : 0, "equal_conditions" : {"isp" : "Telefonica Germany GmbH & Co.OHG"}, "override_fields" : {"start_echo_service" : 6008} },
 			{"stage_index" : 1, "equal_conditions" : {"isp" : "Telefonica Germany GmbH & Co.OHG"}, "override_fields" : {"start_echo_service" : 6008} },
-			{"stage_index" : 2, "equal_conditions" : {"isp" : "Telefonica Germany GmbH & Co.OHG"}, "override_fields" : {"sample_rate_ms": 9, "sample_size": 1000, "start_echo_service" : 6008} },
+			{"stage_index" : 2, "equal_conditions" : {"isp" : "Telefonica Germany GmbH & Co.OHG"}, "override_fields" : {"sample_rate_ms": 9, "sample_size": 5000, "start_echo_service" : 6008} },
 			
 		]
 }, {upsert : true})
