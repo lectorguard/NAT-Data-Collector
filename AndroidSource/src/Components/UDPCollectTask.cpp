@@ -71,10 +71,11 @@ bool UDPCollectTask::CreateSocket(asio::io_service& io_service, uint16_t sock_in
 		static uint16_t current_port = 1025u;
 		for (;;)
 		{
+			current_port = std::max(current_port, (uint16_t)1025u);
 			shared_local_socket->bind(asio::ip::udp::endpoint{ asio::ip::udp::v4(), current_port }, ec);
 			if (ec.value() == asio::error::address_in_use)
 			{
-				current_port = std::max(++current_port, (uint16_t)1025u);
+				++current_port;
 				continue;
 			}
 			if (ec)

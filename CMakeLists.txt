@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.20)
 
 project(AndroidNativeActivity)
 
-set(APP_VERSION "v0.0.7") # Set the version for server and client, checked for mismatch 
+set(APP_VERSION "v0.0.8") # Set the version for server and client, checked for mismatch 
 set(SOCKET_TIMEOUT_MS 5000) # Set the timeout for sockets in ms
 set(MAX_MSG_LENGTH_DECIMALS 9)
 
