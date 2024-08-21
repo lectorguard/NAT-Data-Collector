@@ -187,8 +187,14 @@ void GlobCollectSamples::Shutdown(DataPackage pkg)
 	_analyze_collect_ports = {};
 	_current = CollectSamplesStep::DISCONNECTED;
 
-	// Try reconnect later again and continue collecting
-	_client.CreateTimerAsync(300'000u);
+	// Only try to restart if we have an error during collect 
+	// If shutdown is called without error, do nothing
+	if (pkg.error)
+	{
+		// Try reconnect later again and continue collecting
+		_client.CreateTimerAsync(300'000u);
+		Log::Warning("Try reconnect again in 5 minutes");
+	}
 }
 
 void GlobCollectSamples::StartGlobState(Application* app)
