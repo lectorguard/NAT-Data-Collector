@@ -534,15 +534,13 @@ void NatTraverserClient::write_loop(asio::io_service& s, asio::system_timer& tim
 
 void NatTraverserClient::async_read_msg_length(TraversalInfo const& info, asio::ip::tcp::socket& s)
 {
-	auto buffer_data = std::make_unique<std::uint8_t[]>(MAX_MSG_LENGTH_DECIMALS);
-	auto buffer = asio::buffer(buffer_data.get(), MAX_MSG_LENGTH_DECIMALS);
-	async_read(s, buffer,
+	auto buffer_data = std::make_shared<std::vector<uint8_t>>(MAX_MSG_LENGTH_DECIMALS, 0);
+	async_read(s, asio::buffer(buffer_data->data(), MAX_MSG_LENGTH_DECIMALS),
 		asio::transfer_exactly(MAX_MSG_LENGTH_DECIMALS),
-		[buf = std::move(buffer_data), info, &s](asio::error_code ec, size_t length)
+		[buf = buffer_data, info, &s](asio::error_code ec, size_t length)
 		{
 			if (auto error = Error::FromAsio(ec, "Read length of server answer"))
 			{
-				
 				info.read_queue->push_error(error);
 			}
 			else if (length != MAX_MSG_LENGTH_DECIMALS)
@@ -555,7 +553,7 @@ void NatTraverserClient::async_read_msg_length(TraversalInfo const& info, asio::
 				uint32_t next_msg_len{};
 				try
 				{
-					next_msg_len = std::stoi(std::string(buf.get(), buf.get() + MAX_MSG_LENGTH_DECIMALS));
+					next_msg_len = std::stoi(std::string(buf->begin(), buf->begin() + length));
 				}
 				catch (...)
 				{
@@ -572,14 +570,11 @@ void NatTraverserClient::async_read_msg_length(TraversalInfo const& info, asio::
 }
 
 
-
-
 void NatTraverserClient::async_read_msg(uint32_t msg_len, asio::ip::tcp::socket& s, TraversalInfo const& info)
 {
-	auto buffer_data = std::make_unique<std::uint8_t[]>(msg_len);
-	auto buffer = asio::buffer(buffer_data.get(), msg_len);
-	async_read(s, buffer, asio::transfer_exactly(msg_len),
-		[buf = std::move(buffer_data), msg_len, &s, info](asio::error_code ec, size_t length)
+	auto buffer_data = std::make_shared<std::vector<uint8_t>>(msg_len, 0);
+	async_read(s, asio::buffer(buffer_data->data(), msg_len), asio::transfer_exactly(msg_len),
+		[buf = buffer_data, msg_len, &s, info](asio::error_code ec, size_t length)
 		{
 			if (auto error = Error::FromAsio(ec, "Read server answer"))
 			{
@@ -593,8 +588,7 @@ void NatTraverserClient::async_read_msg(uint32_t msg_len, asio::ip::tcp::socket&
 			else
 			{
 				// alloc answer memory
-				std::vector<uint8_t> serv_answer{ buf.get(), buf.get() + length };
-				info.read_queue->Push(std::move(serv_answer));
+				info.read_queue->Push(std::move(*buf));
 				async_read_msg_length(info, s);
 			}
 		});
@@ -606,11 +600,11 @@ void NatTraverserClient::async_write_msg(TraversalInfo const& info, asio::ip::tc
 	if (info.write_queue->Size() == 0)
 		return;
 
-	std::vector<uint8_t> buf;
-	if (info.write_queue->TryPop(buf))
+	auto buf = std::make_shared<std::vector<uint8_t>>();
+	if (info.write_queue->TryPop(*buf))
 	{
-		async_write(s, asio::buffer(buf),
-			[info, &s](asio::error_code ec, size_t length)
+		async_write(s, asio::buffer(buf->data(), buf->size()),
+			[info, &s, buf](asio::error_code ec, size_t length)
 			{
 				if (auto error = Error::FromAsio(ec, "Write message"))
 				{

@@ -38,9 +38,8 @@ void GlobUserGuidance::OnRecalcNAT(Application* app)
 	Error err;
 	if (current == UserGuidanceStates::WAIT_FOR_UI)
 	{
-		err = client.IdentifyNATAsync(app_conf.nat_ident.sample_size,
-			app_conf.server_address,
-			app_conf.server_echo_start_port);
+		// Try reconnect
+		err = client.ConnectAsync(app_conf.server_address, app_conf.server_transaction_port);
 		current = UserGuidanceStates::CONNECTED_NO_INTERRUPT;
 	}
 	if (err)
@@ -166,6 +165,8 @@ void GlobUserGuidance::OnNatClientEvent(Application* app, DataPackage pkg)
 			nat_type != shared::NATType::RANDOM_SYM)
 		{
 			nat_model.PushPopUpState(NatCollectorPopUpState::NatInfoWindow);
+			// Shutdown the connection
+			Shutdown(DataPackage());
 		}
 		current = UserGuidanceStates::WAIT_FOR_UI;
 		break;
