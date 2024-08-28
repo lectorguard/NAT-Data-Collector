@@ -81,8 +81,18 @@ struct ServerHandler<shared::Transaction::SERVER_CONFIRM_LOBBY>
 		{
 			return DataPackage::Create<ErrorType::ERROR>({"invalid lobby to confirm, lobby must have exactly 1 joined user"});
 		}
+
 		const std::map<uint64_t, Lobby> lobbies = ref->GetLobbies();
-		if (!lobbies.contains(toConfirm.owner.session) || !lobbies.contains(toConfirm.joined[0].session))
+		
+		const bool ownerSessionExists = lobbies.contains(toConfirm.owner.session) &&
+			lobbies.at(toConfirm.owner.session).joined.size() > 0 &&
+			lobbies.at(toConfirm.owner.session).joined[0].session == toConfirm.joined[0].session;
+		const bool joinedSessionExists = lobbies.contains(toConfirm.joined[0].session) &&
+			lobbies.at(toConfirm.joined[0].session).joined.size() > 0 &&
+			lobbies.at(toConfirm.joined[0].session).joined[0].session == toConfirm.owner.session;
+		const bool bothSessionExist = lobbies.contains(toConfirm.owner.session) && lobbies.contains(toConfirm.joined[0].session);
+
+		if (!ownerSessionExists && !joinedSessionExists && !bothSessionExist)
 		{
 			return DataPackage::Create<ErrorType::ERROR>({ "Other client disconnected ... Abort" });
 		}
@@ -92,7 +102,8 @@ struct ServerHandler<shared::Transaction::SERVER_CONFIRM_LOBBY>
 		}
 
 		// Update global lobby state
-		ref->remove_lobby(toConfirm.joined[0]);
+		ref->remove_lobby(toConfirm.joined[0]);		// Remove lobby if they exist, makes sure lobby only exists once
+		ref->remove_lobby(toConfirm.owner);			// Remove lobby if they exist, makes sure lobby only exists once
 		toConfirm.owner.prediction = Address{};		// Make sure prediction is empty
 		toConfirm.joined[0].prediction = Address{}; // Make sure prediction is empty
 		ref->add_lobby(toConfirm.owner, toConfirm.joined);
@@ -190,19 +201,14 @@ struct ServerHandler<shared::Transaction::SERVER_UPLOAD_TRAVERSAL_RESULT>
 		
 		// Read metadata infos
 		auto meta_data = pkg
+			.Get<TraversalClient>()
 			.Get<bool>(MetaDataField::SUCCESS)
 			.Get<std::string>(MetaDataField::DB_NAME)
-			.Get<std::string>(MetaDataField::COLL_NAME);
+			.Get<std::string>(MetaDataField::COLL_NAME)
+			.Get<std::string>(MetaDataField::USERS_COLL_NAME);
 
 		if (meta_data.error) return DataPackage::Create(meta_data.error);
-		auto const [traversal_success, db_name, coll_name] = meta_data.values;
-
-		// Read received client infos
-		TraversalClient client_info;
-		if (auto err = pkg.Get<TraversalClient>(client_info))
-		{
-			return DataPackage::Create(err);
-		}
+		auto const [client_info, traversal_success, db_name, coll_name, users_coll_name] = meta_data.values;
 
 		// Find the related lobby
 		auto lobbies = ref->GetLobbies();
@@ -262,7 +268,12 @@ struct ServerHandler<shared::Transaction::SERVER_UPLOAD_TRAVERSAL_RESULT>
 			ref->send_session(to_send, lobby.joined[0].session);
 			
 			// Make sure to remove the lobby
-			ref->remove_lobby(lobby.owner);
+			//ref->remove_lobby(lobby.owner);
+		}
+		// Increment score
+		if (Error err = IncrementScore(client_info.meta_data.android_id, db_name, users_coll_name))
+		{
+			return DataPackage::Create(err);
 		}
 		return DataPackage::Create(Error{ ErrorType::OK });
 	}

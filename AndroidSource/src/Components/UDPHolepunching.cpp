@@ -5,7 +5,7 @@
 #define SEND_ID "send_id"
 
 
-UDPHolepunching::UDPHolepunching(const RandomInfo& info) 
+UDPHolepunching::UDPHolepunching(const Config& info) 
 	: _deadline_timer(std::make_shared<asio::system_timer>(CreateDeadline(info.io, info.deadline_duration_ms))),
 	_config(info)
 {
@@ -57,9 +57,9 @@ UDPHolepunching::UDPHolepunching(const RandomInfo& info)
 	}
 }
 
-UDPHolepunching::Result UDPHolepunching::StartHolepunching(const RandomInfo& holepunch_info, AsyncQueue read_queue)
+UDPHolepunching::Result UDPHolepunching::StartHolepunching(const Config& holepunch_info, AsyncQueue read_queue)
 {
-	RandomInfo copy = holepunch_info;
+	Config copy = holepunch_info;
 	// Make sure number of sockets does not exceed max number of files of os
 	auto err = utilities::ClampIfNotEnoughFiles(copy.traversal_attempts, 1);
 	if (err.Is<ErrorType::WARNING>())

@@ -17,6 +17,32 @@ static Error WriteFileToDatabase(const std::string& data, const std::string& db_
 	return mongoUtils::InsertElementToCollection(data, db_name, coll_name);
 }
 
+
+static Error IncrementScore(const std::string& android_id, const std::string& db_name, const std::string& coll_name)
+{
+	// Update score
+	ClientID dummy{ android_id, "", false, 0 };
+
+	// Mongo Update Parameter
+	nlohmann::json query;
+	query["android_id"] = dummy.android_id;
+	nlohmann::json update;
+	// only update the specific fields
+	update["$setOnInsert"] = {
+		{"username", dummy.username},
+		{"show_score", dummy.show_score}
+	};
+	update["$set"]["android_id"] = dummy.android_id;
+	update["$inc"]["uploaded_samples"] = 1;
+	nlohmann::json update_options;
+	update_options["upsert"] = true;
+
+	{
+		std::scoped_lock lock{ mongoWriteMutex };
+		return mongoUtils::UpdateElementInCollection(query.dump(), update.dump(), update_options.dump(), db_name, coll_name);
+	}
+}
+
 template<>
 struct ServerHandler<shared::Transaction::SERVER_INSERT_MONGO>
 {
@@ -37,30 +63,11 @@ struct ServerHandler<shared::Transaction::SERVER_INSERT_MONGO>
 		{
 			return DataPackage::Create(err);
 		}
-		// Update score
-		ClientID dummy{ android_id, "", false, 0 };
-
-		// Mongo Update Parameter
-		nlohmann::json query;
-		query["android_id"] = dummy.android_id;
-		nlohmann::json update;
-		// only update the specific fields
-		update["$setOnInsert"] = { 
-			{"username", dummy.username},
-			{"show_score", dummy.show_score}
-		};
-		update["$set"]["android_id"] = dummy.android_id;
-		update["$inc"]["uploaded_samples"] = 1;
-		nlohmann::json update_options;
-		update_options["upsert"] = true;
-
+		if (Error err = IncrementScore(android_id, db_name, users_coll_name))
 		{
-			std::scoped_lock lock{ mongoWriteMutex };
-			if (Error update_err = mongoUtils::UpdateElementInCollection(query.dump(), update.dump(), update_options.dump(), db_name, users_coll_name))
-			{
-				return DataPackage::Create(update_err);
-			}
+			return DataPackage::Create(err);
 		}
+
 		return shared::DataPackage::Create(nullptr, Transaction::CLIENT_UPLOAD_SUCCESS);
 	}
 };
@@ -80,7 +87,7 @@ struct ServerHandler<shared::Transaction::SERVER_GET_COLLECTION>
 		found.error = mongoUtils::FindElementsInCollection("{}", db_name, coll_name,
 			[&found](mongoc_cursor_t* cursor, int64_t length)
 			{
-				if (length == 0) return Error(ErrorType::ERROR, {"Collection is empty"});		
+				if (length <= 0) return Error(ErrorType::ERROR, {"Collection is empty"});		
 				if (auto error = mongoUtils::CheckMongocCursor(cursor))
 					return error;
 				const bson_t* doc;

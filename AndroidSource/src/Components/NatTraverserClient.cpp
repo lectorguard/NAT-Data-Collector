@@ -248,7 +248,7 @@ shared::Error NatTraverserClient::ExchangePredictionAsync(Address prediction_oth
 	return push_package(write_queue, data_package, true);
 }
 
-shared::Error NatTraverserClient::TraverseNATAsync(UDPHolepunching::RandomInfo const& info)
+shared::Error NatTraverserClient::TraverseNATAsync(UDPHolepunching::Config const& info)
 {
 	if (establish_communication_future.valid())
 	{
@@ -288,17 +288,6 @@ Error NatTraverserClient::ServerTransactionAsync(shared::DataPackage pkg)
 	}
 
 	return push_package(write_queue, pkg, true);
-}
-
-shared::Error NatTraverserClient::UploadTraversalResultToMongoDBAsync(bool success, TraversalClient client, const std::string& db_name, const std::string& coll_name)
-{
-	auto data_package = 
-		DataPackage::Create(&client, Transaction::SERVER_UPLOAD_TRAVERSAL_RESULT)
-		.Add(MetaDataField::SUCCESS, success)
-		.Add(MetaDataField::DB_NAME, db_name)
-		.Add(MetaDataField::COLL_NAME, coll_name);
-
-	return ServerTransactionAsync(data_package);
 }
 
 std::optional<UDPHolepunching::Result> NatTraverserClient::GetTraversalResult()
@@ -616,4 +605,180 @@ void NatTraverserClient::async_write_msg(TraversalInfo const& info, asio::ip::tc
 				}
 			});
 	}
+}
+
+std::vector<UDPCollectTask::Stage> NatTraverserClient::CalculateCollectStages(const std::string& server_address, const shared::CollectingConfig& coll_conf, shared::ClientMetaData meta_data)
+{
+	using namespace CollectConfig;
+	if (coll_conf.stages.empty())
+	{
+		Log::Error("Stages for collection step is empty");
+		return {};
+	}
+
+	// Validate that each stage has same number of configs
+	for (size_t i = 1; i < coll_conf.stages.size(); ++i)
+	{
+		const auto prev_stage = coll_conf.stages[i - 1];
+		const auto stage = coll_conf.stages[i];
+		if (stage.configs.size() != prev_stage.configs.size())
+		{
+			Log::Error("Config sizes of analyze, intersect and traversal are not equal");
+			return {};
+		}
+	}
+
+	// Randomly generate the index every time
+	srand((uint32_t)std::chrono::system_clock::now().time_since_epoch().count());
+	const uint32_t config_index = rand() / ((RAND_MAX + 1u) / coll_conf.stages[0].configs.size());
+
+	// Shutdown condition
+	auto first_stage_ports = std::make_shared<std::set<uint16_t>>();
+	std::function<bool(Address, uint32_t)> should_shutdown = [first_stage_ports](Address addr, uint32_t stage)
+	{
+		if (stage == 0)
+		{
+			first_stage_ports->insert(addr.port);
+		}
+		else if (stage == 1)
+		{
+			return first_stage_ports->contains(addr.port);
+		}
+		return false;
+	};
+
+	// Add stages
+	std::vector<UDPCollectTask::Stage> stages;
+	for (const auto& configs : coll_conf.stages)
+	{
+		shared::CollectingConfig::StageConfig config = configs.configs[config_index];
+
+		const UDPCollectTask::Stage s
+		{
+			/* remote address */				server_address,
+			/* start port */					config.start_echo_service,
+			/* num port services */				config.num_echo_services,
+			/* local port */					config.local_port,
+			/* amount of ports */				config.sample_size,
+			/* time between requests in ms */	config.sample_rate_ms,
+			/* close sockets early */			config.close_sockets_early,
+			/* shutdown condition */			config.use_shutdown_condition ? should_shutdown : nullptr
+		};
+
+		stages.push_back(s);
+	}
+	
+	// Add dynamic stages
+	for (const auto& stage : coll_conf.added_dynamic_stages)
+	{
+		using namespace std::chrono;
+
+		auto startCB = [stage](UDPCollectTask::Stage& curr, const MultiAddressVector& collected, const system_clock::time_point& start_time)
+		{
+			uint32_t received_addresses = std::accumulate(collected.stages.begin(), collected.stages.end(), 0u,
+				[](uint32_t result, const CollectVector& a)
+				{
+					return result + a.data.size();
+				});
+			const auto now = std::chrono::system_clock::now();
+			uint32_t task_duration =
+				std::chrono::duration_cast<std::chrono::milliseconds>(now - start_time).count();
+			Log::Info("Received Addresses : %d", received_addresses);
+			Log::Info("Duration ms : %d", task_duration);
+			const uint16_t sample_rate = std::clamp(task_duration / received_addresses, 0u, stage.max_rate_ms);
+			const uint16_t sample_size = std::clamp(stage.k_multiple * received_addresses, 0u, stage.max_sockets);
+			curr.sample_size = sample_size;
+			curr.sample_rate_ms = sample_rate;
+		};
+
+		const UDPCollectTask::Stage s
+		{
+			/* remote address */				server_address,
+			/* start port */					stage.start_echo_service,
+			/* num port services */				stage.num_echo_services,
+			/* local port */					stage.local_port,
+			/* amount of ports */				0,
+			/* time between requests in ms */	0,
+			/* close sockets early */			stage.close_sockets_early,
+			/* shutdown condition */			stage.use_shutdown_condition ? should_shutdown : nullptr,
+			/*start callback*/					startCB
+		};
+		stages.push_back(s);
+	}
+
+	// Override stages
+	for (CollectingConfig::OverrideStage override_stage : coll_conf.override_stages)
+	{
+		if (override_stage.stage_index >= stages.size()) continue;
+
+		UDPCollectTask::Stage& current_stage = stages[override_stage.stage_index];
+
+		CollectingConfig::StageConfig conf
+		{
+			current_stage.sample_size,
+			current_stage.sample_rate_ms,
+			current_stage.echo_server_start_port,
+			current_stage.echo_server_num_services,
+			current_stage.local_port,
+			current_stage.close_socket_early,
+			current_stage.cond != nullptr
+		};
+
+		auto dp_config = DataPackage::Create(&conf, Transaction::NO_TRANSACTION);
+		auto dp_meta_data = DataPackage::Create(&meta_data, Transaction::NO_TRANSACTION);
+
+		// Get Equal Conditions
+		bool success = true;
+		for (auto& [key, val] : override_stage.equal_conditions.items())
+		{
+			if (dp_config.data.contains(key))
+			{
+				if (dp_config.data[key] != val)
+					success = false;
+			}
+			else if (dp_meta_data.data.contains(key))
+			{
+				if (dp_meta_data.data[key] != val)
+					success = false;
+			}
+			else
+			{
+				Log::Warning("Warning during overriding collect config :");
+				Log::Warning("Key %s could not be found in config or meta data", key.c_str());
+				success = false;
+			}
+		}
+
+		if (success)
+		{
+			dp_config.data.update(override_stage.override_fields);
+			CollectingConfig::StageConfig updated_config;
+			if (auto err = dp_config.Get(updated_config))
+			{
+				Log::HandleResponse(err, "Overriding config");
+				continue;
+			}
+
+			// Overridden dynamic stages can not be dynamic anymore
+			UDPCollectTask::Stage s
+			{
+				/* remote address */				server_address,
+				/* start port */					updated_config.start_echo_service,
+				/* num port services */				updated_config.num_echo_services,
+				/* local port */					updated_config.local_port,
+				/* amount of ports */				updated_config.sample_size,
+				/* time between requests in ms */	updated_config.sample_rate_ms,
+				/* close sockets early */			updated_config.close_sockets_early,
+				/* shutdown condition */			updated_config.use_shutdown_condition ? should_shutdown : nullptr,
+				/*start callback*/					nullptr
+			};
+			if (updated_config.sample_size == current_stage.sample_size &&
+				updated_config.sample_rate_ms == current_stage.sample_rate_ms)
+			{
+				s.start_stage_cb = current_stage.start_stage_cb;
+			}
+			current_stage = s;
+		}
+	}
+	return stages;
 }

@@ -11,7 +11,7 @@ class UDPHolepunching
 public:
 
 	// io_context must be kept alive until future is returned
-	struct RandomInfo
+	struct Config
 	{
 		Address target_client{};
 		uint16_t traversal_attempts{};
@@ -30,10 +30,10 @@ public:
 		uint16_t send_index = 0;
 	};
 
-	static Result StartHolepunching(const RandomInfo& holepunch_info, AsyncQueue read_queue);
+	static Result StartHolepunching(const Config& holepunch_info, AsyncQueue read_queue);
 
 private:
-	UDPHolepunching(const RandomInfo& info);
+	UDPHolepunching(const Config& info);
 	
 	struct Socket
 	{
@@ -66,5 +66,5 @@ private:
 	bool _sockets_exhausted = false;
 	// In case of traversal success, socket and endpoint are set here
 	Result _result{};
-	const RandomInfo _config;
+	const Config _config;
 };

@@ -132,7 +132,7 @@ public:
 	Error ExchangePredictionAsync(Address prediction_other_client);
 
 	// Tries to establish communication with other peer 
-	Error TraverseNATAsync(UDPHolepunching::RandomInfo const& info);
+	Error TraverseNATAsync(UDPHolepunching::Config const& info);
 
 	Error UploadToMongoDBAsync(jser::JSerializable* data, const std::string& db_name, const std::string& coll_name, const std::string& user_coll, const std::string& android_id);
 
@@ -150,10 +150,6 @@ public:
 	// Based on the server transaction the corresponding transaction answer is sent back
 	Error ServerTransactionAsync(shared::DataPackage pkg);
 
-	// Uploads the traversal result to the database
-	// Triggers response when inserting to database succeeds or fails (CLIENT_UPLOAD_SUCCESS)
-	Error UploadTraversalResultToMongoDBAsync(bool success, TraversalClient client, const std::string& db_name, const std::string& coll_name);
-
 	std::optional<UDPHolepunching::Result> GetTraversalResult();
 
 	// All server responses can be accessed via this function
@@ -164,6 +160,10 @@ public:
 
 	// Search session id, based on username and received lobbies
 	static bool FindUserSession(const std::string& username, const GetAllLobbies& lobbies, uint64_t& found_session);
+
+	// Converts a CollectingConfig to collect stages
+	static std::vector<UDPCollectTask::Stage> CalculateCollectStages(const std::string& server_address, const shared::CollectingConfig& coll_conf, shared::ClientMetaData meta_data);
+
 
 	bool IsRunning() const { return rw_future.valid(); }
 	

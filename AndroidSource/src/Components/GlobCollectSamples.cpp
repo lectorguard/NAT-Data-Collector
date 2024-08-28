@@ -6,144 +6,6 @@
 #include "UserData.h"
 #include "Components/GlobalConstants.h"
 
-std::vector<UDPCollectTask::Stage> GlobCollectSamples::CreateCollectStages(const Config::Data& app_conf, const shared::CollectingConfig& coll_conf, shared::ClientMetaData meta_data)
-{
-	using namespace CollectConfig;
-	if (coll_conf.stages.empty())
-	{
-		Log::Error("Stages for collection step is empty");
-		return {};
-	}
-
-	// Validate that each stage has same number of configs
-	for (size_t i = 1; i < coll_conf.stages.size(); ++i)
-	{
-		const auto prev_stage = coll_conf.stages[i - 1];
-		const auto stage = coll_conf.stages[i];
-		if (stage.configs.size() != prev_stage.configs.size())
-		{
-			Log::Error("Config sizes of analyze, intersect and traversal are not equal");
-			return {};
-		}
-	}
-
-	// Randomly generate the index every time
-	srand((uint32_t)std::chrono::system_clock::now().time_since_epoch().count());
-	_config_index = rand() / ((RAND_MAX + 1u) / coll_conf.stages[0].configs.size());
-
-	auto first_stage_ports = std::make_shared<std::set<uint16_t>>();
-	std::function<bool(Address, uint32_t)> should_shutdown = [first_stage_ports](Address addr, uint32_t stage)
-		{
-			if (stage == 0)
-			{
-				first_stage_ports->insert(addr.port);
-			}
-			else if (stage == 1)
-			{
-				return first_stage_ports->contains(addr.port);
-			}
-			return false;
-		};
-
-	std::vector<UDPCollectTask::Stage> stages;
-	for (size_t i = 0; i < coll_conf.stages.size(); ++i)
-	{
-		shared::CollectingConfig::StageConfig config = coll_conf.stages[i].configs[_config_index];
-
-		for (CollectingConfig::OverrideStage override_stage : coll_conf.override_stages)
-		{
-			if (override_stage.stage_index != i) continue;
-
-			auto dp_config = DataPackage::Create(&config, Transaction::NO_TRANSACTION);
-			auto dp_meta_data = DataPackage::Create(&meta_data, Transaction::NO_TRANSACTION);
-
-			// Get Equal Conditions
-			bool success = true;
-			for (auto& [key, val] : override_stage.equal_conditions.items())
-			{
-				if (dp_config.data.contains(key))
-				{
-					if (dp_config.data[key] != val)
-						success = false;
-				} 
-				else if (dp_meta_data.data.contains(key))
-				{
-					if (dp_meta_data.data[key] != val)
-						success = false;
-				}
-				else
-				{
-					Log::Warning("Warning during overriding collect config :");
-					Log::Warning("Key %s could not be found in config or meta data", key.c_str());
-					success = false;
-				}
-			}
-
-			if (success)
-			{
-				dp_config.data.update(override_stage.override_fields);
-				if (auto err = dp_config.Get(config))
-				{
-					Log::HandleResponse(err, "Overriding config");
-				}
-			}
-		}
-
-		const UDPCollectTask::Stage s
-		{
-			/* remote address */				app_conf.server_address,
-			/* start port */					config.start_echo_service,
-			/* num port services */				config.num_echo_services,
-			/* local port */					config.local_port,
-			/* amount of ports */				config.sample_size,
-			/* time between requests in ms */	config.sample_rate_ms,
-			/* close sockets early */			config.close_sockets_early,
-			/* shutdown condition */			config.use_shutdown_condition ? should_shutdown : nullptr
-		};
-
-		stages.push_back(s);
-	}
-
-	for (const auto& stage : coll_conf.added_dynamic_stages)
-	{
-		auto startCB = [stage](UDPCollectTask::Stage& curr, const UDPCollectTask& task, uint16_t stage_index)
-		{
-			auto result = task.GetCurrentResult();
-			uint32_t received_addresses = std::accumulate(result.stages.begin(), result.stages.end(), 0u,
-				[](uint32_t result, const CollectVector& a)
-				{
-					return result + a.data.size();
-				});
-			const auto now = std::chrono::system_clock::now();
-			const auto start = task.GetTaskStartTime();
-			uint32_t task_duration =
-				std::chrono::duration_cast<std::chrono::milliseconds>(now - start).count();
-			Log::Info("Received Addresses : %d", received_addresses);
-			Log::Info("Duration ms : %d", task_duration);
-			const uint16_t sample_rate = std::clamp(task_duration / received_addresses, 0u, stage.max_rate_ms);
-			const uint16_t sample_size = std::clamp(stage.k_multiple * received_addresses, 0u, stage.max_sockets);
-			curr.sample_size = sample_size;
-			curr.sample_rate_ms = sample_rate;
-		};
-
-		const UDPCollectTask::Stage s
-		{
-			/* remote address */				app_conf.server_address,
-			/* start port */					stage.start_echo_service,
-			/* num port services */				stage.num_echo_services,
-			/* local port */					stage.local_port,
-			/* amount of ports */				0,
-			/* time between requests in ms */	0,
-			/* close sockets early */			stage.close_sockets_early,
-			/* shutdown condition */			stage.use_shutdown_condition ? should_shutdown : nullptr,
-			/*start callback*/					startCB
-		};
-		stages.push_back(s);
-	}
-	return stages;
-}
-
-
 void GlobCollectSamples::Activate(Application* app)
 {
 	NatCollectorModel& model = app->_components.Get<NatCollectorModel>();
@@ -181,7 +43,6 @@ void GlobCollectSamples::Shutdown(DataPackage pkg)
 {
 	Log::HandleResponse(pkg.error, "NAT client error");
 	_client.Disconnect();
-	_config_index = 0;
 	_config = {};
 	_readable_time_stamp = {};
 	_analyze_collect_ports = {};
@@ -247,7 +108,6 @@ void GlobCollectSamples::OnTransactionEvent(DataPackage pkg, Application* app)
 		}
 		_current = CollectSamplesStep::CONNECT_NO_INTERRUPT;
 		err = _client.CollectTraceRouteInfoAsync();
-		_readable_time_stamp = shared::helper::CreateTimeStampNow();
 		break;
 	}
 	case Transaction::CLIENT_RECEIVE_TRACEROUTE:
@@ -262,7 +122,9 @@ void GlobCollectSamples::OnTransactionEvent(DataPackage pkg, Application* app)
 			auto config_pkg = DataPackage::Create(&_config, Transaction::NO_TRANSACTION);
 			const std::string config_str = config_pkg.data.dump();
 			Log::Warning("%s", config_str.c_str());
-			err = _client.CollectPortsAsync(CreateCollectStages(app_conf,_config, model.GetClientMetaData()));
+			const auto stages = NatTraverserClient::CalculateCollectStages(app_conf.server_address, _config, model.GetClientMetaData());
+			err = _client.CollectPortsAsync(stages);
+			_readable_time_stamp = shared::helper::CreateTimeStampNow();
 		}
 		else
 		{
@@ -278,7 +140,9 @@ void GlobCollectSamples::OnTransactionEvent(DataPackage pkg, Application* app)
 		err = pkg.Get(_config);
 		if (err) break;
 		Log::Info("Received Collect Config");
-		err = _client.CollectPortsAsync(CreateCollectStages(app_conf,_config, model.GetClientMetaData()));
+		const auto stages = NatTraverserClient::CalculateCollectStages(app_conf.server_address, _config, model.GetClientMetaData());
+		err = _client.CollectPortsAsync(stages); 
+		_readable_time_stamp = shared::helper::CreateTimeStampNow();
 		break;
 	}
 	case Transaction::CLIENT_RECEIVE_COLLECTED_PORTS:

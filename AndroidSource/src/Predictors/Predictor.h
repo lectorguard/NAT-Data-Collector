@@ -1,125 +1,49 @@
 #pragma once
-#include "Components/NatTraverserClient.h"
+#include "Data/Address.h"
+#include "SharedProtocol.h"
 
-struct AnalyzerDynamic
+inline static DataPackage PredictConeNAT(const MultiAddressVector& collected_samples, uint16_t local_port)
 {
-	struct Config
+	if (collected_samples.stages.size() == 0 ||
+		collected_samples.stages[0].data.size() == 0)
 	{
-		UDPCollectTask::Stage candidates;
-		UDPCollectTask::Stage duplicates;
-		uint16_t first_n_predict{};
-	};
-
-	static std::optional<std::vector<Address>> analyze(NatTraverserClient& nc, const Config& config)
-	{
-		auto first_stage_ports = std::make_shared<std::set<uint16_t>>();
-		std::function<bool(Address, uint32_t)> should_shutdown = [first_stage_ports](Address addr, uint32_t stage)
-			{
-				if (stage == 0)
-				{
-					first_stage_ports->insert(addr.port);
-				}
-				else if (stage == 1)
-				{
-					return first_stage_ports->contains(addr.port);
-				}
-				return false;
-			};
-		auto copy = config;
-		copy.candidates.cond = should_shutdown;
-		copy.duplicates.cond = should_shutdown;
-
-		auto pkg = nc.CollectPorts({copy.candidates, copy.duplicates});
-
-		// Retrieve result
-		if (pkg.error) return std::nullopt;
-		shared::MultiAddressVector av;
-		if (auto err = pkg.Get(av)) return std::nullopt;
-
-		if (av.stages.size() > 0 && av.stages[0].data.size() > 0)
-		{
-			auto& vec = av.stages[0].data;
-			auto first_n = std::clamp((const uint16_t)vec.size(), (const uint16_t)0, config.first_n_predict);
-			return std::vector<Address>(vec.begin(), vec.begin() + first_n);
-		}
-		return std::nullopt;
-	};
-};
-
-
-struct AnalyzerConeNAT
-{
-	using Config = UDPCollectTask::Stage;
-
-	static std::optional<std::vector<Address>> analyze(NatTraverserClient& nc, const UDPCollectTask::Stage& config)
-	{
-		auto pkg = nc.CollectPorts({ config });
-
-		// Retrieve result
-		if (pkg.error) return std::nullopt;
-		shared::MultiAddressVector av;
-		if (auto err = pkg.Get(av))
-		{
-			Log::HandleResponse(err, "analyze cone nat");
-			return std::nullopt;
-		}
-
-		if (av.stages.size() == 1)
-		{
-			return av.stages[0].data;
-		}
-		return std::nullopt;
-	};
-};
-
-struct PredictorTakeFirst
-{
-	static std::optional<Address> predict(const std::vector<Address>& addresses)
-	{
-		if (addresses.size() > 0)
-		{
-			return addresses[0];
-		}
-		return std::nullopt;
-	};
-};
-
-struct PredictorHighestFreq
-{
-	static std::optional<Address> predict(const std::vector<Address>& addresses)
-	{
-		if (addresses.size() == 0)
-		{
-			return std::nullopt;
-		}
-
-		std::map<uint16_t, std::vector<Address>> port_occurence_map{};
-		for (auto const& addr : addresses)
-		{
-			if (port_occurence_map.contains(addr.port))
-			{
-				port_occurence_map[addr.port].push_back(addr);
-			}
-			else
-			{
-				port_occurence_map[addr.port] = { addr };
-			}
-		}
-		return port_occurence_map.rbegin()->second[0];
-	};
-};
-
-struct PredictorRandomExisting
-{
-	static std::optional<Address> predict(const std::vector<Address>& addresses)
-	{
-		if (addresses.size() == 0)
-		{
-			return std::nullopt;
-		}
-
-		srand((uint32_t)std::chrono::system_clock::now().time_since_epoch().count());
-		const std::uint64_t prediction_index = rand() / ((RAND_MAX + 1u) / addresses.size());
-		return addresses.at(prediction_index);
+		return DataPackage::Create<ErrorType::ERROR>({ "Predict Cone NAT address failed. No received addresses." });
 	}
-};
+
+	Address result{ collected_samples.stages[0].data[0].ip_address, local_port, 0 };
+	return DataPackage::Create(&result, Transaction::NO_TRANSACTION);
+}
+
+inline static DataPackage PredictRandomNAT(const MultiAddressVector& collected_samples)
+{
+	srand((uint32_t)std::chrono::system_clock::now().time_since_epoch().count());
+
+	// Received ports in first and second stage
+	if (collected_samples.stages.size() > 1 &&
+		collected_samples.stages[0].data.size() > 1 &&
+		collected_samples.stages[1].data.size() > 0)
+	{
+		Address prediction;
+		// last port from repetition phase is unlikely to be traversed
+		// Make sure this port is not predicted 
+		const uint16_t last_port_rep = collected_samples.stages[1].data.back().port;
+		do
+		{
+			const uint32_t config_index = rand() / ((RAND_MAX + 1u) / collected_samples.stages[0].data.size());
+			prediction = collected_samples.stages[0].data[config_index];
+		} 
+		while (prediction.port == last_port_rep);
+		return DataPackage::Create(&prediction, Transaction::NO_TRANSACTION);
+	}
+
+	// Only ports received in first stage
+	if (collected_samples.stages.size() == 1 && 
+		collected_samples.stages[1].data.size() > 0)
+	{
+		const uint32_t config_index = rand() / ((RAND_MAX + 1u) / collected_samples.stages[0].data.size());
+		Address result{ collected_samples.stages[0].data[config_index] };
+		return DataPackage::Create(&result, Transaction::NO_TRANSACTION);
+	}
+	
+	return DataPackage::Create<ErrorType::ERROR>({ "Can perform prediction for random symmetric NAT, based on collected data" });
+}

@@ -46,10 +46,9 @@ namespace shared::helper
 			return (uint16_t)(ms % 10'000);
 		}
 
-		inline std::string CreateTimeStampNow()
+		inline std::string TimeStampToString(const std::chrono::system_clock::time_point& tp)
 		{
-			auto now = std::chrono::system_clock::now();
-			auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count();
+			auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(tp.time_since_epoch()).count();
 
 			// Convert milliseconds to seconds
 			std::time_t t = ms / 1000;
@@ -65,7 +64,16 @@ namespace shared::helper
 			return oss.str();
 		}
 
-		
+		inline std::string CreateTimeStampNow()
+		{
+			auto now = std::chrono::system_clock::now();
+			return TimeStampToString(now);
+		}
+
+		inline uint64_t GetDeltaTimeMSNow(const std::chrono::system_clock::time_point& start)
+		{
+			return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() -  start).count();
+		}
 
 		template<class... Lambdas>
 		struct Overloaded : Lambdas...

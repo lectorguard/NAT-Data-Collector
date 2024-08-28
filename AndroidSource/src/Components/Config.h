@@ -15,12 +15,13 @@ public:
 			std::string coll_information_name{};
 			std::string coll_users_name{};
 			std::string coll_collect_config{};
+			std::string coll_traverse_config{};
 
 			Mongo() {};
 			jser::JserChunkAppender AddItem() override
 			{
 				return JSerializable::AddItem().Append(JSER_ADD(SerializeManagerType, db_name, 
-					coll_version_name, coll_information_name, coll_users_name,coll_collect_config));
+					coll_version_name, coll_information_name, coll_users_name,coll_collect_config, coll_traverse_config));
 			}
 		};
 		

@@ -10,7 +10,7 @@ class UDPCollectTask
 public:
 	struct Stage
 	{
-		using StartFunc = std::function<void(Stage&, const UDPCollectTask&, uint16_t)>;
+		using StartFunc = std::function<void(Stage&, const MultiAddressVector&, const std::chrono::system_clock::time_point&)>;
 
 		// Server address
 		std::string echo_server_addr{};

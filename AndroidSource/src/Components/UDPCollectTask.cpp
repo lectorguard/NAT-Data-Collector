@@ -119,7 +119,7 @@ void UDPCollectTask::PrepareStage(const uint16_t& stage_index, asio::io_service&
 	Stage& stage = _stages[stage_index];
 	if (stage.start_stage_cb)
 	{
-		stage.start_stage_cb(stage, *this, stage_index);
+		stage.start_stage_cb(stage, GetCurrentResult(), GetTaskStartTime());
 	}
 
 	if (stage.sample_rate_ms == 0u || stage.close_socket_early == false)
