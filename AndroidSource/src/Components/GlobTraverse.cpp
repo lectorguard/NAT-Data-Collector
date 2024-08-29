@@ -34,7 +34,7 @@ void GlobTraverse::Activate(Application* app)
 		[this, app](auto pkg) { HandleTransaction(app, pkg); });
 }
 
-void GlobCollectSamples::OnFrameTime(Application* app, uint64_t frameTimeMS)
+void GlobTraverse::OnFrameTime(Application* app, uint64_t frameTimeMS)
 {
 	if (frameTimeMS > 10'000 && _currentTraversalStep != TraverseStep::DISCONNECTED)
 	{
