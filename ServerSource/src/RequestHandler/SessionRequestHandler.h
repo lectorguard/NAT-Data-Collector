@@ -106,6 +106,7 @@ struct ServerHandler<shared::Transaction::SERVER_CONFIRM_LOBBY>
 		ref->remove_lobby(toConfirm.owner);			// Remove lobby if they exist, makes sure lobby only exists once
 		toConfirm.owner.prediction = Address{};		// Make sure prediction is empty
 		toConfirm.joined[0].prediction = Address{}; // Make sure prediction is empty
+		toConfirm.result = {};						// Clear previous results
 		ref->add_lobby(toConfirm.owner, toConfirm.joined);
 		std::cout << "Created lobby with owner " << toConfirm.owner.username << " and joined user " << toConfirm.joined[0].username << std::endl;
 
@@ -243,7 +244,7 @@ struct ServerHandler<shared::Transaction::SERVER_UPLOAD_TRAVERSAL_RESULT>
 		{
 			lobby.result.client_target_hole = client_info;
 		}
-		lobby.result.success = traversal_success;
+		lobby.result.success = lobby.result.success ? lobby.result.success : traversal_success;
 		// Update lobby internal
 		ref->add_lobby(lobby);
 

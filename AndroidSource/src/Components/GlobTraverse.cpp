@@ -13,6 +13,7 @@ void GlobTraverse::Activate(Application* app)
 		[this, app](auto s) { StartDraw(app); },
 		[this](auto app, auto s) { Update(app); },
 		[this, app](auto s) { EndDraw(app); });
+	app->FrameTimeEvent.Subscribe([this](auto app, auto dur) {OnFrameTime(app, dur); });
 	nat_model.SubscribeJoinLobby([this, app](uint64_t i) {JoinLobby(app,i); });
 	nat_model.SubscribeCancelJoinLobby([this](Application* app) {Shutdown(app, DataPackage()); });
 	nat_model.SubscribeConfirmJoinLobby([this, app](Lobby l) {OnJoinLobbyAccept(app,l); });
@@ -31,6 +32,14 @@ void GlobTraverse::Activate(Application* app)
 		Transaction::CLIENT_UPLOAD_SUCCESS,
 		Transaction::CLIENT_TIMER_OVER },
 		[this, app](auto pkg) { HandleTransaction(app, pkg); });
+}
+
+void GlobCollectSamples::OnFrameTime(Application* app, uint64_t frameTimeMS)
+{
+	if (frameTimeMS > 10'000 && _currentTraversalStep != TraverseStep::DISCONNECTED)
+	{
+		Shutdown(app, DataPackage::Create<ErrorType::ERROR>({ "Frame time is above 10 sec, app is sleeping.Abort .." }));
+	}
 }
 
 void GlobTraverse::StartDraw(Application* app)
@@ -331,7 +340,10 @@ void GlobTraverse::HandleTransaction(Application* app, DataPackage pkg)
 		else if (model.GetClientMetaData().nat_type == NATType::RANDOM_SYM)
 		{
 			// Start the stage
-			_rnat_trav_stage.start_stage_cb(_rnat_trav_stage, _analyze_results, std::chrono::system_clock::now());
+			if (_rnat_trav_stage.start_stage_cb)
+			{
+				_rnat_trav_stage.start_stage_cb(_rnat_trav_stage, _analyze_results, _start_traversal_timestamp);
+			}
 			_traverse_config = std::make_unique<UDPHolepunching::Config>(UDPHolepunching::Config{
 
 				predicted_address, // Address
@@ -355,7 +367,7 @@ void GlobTraverse::HandleTransaction(Application* app, DataPackage pkg)
 	}
 	case Transaction::CLIENT_TRAVERSAL_RESULT:
 	{
-		Log::Info("Upload Traversal Result");
+		Log::HandleResponse(pkg.error, "Received Traversal Result");
 		auto result = _client.GetTraversalResult();
 		if (!result)
 		{

@@ -31,7 +31,7 @@ public:
 	// Either join lobby id or new merged lobby
 	JoinLobbyInfo join_info;
 private:
-
+	void OnFrameTime(Application* app, uint64_t frameTimeMS);
 
 	void OnJoinLobbyAccept(Application* app, Lobby join_lobby);
 	void JoinLobby(Application* app, uint64_t join_sesssion);

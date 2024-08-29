@@ -138,26 +138,29 @@ void Server::remove_expired_sessions()
 	std::atomic<uint64_t> removed_lobbies = 0;
 	{
 		std::scoped_lock sc{ lobby_mutex };
-		removed_lobbies =
-			std::erase_if(_lobbies, [this, &needsUpdate](auto& item)
+		std::erase_if(_lobbies,[this, &needsUpdate, &removed_lobbies](auto& item)
+			{
+				auto& [key, lobby] = item;
+				if (!_sessions.contains(key))
 				{
-					auto& [key, lobby] = item;
-					if (_sessions.contains(key))
+					if (lobby.joined.size() == 0)
 					{
-						std::remove_if(lobby.joined.begin(), lobby.joined.end(),
-							[this](auto elem)
-							{
-								return !_sessions.contains(elem.session);
-							});
-						return false;
-					}
-					else
-					{
+						// Lobby is not available anymore for joining
 						needsUpdate = true;
+					}
+					++removed_lobbies;
+					return true;
+				}
+				for (const User& joined : lobby.joined)
+				{
+					if (!_sessions.contains(joined.session))
+					{
+						++removed_lobbies;
 						return true;
 					}
-
-				});
+				}
+				return false;
+			});
 	}
 	
 	if (needsUpdate)

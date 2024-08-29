@@ -124,9 +124,15 @@ UDPHolepunching::Result UDPHolepunching::start_task_internal(std::function<UDPHo
 
 void UDPHolepunching::send_request(uint16_t sock_index, asio::io_service& io_service, SharedEndpoint remote_endpoint, const std::error_code& ec)
 {
+	if (ec == asio::error::operation_aborted)
+	{
+		return;
+	}
+
 	if (ec && ec != asio::error::message_size)
 	{
 		_error.error = ErrorType::ERROR;
+		_error.messages.push_back("UDP Holepunching send request at index " + std::to_string(sock_index));
 		_error.messages.push_back(ec.message());
 		io_service.stop();
 		return;
@@ -153,20 +159,22 @@ void UDPHolepunching::send_request(uint16_t sock_index, asio::io_service& io_ser
 	{
 		_socket_list[sock_index].timer.expires_from_now(std::chrono::milliseconds(_config.keep_alive_rate_ms));
 		_socket_list[sock_index].timer.async_wait([this, sock_index, &io_service, remote_endpoint](auto error) {
-			if (error != asio::error::operation_aborted)
-			{
-				std::error_code ec;
-				send_request(sock_index, io_service, remote_endpoint, ec);
-			}
+			send_request(sock_index, io_service, remote_endpoint, error);
 		});
 	}
 }
 
 void UDPHolepunching::start_receive(uint16_t sock_index, asio::io_service& io_service, const std::error_code& ec)
 {
+	if (ec == asio::error::operation_aborted)
+	{
+		return;
+	}
+
 	if (ec && ec != asio::error::message_size)
 	{
 		_error.error = shared::ErrorType::ERROR;
+		_error.messages.push_back("UDP Holepunching start receive at index " + std::to_string(sock_index));
 		_error.messages.push_back(ec.message());
 		io_service.stop();
 		return;
@@ -257,7 +265,7 @@ asio::system_timer UDPHolepunching::CreateDeadline(asio::io_service& service, ui
 			// If timer activates without abortion, we shutdown
 			if (error != asio::error::operation_aborted)
 			{
-				_error = Error{ ErrorType::ERROR, {"Traversal failed, deadline duration is over"} };
+				_error = Error{ ErrorType::ANSWER, {"Traversal failed, deadline duration is over"} };
 				service.stop();
 			}
 		}
