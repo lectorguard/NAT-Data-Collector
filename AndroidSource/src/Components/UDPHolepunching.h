@@ -24,16 +24,17 @@ public:
 
 	struct Result
 	{
+		Error error{};
 		SharedEndpoint endpoint = nullptr;
 		SharedSocket socket = nullptr;
 		uint16_t rcvd_index = 0;
 		uint16_t send_index = 0;
 	};
 
-	static Result StartHolepunching(const Config& holepunch_info, AsyncQueue read_queue);
+	static Result StartHolepunching(const Config& holepunch_info, AsyncQueue read_queue, std::shared_ptr<std::atomic<bool>> shutdown_flag);
 
 private:
-	UDPHolepunching(const Config& info);
+	UDPHolepunching(const Config& info, std::shared_ptr<std::atomic<bool>> shutdown_flag);
 	
 	struct Socket
 	{
@@ -48,23 +49,26 @@ private:
 		std::shared_ptr<asio::ip::udp::endpoint> other_endpoint{};
 		std::shared_ptr<DefaultBuffer> buffer{};
 		std::uint64_t buffer_length{};
-		asio::io_service& io;
 		asio::error_code ec;
 	};
 
 	static UDPHolepunching::Result start_task_internal(std::function<UDPHolepunching()> createCollectTask, AsyncQueue read_queue, asio::io_context& io);
-	void send_request(uint16_t sock_index, asio::io_service& io_service, SharedEndpoint remote_endpoint, const std::error_code& ec);
-	void start_receive(uint16_t sock_index, asio::io_service& io_service, const std::error_code& ec);
+	void send_request(uint16_t sock_index, SharedEndpoint remote_endpoint, const std::error_code& ec);
+	void start_receive(uint16_t sock_index, const std::error_code& ec);
 	// Returns success index
 	void handle_receive(const ReceiveInfo& info);
-	asio::system_timer CreateDeadline(asio::io_service& service, uint32_t duration_ms);
-	static void push_result(Error error, AsyncQueue read_queue);
+	asio::system_timer CreateDeadline(uint32_t duration_ms);
+	void UpdateShutdownTimer();
 
-	std::vector<Socket> _socket_list;
+	const Config _config;
+	std::vector<Socket> _socket_list{};
 	Error _error{ ErrorType::OK };
-	std::shared_ptr<asio::system_timer> _deadline_timer;
+	std::shared_ptr<asio::system_timer> _deadline_timer{};
+	std::shared_ptr<std::atomic<bool>> _shutdown_flag{};
+	std::shared_ptr<asio::system_timer> _shutdown_timer{};
 	bool _sockets_exhausted = false;
 	// In case of traversal success, socket and endpoint are set here
 	Result _result{};
-	const Config _config;
+	
+	
 };

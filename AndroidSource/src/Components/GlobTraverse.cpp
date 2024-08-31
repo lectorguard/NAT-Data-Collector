@@ -333,7 +333,7 @@ void GlobTraverse::HandleTransaction(Application* app, DataPackage pkg)
 				0,		// Traversal Rate
 				_cone_local_port,	// local port
 				250'000,	// Deadline duration ms	
-				5'000,	// Keep alive ms
+				28'000,	// Keep alive ms
 				io
 				});
 		}
@@ -351,7 +351,7 @@ void GlobTraverse::HandleTransaction(Application* app, DataPackage pkg)
 				_rnat_trav_stage.sample_rate_ms,		// Traversal Rate
 				_rnat_trav_stage.local_port,	// local port
 				250'000,	// Deadline duration ms	
-				5'000,	// Keep alive ms
+				0,	// Keep alive ms
 				io
 				});
 		}
@@ -368,7 +368,7 @@ void GlobTraverse::HandleTransaction(Application* app, DataPackage pkg)
 	case Transaction::CLIENT_TRAVERSAL_RESULT:
 	{
 		Log::HandleResponse(pkg.error, "Received Traversal Result");
-		auto result = _client.GetTraversalResult();
+		auto result = _client.ConsumeTraversalResult();
 		if (!result)
 		{
 			err = Error(ErrorType::ERROR, { "Traversal result is invalid" });
@@ -397,6 +397,7 @@ void GlobTraverse::HandleTransaction(Application* app, DataPackage pkg)
 			.Add(MetaDataField::USERS_COLL_NAME, app_conf.mongo.coll_users_name);
 
 		err = _client.ServerTransactionAsync(data_package);
+		_currentTraversalStep = TraverseStep::CONNECTED;
 		break;
 	}
 	case Transaction::CLIENT_UPLOAD_SUCCESS:
@@ -404,7 +405,6 @@ void GlobTraverse::HandleTransaction(Application* app, DataPackage pkg)
 		Log::Info("Upload Traversal Result Successful");
 		Log::Info("Wait %d Seconds for Next Traversal Attempt", _config.delay_collection_steps_ms / 1000);
 		_client.CreateTimerAsync(_config.delay_collection_steps_ms);
-		_currentTraversalStep = TraverseStep::CONNECTED;
 		break;
 	}
 	case Transaction::CLIENT_TIMER_OVER:

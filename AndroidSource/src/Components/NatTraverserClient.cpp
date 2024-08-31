@@ -61,9 +61,14 @@ Error NatTraverserClient::Disconnect()
 			response.Add(fut->get());
 		}
 	}
+	if (establish_communication_future.valid())
+	{
+		establish_communication_future.wait();
+		response.Add(establish_communication_future.get().error);
+	}
+	// Just in case discard current traversal result
+	ConsumeTraversalResult();
 	_timer.SetActive(false);
-	//Discard pending traversal result just in case
-	GetTraversalResult();
 	write_queue = nullptr;
 	read_queue = nullptr;
 	shutdown_flag = nullptr;
@@ -265,7 +270,7 @@ shared::Error NatTraverserClient::TraverseNATAsync(UDPHolepunching::Config const
 		return Error(ErrorType::ERROR, { "shutdown flag is invalid, abort" });
 	}
 
-	establish_communication_future = std::async(UDPHolepunching::StartHolepunching, info, read_queue);
+	establish_communication_future = std::async(UDPHolepunching::StartHolepunching, info, read_queue, shutdown_flag);
 	return Error{ ErrorType::OK };
 }
 
@@ -290,14 +295,11 @@ Error NatTraverserClient::ServerTransactionAsync(shared::DataPackage pkg)
 	return push_package(write_queue, pkg, true);
 }
 
-std::optional<UDPHolepunching::Result> NatTraverserClient::GetTraversalResult()
+std::optional<UDPHolepunching::Result> NatTraverserClient::ConsumeTraversalResult()
 {
-	if (establish_communication_future.valid())
-	{
-		establish_communication_future.wait();
-		return establish_communication_future.get();
-	}
-	return std::nullopt;
+	auto temp = _traversal_result;
+	_traversal_result = std::nullopt;
+	return temp;
 }
 
 std::optional<shared::DataPackage> NatTraverserClient::TryGetResponse()
@@ -314,11 +316,6 @@ std::optional<shared::DataPackage> NatTraverserClient::TryGetResponse()
 			{
 				return DataPackage::Create(err);
 			}
-		}
-		else if (pkg.transaction == Transaction::CLIENT_TRAVERSAL_RESULT && pkg.error)
-		{
-			// Discard future result
-			GetTraversalResult();
 		}
 		return pkg;
 	}
@@ -338,6 +335,18 @@ void NatTraverserClient::Update()
 			}
 		}
 	}
+	if (auto res = utilities::TryGetFuture<UDPHolepunching::Result>(establish_communication_future))
+	{
+		if (res->error)
+		{
+			publish_transaction(DataPackage::Create(res->error));
+		}
+		else
+		{
+			_traversal_result = res;
+			publish_transaction(DataPackage::Create(nullptr, Transaction::CLIENT_TRAVERSAL_RESULT));
+		}	
+	}
 	if (_timer.HasExpired())
 	{
 		publish_transaction(DataPackage::Create(nullptr, Transaction::CLIENT_TIMER_OVER));
@@ -349,14 +358,6 @@ void NatTraverserClient::Update()
 	if (read_queue->TryPop(buf))
 	{
 		auto pkg = DataPackage::Decompress(buf);
-		
-		//Special case, future of client traversal result can not be deserialized (returns a socket) 
-		if (pkg.transaction == Transaction::CLIENT_TRAVERSAL_RESULT && pkg.error)
-		{
-			// Discard future result
-			GetTraversalResult();
-		}
-
 		publish_transaction(pkg);
 	}
 }
