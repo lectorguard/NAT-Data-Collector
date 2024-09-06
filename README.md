@@ -201,25 +201,35 @@ DEBUG   :     #00 pc 001610ac  /data/app/com.NativeAndroidActivity-E6-q8RpUa2MOY
 DEBUG   :     #01 pc 0000001d  <unknown>
 ```
 
+
+#### Find call, file and line number
+
+To debug this crash report we need the following information 
+
+- Shared library in which the crash occured (here : `libnative-activity.so`)
+- Address from the backtrace (here : `001610ac`, must be converted to `0x001610ac`)
+- Debug information should be part of the shared library for useful dubugging
+- Add  `C:\Microsoft\AndroidNDK\android-ndk-r23c\toolchains\llvm\prebuilt\windows-x86_64\bin` to path environment variable
+- Navigate to shared library (You can unzip the `.apk` and navigate to libs)
+- Open a powershell and use one of the following communication
+
+Symbolizer
+
+```
+llvm-symbolizer -obj=libnative-activity.so 0x001610ac
+```
+Address to line
+
+```
+llvm-addr2line -C -f -e "libnative-activity.so" 0x001610ac
+```
+
+
 * [Native Crash Docs](https://source.android.com/docs/core/tests/debug/native-crash)
 * [Native Crash Debugging](https://proandroiddev.com/debugging-native-crashes-in-android-apps-2b86fd7113d8)
 * Use `ndk-stack` tool to deobfiscate thombstone (located in C:\Microsoft\AndroidNDK\android-ndk-r23c)
 	* It might be necessary to copy paste the crash starting from the asterics line to another file
 	* Path to shared libraries can be accessed by unzipping the `.apk`
-
-```
-.\ndk-stack.cmd -sym "Path to shared libraries" -dump "log.txt"
-```
-
-* If above fails you can still try the `addr2line` tool (located in C:\Microsoft\AndroidNDK\android-ndk-r23c\toolchains\llvm\prebuilt\windows-x86_64\bin)
-	* Shared library can be found by unzipping the `.apk` file
-	* Use address from target backtrace line
-
-```
-.\llvm-addr2line.exe -C -f -e "path to .so file from target backtrace line address-from-stack-trace
-// call for crash above
-.\llvm-addr2line.exe -C -f -e "<project origin>/AndroidPackaging\ARM\Debug\NativeAndroidActivity\lib\armeabi-v7a\libnative-activity.so" 001610ac
-```
 
 ## Notify users about new version
 

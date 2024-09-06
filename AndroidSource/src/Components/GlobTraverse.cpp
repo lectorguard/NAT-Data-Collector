@@ -74,17 +74,9 @@ void GlobTraverse::Update(Application* app)
 	switch (_currentTraversalStep)
 	{
 	case TraverseStep::DISCONNECTED:
-	{
-		model.TrySwitchGlobState();
-		return;
-	}
 	case TraverseStep::CONNECTED:
 	{
-		if (model.TrySwitchGlobState())
-		{
-			Shutdown(app, DataPackage());
-			return;
-		}
+		model.TrySwitchGlobState();
 		break;
 	}
 	default:
@@ -103,7 +95,7 @@ void GlobTraverse::JoinLobby(Application* app, uint64_t join_sesssion)
 
 	const std::string username = app->_components.Get<UserData>().info.username;
 	uint64_t user_session;
-	if (!NatTraverserClient::FindUserSession(username, all_lobbies, user_session))
+	if (!NatTraverserClient::FindUserSession(username, _all_lobbies, user_session))
 	{
 		Shutdown(app, DataPackage::Create<ErrorType::WARNING>({ "Failed to find user session during join lobby process" }));
 		return;
@@ -118,7 +110,7 @@ void GlobTraverse::JoinLobby(Application* app, uint64_t join_sesssion)
 	Log::Info("Start joining lobby");
 	_currentTraversalStep = TraverseStep::JOIN_LOBBY;
 	app->_components.Get<NatCollectorModel>().PushPopUpState(NatCollectorPopUpState::JoinLobbyPopUpWindow);
-	join_info.other_session = join_sesssion;
+	_join_info.other_session = join_sesssion;
 
 }
 
@@ -155,10 +147,15 @@ void GlobTraverse::Shutdown(Application* app, DataPackage pkg)
 {
 	Log::HandleResponse(pkg, "Nat Traverser Client Error");
 	_client.Disconnect();
-	_start_traversal_timestamp = {};
-	all_lobbies = GetAllLobbies{};
-	join_info = JoinLobbyInfo{};
+	_all_lobbies = GetAllLobbies{};
+	_join_info = JoinLobbyInfo{};
 	_currentTraversalStep = TraverseStep::DISCONNECTED;
+	_start_traversal_timestamp = {};
+	_config = {};
+	_rnat_trav_stage = {};
+	_analyze_results = {};
+	_cone_local_port = {};
+	_traverse_config = {};
 	app->_components.Get<NatCollectorModel>().SetNextGlobalState(NatCollectorGlobalState::Idle);
 }
 
@@ -212,13 +209,13 @@ void GlobTraverse::HandleTransaction(Application* app, DataPackage pkg)
 	case Transaction::CLIENT_RECEIVE_LOBBIES:
 	{
 		Log::Info("Received Traversal Lobbies");
-		err = pkg.Get<GetAllLobbies>(all_lobbies);
+		err = pkg.Get<GetAllLobbies>(_all_lobbies);
 		if (err) break;
 		if (_currentTraversalStep == TraverseStep::JOIN_LOBBY ||
 			_currentTraversalStep == TraverseStep::CONFIRM_LOBBY)
 		{
 			// If other session to join is dropped, close window
-			if (!all_lobbies.lobbies.contains(join_info.other_session))
+			if (!_all_lobbies.lobbies.contains(_join_info.other_session))
 			{
 				model.PopPopUpState();
 				Shutdown(app, DataPackage::Create<ErrorType::ERROR>({ "Lobby not available" }));
@@ -228,14 +225,14 @@ void GlobTraverse::HandleTransaction(Application* app, DataPackage pkg)
 	}
 	case Transaction::CLIENT_CONFIRM_JOIN_LOBBY:
 	{
-		err = pkg.Get<Lobby>(join_info.merged_lobby);
+		err = pkg.Get<Lobby>(_join_info.merged_lobby);
 		if (err) break;
-		if (join_info.merged_lobby.joined.size() == 0)
+		if (_join_info.merged_lobby.joined.size() == 0)
 		{
 			Shutdown(app, DataPackage::Create<ErrorType::ERROR>({ "Received invalid lobby to confirm from server" }));
 			break;
 		}
-		join_info.other_session = join_info.merged_lobby.joined[0].session;
+		_join_info.other_session = _join_info.merged_lobby.joined[0].session;
 		Log::Info("Start Confirm Lobby");
 		_currentTraversalStep = TraverseStep::CONFIRM_LOBBY;
 		model.PushPopUpState(NatCollectorPopUpState::JoinLobbyPopUpWindow);
@@ -327,15 +324,16 @@ void GlobTraverse::HandleTransaction(Application* app, DataPackage pkg)
 
 		if (model.GetClientMetaData().nat_type == NATType::CONE)
 		{
-			_traverse_config = std::make_unique<UDPHolepunching::Config>(UDPHolepunching::Config{
+			_traverse_config = UDPHolepunching::Config
+			{
 				predicted_address, // Address
 				1,		// Traversal Attempts
 				0,		// Traversal Rate
 				_cone_local_port,	// local port
 				250'000,	// Deadline duration ms	
 				28'000,	// Keep alive ms
-				io
-				});
+			};
+			err = _client.TraverseNATAsync(_traverse_config);
 		}
 		else if (model.GetClientMetaData().nat_type == NATType::RANDOM_SYM)
 		{
@@ -344,16 +342,16 @@ void GlobTraverse::HandleTransaction(Application* app, DataPackage pkg)
 			{
 				_rnat_trav_stage.start_stage_cb(_rnat_trav_stage, _analyze_results, _start_traversal_timestamp);
 			}
-			_traverse_config = std::make_unique<UDPHolepunching::Config>(UDPHolepunching::Config{
-
+			_traverse_config = UDPHolepunching::Config
+			{
 				predicted_address, // Address
 				_rnat_trav_stage.sample_size,		// Traversal Attempts
 				_rnat_trav_stage.sample_rate_ms,		// Traversal Rate
 				_rnat_trav_stage.local_port,	// local port
 				250'000,	// Deadline duration ms	
 				0,	// Keep alive ms
-				io
-				});
+			};
+			err = _client.TraverseNATAsync(_traverse_config);
 		}
 		else
 		{
@@ -361,37 +359,30 @@ void GlobTraverse::HandleTransaction(Application* app, DataPackage pkg)
 			Shutdown(app, DataPackage());
 			break;
 		}
-
-		err = _client.TraverseNATAsync(*_traverse_config);
 		break;
 	}
 	case Transaction::CLIENT_TRAVERSAL_RESULT:
 	{
 		Log::HandleResponse(pkg.error, "Received Traversal Result");
-		auto result = _client.ConsumeTraversalResult();
-		if (!result)
-		{
-			err = Error(ErrorType::ERROR, { "Traversal result is invalid" });
-			break;
-		}
-		const bool success = result->socket != nullptr;
-		if (success)result->socket->close();
-		Log::Info("Traversal %s", success ? "Succeded" : "Failed");
+
+		UDPHolepunching::Result hp_result;
+		if((err = pkg.Get<UDPHolepunching::Result>(hp_result)))break;
+		Log::Info("Traversal %s", hp_result.success ? "Succeded" : "Failed");
 		
 		TraversalClient result_info
 		{
-			result->rcvd_index, //success index if exist
-			_traverse_config->traversal_attempts,
+			hp_result.rcvd_index, //success index if exist
+			_traverse_config.traversal_attempts,
 			_analyze_results,
 			app->_components.Get<ConnectionReader>().Get(),
-			_traverse_config->target_client,
+			_traverse_config.target_client,
 			shared::helper::TimeStampToString(_start_traversal_timestamp),
 			shared::helper::GetDeltaTimeMSNow(_start_traversal_timestamp),
 			model.GetClientMetaData()
 		};
 		auto data_package =
 			DataPackage::Create(&result_info, Transaction::SERVER_UPLOAD_TRAVERSAL_RESULT)
-			.Add(MetaDataField::SUCCESS, success)
+			.Add(MetaDataField::SUCCESS, hp_result.success)
 			.Add(MetaDataField::DB_NAME, app_conf.mongo.db_name)
 			.Add(MetaDataField::COLL_NAME, _config.coll_name)
 			.Add(MetaDataField::USERS_COLL_NAME, app_conf.mongo.coll_users_name);
@@ -410,10 +401,10 @@ void GlobTraverse::HandleTransaction(Application* app, DataPackage pkg)
 	case Transaction::CLIENT_TIMER_OVER:
 	{
 		Log::Info("timer is over");
-		if (join_info.merged_lobby.joined.size() > 0)
+		if (_join_info.merged_lobby.joined.size() > 0)
 		{
 			Log::Info("Confirm Lobby");
-			if ((err = _client.ConfirmLobbyAsync(join_info.merged_lobby))) break;
+			if ((err = _client.ConfirmLobbyAsync(_join_info.merged_lobby))) break;
 		}
 		break;
 	}

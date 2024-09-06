@@ -18,7 +18,7 @@ void TraversalWindow::Draw(Application* app)
 	NatCollectorModel& model = app->_components.Get<NatCollectorModel>();
 	GlobTraverse& traverse_impl = app->_components.Get<GlobTraverse>();
 	const std::string username = app->_components.Get<UserData>().info.username;
-	std::map<uint64_t, Lobby> const lobbies = traverse_impl.all_lobbies.lobbies;
+	std::map<uint64_t, Lobby> const lobbies = traverse_impl._all_lobbies.lobbies;
 
 	ImGui::PushStyleVar(ImGuiStyleVar_ScrollbarSize, Renderer::CentimeterToPixel(StyleConst::ScrollbarSizeCM));
 	ImGui::SetNextWindowSize(ImVec2(io.DisplaySize.x, io.DisplaySize.y * MainScreenConst::BotWinSize));

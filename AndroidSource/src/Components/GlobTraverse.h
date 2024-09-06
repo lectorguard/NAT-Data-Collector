@@ -27,9 +27,9 @@ public:
 	void Deactivate(class Application* app) {};
 
 	TraverseStep GetTraversalState() const { return _currentTraversalStep; }
-	GetAllLobbies all_lobbies{};
+	GetAllLobbies _all_lobbies{};
 	// Either join lobby id or new merged lobby
-	JoinLobbyInfo join_info;
+	JoinLobbyInfo _join_info;
 private:
 	void OnFrameTime(Application* app, uint64_t frameTimeMS);
 
@@ -43,7 +43,6 @@ private:
 	void Shutdown(Application* app, DataPackage pkg);
 	void HandleTransaction(Application* app, DataPackage pkg);
 	
-	asio::io_service io;
 	std::chrono::system_clock::time_point _start_traversal_timestamp;
 	TraverseStep _currentTraversalStep = TraverseStep::DISCONNECTED;
 	NatTraverserClient _client;
@@ -51,5 +50,5 @@ private:
 	UDPCollectTask::Stage _rnat_trav_stage;
 	MultiAddressVector _analyze_results;
 	uint16_t _cone_local_port;
-	std::unique_ptr<UDPHolepunching::Config> _traverse_config;
+	UDPHolepunching::Config _traverse_config;
 };

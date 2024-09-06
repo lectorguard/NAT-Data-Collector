@@ -1,13 +1,19 @@
 #pragma once
 #include "imgui.h"
 #include "vector"
-#include "android/log.h"
 #include "SharedProtocol.h"
 #include "Utilities/NetworkHelpers.h"
 #include "mutex"
 #include "Components/GlobalConstants.h"
 
+#define ANDROID_LOG 1
+
+#if ANDROID_LOG
+#include "android/log.h"
 #define FORCE_LOG(x, ...) ((void)__android_log_buf_print(LOG_ID_CRASH, ANDROID_LOG_ERROR, "native-activity", x, __VA_ARGS__))
+#endif // ANDROID_LOG
+
+
 
 enum LogWarn
 {
@@ -141,6 +147,8 @@ private:
 	static void Log_Internal(const Entry& helper)
 	{
 		std::scoped_lock lock{ log_mutex };
+
+#if ANDROID_LOG
 		switch (helper.level)
 		{
 		case Log_INFO:
@@ -155,6 +163,7 @@ private:
 		default:
 			break;
 		}
+#endif
 		if (log_buffer.size() >= max_log_lines)
 		{
 			// Not very efficient should be a deque instead

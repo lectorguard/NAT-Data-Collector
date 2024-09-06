@@ -23,14 +23,15 @@ void NatTraverserClient::Subscribe(const std::vector<Transaction>& transaction, 
 
 shared::Error NatTraverserClient::ConnectAsync(std::string_view server_addr, uint16_t server_port)
 {
-	if (write_queue && read_queue && shutdown_flag)
+	if (write_queue && read_queue && shutdown_flag && *shutdown_flag == false)
 	{
 		// we are already connected
 		return Error{ErrorType::OK};
 	}
-
-	if (!write_queue && !read_queue && !shutdown_flag)
+	else
 	{
+		// Reset any pending state
+		Disconnect();
 		write_queue = std::make_shared<ConcurrentQueue<std::vector<uint8_t>>>();
 		read_queue = std::make_shared<ConcurrentQueue<std::vector<uint8_t>>>();
 		shutdown_flag = std::make_shared<std::atomic<bool>>(false);
@@ -38,19 +39,15 @@ shared::Error NatTraverserClient::ConnectAsync(std::string_view server_addr, uin
 		rw_future = std::async([info]() { return NatTraverserClient::connect_internal(info); });
 		return Error{ ErrorType::OK };
 	}
-	else
-	{
-		return Error{ ErrorType::ERROR, {"Invalid state"} };
-	}
 	return Error();
 }
 
 Error NatTraverserClient::Disconnect()
 {
 	auto response = Error{ErrorType::OK};
-	if (write_queue && read_queue && shutdown_flag)
+	if (shutdown_flag)
 	{
-		Log::Info("Disconnected from NAT Traversal service");
+		Log::Info("Disconnect from NAT Traversal service");
 		*shutdown_flag = true;
 	}
 	for (const auto& fut : _futures)
@@ -61,13 +58,6 @@ Error NatTraverserClient::Disconnect()
 			response.Add(fut->get());
 		}
 	}
-	if (establish_communication_future.valid())
-	{
-		establish_communication_future.wait();
-		response.Add(establish_communication_future.get().error);
-	}
-	// Just in case discard current traversal result
-	ConsumeTraversalResult();
 	_timer.SetActive(false);
 	write_queue = nullptr;
 	read_queue = nullptr;
@@ -241,6 +231,11 @@ shared::Error NatTraverserClient::CollectPortsAsync(const std::vector<UDPCollect
 	return prepare_collect_task_async([config, flag = shutdown_flag]() {return UDPCollectTask::StartCollectTask(config, flag); });
 }
 
+shared::Error NatTraverserClient::TraverseNATAsync(UDPHolepunching::Config const& info)
+{
+	return prepare_traverse_task_async([info, flag = shutdown_flag]() {return UDPHolepunching::StartHolepunching(info, flag); });
+}
+
 shared::Error NatTraverserClient::ExchangePredictionAsync(Address prediction_other_client)
 {
 	if (!rw_future.valid())
@@ -251,27 +246,6 @@ shared::Error NatTraverserClient::ExchangePredictionAsync(Address prediction_oth
 	auto data_package = DataPackage::Create(&prediction_other_client, Transaction::SERVER_EXCHANGE_PREDICTION);
 
 	return push_package(write_queue, data_package, true);
-}
-
-shared::Error NatTraverserClient::TraverseNATAsync(UDPHolepunching::Config const& info)
-{
-	if (establish_communication_future.valid())
-	{
-		return Error(ErrorType::ERROR, { "Please wait until previous call for establishing a communication has finished" });
-	}
-
-	if (!read_queue)
-	{
-		return Error(ErrorType::ERROR, { "Read queue is invalid, can not push result on analyze NAT" });
-	}
-
-	if (!shutdown_flag)
-	{
-		return Error(ErrorType::ERROR, { "shutdown flag is invalid, abort" });
-	}
-
-	establish_communication_future = std::async(UDPHolepunching::StartHolepunching, info, read_queue, shutdown_flag);
-	return Error{ ErrorType::OK };
 }
 
 Error NatTraverserClient::UploadToMongoDBAsync(jser::JSerializable* data, const std::string& db_name, const std::string& coll_name, const std::string& user_coll, const std::string& android_id)
@@ -295,33 +269,6 @@ Error NatTraverserClient::ServerTransactionAsync(shared::DataPackage pkg)
 	return push_package(write_queue, pkg, true);
 }
 
-std::optional<UDPHolepunching::Result> NatTraverserClient::ConsumeTraversalResult()
-{
-	auto temp = _traversal_result;
-	_traversal_result = std::nullopt;
-	return temp;
-}
-
-std::optional<shared::DataPackage> NatTraverserClient::TryGetResponse()
-{
-	if (!read_queue)return std::nullopt;
-	std::vector<uint8_t> buf{};
-	if (read_queue->TryPop(buf))
-	{
-		auto pkg = DataPackage::Decompress(buf);
-		if (pkg.transaction == Transaction::CLIENT_RECEIVE_COLLECTED_PORTS)
-		{
-			analyze_nat_future.wait();
-			if (auto err = analyze_nat_future.get())
-			{
-				return DataPackage::Create(err);
-			}
-		}
-		return pkg;
-	}
-	return std::nullopt;
-}
-
 void NatTraverserClient::Update()
 {
 	for (auto& fut : _futures)
@@ -334,18 +281,6 @@ void NatTraverserClient::Update()
 				publish_transaction(DataPackage::Create(*res));
 			}
 		}
-	}
-	if (auto res = utilities::TryGetFuture<UDPHolepunching::Result>(establish_communication_future))
-	{
-		if (res->error)
-		{
-			publish_transaction(DataPackage::Create(res->error));
-		}
-		else
-		{
-			_traversal_result = res;
-			publish_transaction(DataPackage::Create(nullptr, Transaction::CLIENT_TRAVERSAL_RESULT));
-		}	
 	}
 	if (_timer.HasExpired())
 	{
@@ -460,6 +395,27 @@ Error NatTraverserClient::prepare_collect_task_async(const std::function<shared:
 	}
 
 	analyze_nat_future = std::async(execute_task_async, cb, read_queue);
+	return Error{ ErrorType::OK };
+}
+
+Error NatTraverserClient::prepare_traverse_task_async(const std::function<shared::DataPackage()>& cb)
+{
+	if (traverse_nat_future.valid())
+	{
+		return Error(ErrorType::ERROR, { "Please wait until previous traverse NAT call has finished" });
+	}
+
+	if (!read_queue)
+	{
+		return Error(ErrorType::ERROR, { "Read queue is invalid, can not push result on traverse NAT" });
+	}
+
+	if (!shutdown_flag)
+	{
+		return Error(ErrorType::ERROR, { "shutdown flag is invalid, abort" });
+	}
+
+	traverse_nat_future = std::async(execute_task_async, cb, read_queue);
 	return Error{ ErrorType::OK };
 }
 

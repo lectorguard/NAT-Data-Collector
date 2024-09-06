@@ -35,7 +35,6 @@
 
 // Android
 #include "android_native_app_glue.h"
-#include "android/log.h"
 #include "android/sensor.h"
 #include "android/keycodes.h"
 #include "android/window.h"

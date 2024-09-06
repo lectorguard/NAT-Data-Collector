@@ -53,9 +53,15 @@ private:
 struct SimpleStopWatch
 {
 public:
-	SimpleStopWatch()
+	SimpleStopWatch(const std::function<void(uint64_t duration)>& shutdown = nullptr) :
+		shutdown_cb(shutdown)
 	{
 		Reset();
+	}
+	 
+	~SimpleStopWatch()
+	{
+		if (shutdown_cb)shutdown_cb(GetDurationMS());
 	}
 
 	void Reset()
@@ -70,4 +76,5 @@ public:
 	}
 private:
 	std::chrono::system_clock::time_point startTime{};
+	std::function<void(uint64_t duration)> shutdown_cb{};
 };

@@ -150,12 +150,6 @@ public:
 	// Based on the server transaction the corresponding transaction answer is sent back
 	Error ServerTransactionAsync(shared::DataPackage pkg);
 
-	std::optional<UDPHolepunching::Result> ConsumeTraversalResult();
-
-	// All server responses can be accessed via this function
-	// if a datapackage to consume exists, it is returned (non-blocking)
-	std::optional<DataPackage> TryGetResponse();
-
 	void Update();
 
 	// Search session id, based on username and received lobbies
@@ -184,6 +178,8 @@ private:
 	[[nodiscard]]
 	Error prepare_collect_task_async(const std::function<shared::DataPackage()>& cb);
 	[[nodiscard]]
+	Error prepare_traverse_task_async(const std::function<shared::DataPackage()>& cb);
+	[[nodiscard]]
 	Error prepare_http_task_async(const std::function<shared::DataPackage()>& cb);
 
 	static Error connect_internal(const TraversalInfo& info);
@@ -199,13 +195,10 @@ private:
 	ShutdownSignal shutdown_flag = nullptr;
 	Future rw_future{};
 	Future analyze_nat_future{};
+	Future traverse_nat_future{};
 	Future http_future{};
-	std::array<Future*, 3> _futures{ &rw_future, &analyze_nat_future, &http_future };
-	std::future<UDPHolepunching::Result> establish_communication_future;
-	std::optional<UDPHolepunching::Result> _traversal_result;
+	std::array<Future*,4> _futures{ &rw_future, &analyze_nat_future, &traverse_nat_future, &http_future };
 	SimpleTimer _timer;
-	
-	UDPHolepunching::Result cached;
 	std::map<Transaction, std::vector<TransactionCB>> transaction_callbacks{};
 
 	void publish_transaction(DataPackage pkg);

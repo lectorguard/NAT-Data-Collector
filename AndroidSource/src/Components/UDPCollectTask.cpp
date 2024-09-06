@@ -181,6 +181,11 @@ void UDPCollectTask::PrepareStage(const uint16_t& stage_index, asio::io_service&
 					{
 						return;
 					}
+					
+					if (io_service.stopped())
+					{
+						return;
+					}
 
 					if (!CreateSocket(io_service, local_socket_index, local_request_index, stage.local_port))
 					{

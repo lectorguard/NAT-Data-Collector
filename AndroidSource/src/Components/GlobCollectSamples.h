@@ -39,5 +39,5 @@ private:
 	MultiAddressVector _analyze_collect_ports;
 
 	NatTraverserClient _client{};
-	shared::CollectingConfig _config;
+	shared::CollectingConfig _config{};
 };

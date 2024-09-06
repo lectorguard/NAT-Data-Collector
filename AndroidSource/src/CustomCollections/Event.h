@@ -1,7 +1,6 @@
 #pragma once
 #include <functional>
 #include <vector>
-#include "android/log.h"
 #include "Log.h"
 
 template<typename ... EventParams>

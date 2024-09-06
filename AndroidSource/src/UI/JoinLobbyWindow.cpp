@@ -17,7 +17,7 @@ void JoinLobbyWindow::Draw(class Application* app)
 	auto& model = app->_components.Get<NatCollectorModel>();
 	auto& glob_traverse = app->_components.Get<GlobTraverse>();
 	const TraverseStep step = glob_traverse.GetTraversalState();
-	const auto confirm_lobby = glob_traverse.join_info.merged_lobby;
+	const auto confirm_lobby = glob_traverse._join_info.merged_lobby;
 
 	ImGuiIO& io = ImGui::GetIO();
 

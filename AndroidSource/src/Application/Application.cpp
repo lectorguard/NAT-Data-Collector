@@ -47,8 +47,8 @@ void Application::run(struct android_app* state)
 				return;
 			}
 		}
-		UpdateEvent.Publish(this);
 		FrameTimeEvent.Publish(this, last_frame_time);
+		UpdateEvent.Publish(this);
 		Renderer& renderer = _components.Get<Renderer>();
 		if (renderer.CanDraw() && !renderer.IsDarkMode())
 		{
