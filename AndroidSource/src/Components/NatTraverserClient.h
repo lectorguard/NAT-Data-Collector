@@ -129,7 +129,7 @@ public:
 
 	// Forwards prediction to other peer
 	// Triggers traversal response when both clients have sent their prediction (CLIENT_START_TRAVERSAL)
-	Error ExchangePredictionAsync(Address prediction_other_client);
+	Error ExchangePredictionAsync(Address prediction_other_client, uint16_t traversal_sample_size, uint16_t traversal_sample_rate);
 
 	// Tries to establish communication with other peer 
 	Error TraverseNATAsync(UDPHolepunching::Config const& info);

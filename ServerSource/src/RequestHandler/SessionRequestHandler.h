@@ -104,8 +104,8 @@ struct ServerHandler<shared::Transaction::SERVER_CONFIRM_LOBBY>
 		// Update global lobby state
 		ref->remove_lobby(toConfirm.joined[0]);		// Remove lobby if they exist, makes sure lobby only exists once
 		ref->remove_lobby(toConfirm.owner);			// Remove lobby if they exist, makes sure lobby only exists once
-		toConfirm.owner.prediction = Address{};		// Make sure prediction is empty
-		toConfirm.joined[0].prediction = Address{}; // Make sure prediction is empty
+		toConfirm.owner.prediction = DataPackage{};		// Make sure prediction is empty
+		toConfirm.joined[0].prediction = DataPackage{}; // Make sure prediction is empty
 		toConfirm.result = {};						// Clear previous results
 		ref->add_lobby(toConfirm.owner, toConfirm.joined);
 		std::cout << "Created lobby with owner " << toConfirm.owner.username << " and joined user " << toConfirm.joined[0].username << std::endl;
@@ -134,13 +134,6 @@ struct ServerHandler<shared::Transaction::SERVER_EXCHANGE_PREDICTION>
 	static const shared::DataPackage Handle(shared::DataPackage pkg, Server* ref, uint64_t session_hash)
 	{
 		using namespace shared;
-		// Read received prediction
-		Address rcvd_prediction;
-		if (auto err = pkg.Get<Address>(rcvd_prediction))
-		{
-			return DataPackage::Create(err);
-		}
-
 		// Find the related lobby
 		auto lobbies = ref->GetLobbies();
 		auto result = std::find_if(lobbies.begin(), lobbies.end(),
@@ -166,26 +159,24 @@ struct ServerHandler<shared::Transaction::SERVER_EXCHANGE_PREDICTION>
 		auto [hash, lobby] = *result;
 		if (lobby.owner.session == session_hash)
 		{
-			lobby.joined[0].prediction = rcvd_prediction;
+			lobby.joined[0].prediction = pkg;
 		}
 		else
 		{
-			lobby.owner.prediction = rcvd_prediction;
+			lobby.owner.prediction = pkg;
 		}
 		ref->add_lobby(lobby.owner, lobby.joined);
 
 		// Traverse if both predictions are received
-		if (lobby.owner.prediction.port != 0 && lobby.joined[0].prediction.port != 0)
+		if (lobby.owner.prediction.transaction != Transaction::NO_TRANSACTION && 
+			lobby.joined[0].prediction.transaction != Transaction::NO_TRANSACTION)
 		{
 			// Owner always punches holes !!!
-			DataPackage prediction_owner = 
-				DataPackage::Create(&lobby.owner.prediction, Transaction::CLIENT_START_TRAVERSAL)
-				.Add(MetaDataField::HOLEPUNCH_ROLE, HolepunchRole::PUNCH_HOLES);
-			DataPackage prediction_joined = 
-				DataPackage::Create(&lobby.joined[0].prediction, Transaction::CLIENT_START_TRAVERSAL)
-				.Add(MetaDataField::HOLEPUNCH_ROLE, HolepunchRole::TARGET_HOLES);
-			ref->send_session(prediction_owner, lobby.owner.session);
-			ref->send_session(prediction_joined, lobby.joined[0].session);
+			lobby.owner.prediction.transaction = Transaction::CLIENT_START_TRAVERSAL;
+			lobby.joined[0].prediction.transaction = Transaction::CLIENT_START_TRAVERSAL;
+
+			ref->send_session(lobby.owner.prediction, lobby.owner.session);
+			ref->send_session(lobby.joined[0].prediction, lobby.joined[0].session);
 		}
 		return DataPackage::Create<ErrorType::OK>();
 	}

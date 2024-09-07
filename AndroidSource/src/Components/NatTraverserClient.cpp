@@ -236,14 +236,16 @@ shared::Error NatTraverserClient::TraverseNATAsync(UDPHolepunching::Config const
 	return prepare_traverse_task_async([info, flag = shutdown_flag]() {return UDPHolepunching::StartHolepunching(info, flag); });
 }
 
-shared::Error NatTraverserClient::ExchangePredictionAsync(Address prediction_other_client)
+Error NatTraverserClient::ExchangePredictionAsync(Address prediction_other_client, uint16_t traversal_sample_size, uint16_t traversal_sample_rate)
 {
 	if (!rw_future.valid())
 	{
 		return Error(ErrorType::ERROR, { "Please call connect before any other action" });
 	}
 
-	auto data_package = DataPackage::Create(&prediction_other_client, Transaction::SERVER_EXCHANGE_PREDICTION);
+	auto data_package = DataPackage::Create(&prediction_other_client, Transaction::SERVER_EXCHANGE_PREDICTION)
+		.Add(MetaDataField::TRAVERSAL_SIZE, traversal_sample_size)
+		.Add(MetaDataField::TRAVERSAL_RATE, traversal_sample_rate);
 
 	return push_package(write_queue, data_package, true);
 }

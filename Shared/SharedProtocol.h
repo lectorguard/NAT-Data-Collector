@@ -151,7 +151,7 @@ namespace shared
 	{
 		nlohmann::json data{};
 		nlohmann::json meta_data{};
-		Transaction transaction{};
+		Transaction transaction = Transaction::NO_TRANSACTION;
 		Error error{};
 		std::string version = APP_VERSION;
 

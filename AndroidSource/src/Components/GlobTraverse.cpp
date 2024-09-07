@@ -293,10 +293,19 @@ void GlobTraverse::HandleTransaction(Application* app, DataPackage pkg)
 			Log::Info("Received %d remote address samples in stage %d", _analyze_results.stages[i].data.size(), i);
 		}
 
+		// Calculate dynamic stage parameters
+		if (_rnat_trav_stage.start_stage_cb)
+		{
+			_rnat_trav_stage.start_stage_cb(_rnat_trav_stage, _analyze_results, _start_traversal_timestamp);
+		}
+
 		DataPackage prediction;
 		if (model.GetClientMetaData().nat_type == NATType::CONE)
 		{
 			prediction = PredictConeNAT(_analyze_results, _cone_local_port);
+			// Cone NAT does not need dynamic config, simply send a single package
+			_rnat_trav_stage.sample_size = 1;
+			_rnat_trav_stage.sample_rate_ms = 0;
 		}
 		else if (model.GetClientMetaData().nat_type == NATType::RANDOM_SYM)
 		{
@@ -310,7 +319,7 @@ void GlobTraverse::HandleTransaction(Application* app, DataPackage pkg)
 
 		Address predicted_address;
 		if ((err = prediction.Get(predicted_address))) break;
-		err = _client.ExchangePredictionAsync(predicted_address);
+		err = _client.ExchangePredictionAsync(predicted_address, _rnat_trav_stage.sample_size, _rnat_trav_stage.sample_rate_ms);
 		break;
 	}
 	case Transaction::CLIENT_START_TRAVERSAL:
@@ -318,37 +327,38 @@ void GlobTraverse::HandleTransaction(Application* app, DataPackage pkg)
 		Log::Info("Start Traversal");
 		auto data = pkg
 			.Get<Address>()
-			.Get<HolepunchRole>(MetaDataField::HOLEPUNCH_ROLE);
+			.Get<uint16_t>(MetaDataField::TRAVERSAL_SIZE)
+			.Get<uint16_t>(MetaDataField::TRAVERSAL_RATE);
 		if ((err = data.error)) break;
-		const auto [predicted_address, _role] = data.values;
+		const auto [predicted_address, other_size, other_rate] = data.values;
+
+		// Make sure each device can send all its packages, other peer has to wait during this time
+		const uint32_t deadline_duration =
+			std::max(other_size * other_rate, _rnat_trav_stage.sample_size * _rnat_trav_stage.sample_rate_ms) + 5000;
 
 		if (model.GetClientMetaData().nat_type == NATType::CONE)
 		{
 			_traverse_config = UDPHolepunching::Config
 			{
 				predicted_address, // Address
-				1,		// Traversal Attempts
-				0,		// Traversal Rate
+				_rnat_trav_stage.sample_size,		// Traversal Attempts
+				_rnat_trav_stage.sample_rate_ms,		// Traversal Rate
 				_cone_local_port,	// local port
-				250'000,	// Deadline duration ms	
+				deadline_duration,	// Deadline duration ms	
 				28'000,	// Keep alive ms
 			};
 			err = _client.TraverseNATAsync(_traverse_config);
 		}
 		else if (model.GetClientMetaData().nat_type == NATType::RANDOM_SYM)
 		{
-			// Start the stage
-			if (_rnat_trav_stage.start_stage_cb)
-			{
-				_rnat_trav_stage.start_stage_cb(_rnat_trav_stage, _analyze_results, _start_traversal_timestamp);
-			}
+
 			_traverse_config = UDPHolepunching::Config
 			{
 				predicted_address, // Address
 				_rnat_trav_stage.sample_size,		// Traversal Attempts
 				_rnat_trav_stage.sample_rate_ms,		// Traversal Rate
 				_rnat_trav_stage.local_port,	// local port
-				250'000,	// Deadline duration ms	
+				deadline_duration,	// Deadline duration ms	
 				0,	// Keep alive ms
 			};
 			err = _client.TraverseNATAsync(_traverse_config);

@@ -77,11 +77,12 @@ namespace shared
 		
 		uint64_t session{};
 		std::string username{};
-		Address prediction{};
+		// Field not serialized
+		DataPackage prediction{};
 
 		jser::JserChunkAppender AddItem() override
 		{
-			return JSerializable::AddItem().Append(JSER_ADD(SerializeManagerType,session, username, prediction));
+			return JSerializable::AddItem().Append(JSER_ADD(SerializeManagerType,session, username));
 		}
 	};
 

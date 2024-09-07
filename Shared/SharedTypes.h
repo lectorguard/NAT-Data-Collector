@@ -65,7 +65,10 @@ namespace shared
 		USER_SESSION_KEY,
 		HOLEPUNCH_ROLE,
 		SUCCESS,
-		NAT_TYPE
+		NAT_TYPE,
+		TRAVERSAL_RATE,
+		TRAVERSAL_SIZE
+
 	};
 
 	inline const std::map<MetaDataField, std::string> meta_data_to_string{
@@ -82,7 +85,9 @@ namespace shared
 		{MetaDataField::USER_SESSION_KEY, "user_session_key"},
 		{MetaDataField::HOLEPUNCH_ROLE, "holepunch_role"},
 		{MetaDataField::SUCCESS, "success"},
-		{MetaDataField::NAT_TYPE, "nat_type"}
+		{MetaDataField::NAT_TYPE, "nat_type"},
+		{MetaDataField::TRAVERSAL_RATE, "traversal_rate"},
+		{MetaDataField::TRAVERSAL_SIZE, "traversal_size"}
 	};
 
 	enum class HolepunchRole : uint8_t
