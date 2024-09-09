@@ -333,8 +333,19 @@ void GlobTraverse::HandleTransaction(Application* app, DataPackage pkg)
 		const auto [predicted_address, other_size, other_rate] = data.values;
 
 		// Make sure each device can send all its packages, other peer has to wait during this time
-		const uint32_t deadline_duration =
-			std::max(other_size * other_rate, _rnat_trav_stage.sample_size * _rnat_trav_stage.sample_rate_ms) + 5000;
+		const uint32_t other_duration = other_size * other_rate;
+		const uint32_t own_duration = _rnat_trav_stage.sample_size * _rnat_trav_stage.sample_rate_ms;
+		Log::Info("Old Smaple Rate : %d ms", _rnat_trav_stage.sample_rate_ms);
+		if (other_duration > own_duration)
+		{
+			_rnat_trav_stage.sample_rate_ms = other_duration / _rnat_trav_stage.sample_size;
+		}
+		else
+		{
+			_rnat_trav_stage.sample_rate_ms = own_duration / _rnat_trav_stage.sample_size;
+		}
+		Log::Info("New Smaple Rate : %d ms", _rnat_trav_stage.sample_rate_ms);
+		const uint32_t deadline_duration = std::max(other_duration, own_duration) + 5000;
 
 		if (model.GetClientMetaData().nat_type == NATType::CONE)
 		{

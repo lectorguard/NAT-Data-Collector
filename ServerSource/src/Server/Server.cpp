@@ -110,17 +110,25 @@ void Server::do_accept()
 {
 	acceptor_.async_accept(
 		asio::make_strand(acceptor_.get_executor()), [this](asio::error_code ec, asio::ip::tcp::socket s) {
-			if (!ec)
-			{
-				const uint64_t hash = calcSocketHash(s);
-				auto sess = std::make_shared<Session>(std::move(s), hash, this);
-				_sessions[hash] = sess;
-				sess->start();
-			}
-			else
+			if (ec)
 			{
 				std::cout << "Failed Accept : " << ec.message() << std::endl;
+				do_accept();
+				return;
 			}
+			asio::ip::tcp::socket::keep_alive option(true);
+			s.set_option(option, ec);
+			if (ec)
+			{
+				std::cout << "Failed Keep Alive Option : " << ec.message() << std::endl;
+				do_accept();
+				return;
+			}
+
+			const uint64_t hash = calcSocketHash(s);
+			auto sess = std::make_shared<Session>(std::move(s), hash, this);
+			_sessions[hash] = sess;
+			sess->start();
 			do_accept();
 		});
 }

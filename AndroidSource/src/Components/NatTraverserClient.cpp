@@ -359,6 +359,14 @@ Error NatTraverserClient::connect_internal(const TraversalInfo& info)
 	{
 		return error;
 	}
+
+	asio::ip::tcp::socket::keep_alive option(true);
+	socket.set_option(option, asio_error);
+	if (auto error = Error::FromAsio(asio_error, "Enable keep alive option on socket"))
+	{
+		return error;
+	}
+
 	push_package(info.read_queue, DataPackage::Create(nullptr, Transaction::CLIENT_CONNECTED), false);
 
 
