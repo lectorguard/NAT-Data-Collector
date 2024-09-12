@@ -12,9 +12,31 @@
 #include "asio.hpp"
 #include "Singletons/ServerConfig.h"
 #include "Server/Server.h"
+#include <stdexcept>
+#include <execinfo.h>
+
+
+void handler()
+{
+	void* trace_elems[20];
+	int trace_elem_count(backtrace(trace_elems, 20));
+	char** stack_syms(backtrace_symbols(trace_elems, trace_elem_count));
+	std::cout << "START-TRACE" << std::endl;
+	for (int i = 0; i < trace_elem_count; ++i)
+	{
+		std::cout << stack_syms[i] << "\n";
+	}
+	std::cout << "END-TRACE" << std::endl;
+	free(stack_syms);
+
+	if (std::current_exception())
+		std::rethrow_exception(std::current_exception());
+	exit(1);
+}
 
 int main()
 {
+	std::set_terminate(handler);
 	if (auto server_config = ServerConfig::Get())
 	{
 		std::cout << "Successfully read server_config.json file" << std::endl;

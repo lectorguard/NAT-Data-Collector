@@ -224,6 +224,11 @@ Address to line
 llvm-addr2line -C -f -e "libnative-activity.so" 0x001610ac
 ```
 
+Convert logcat stacktrace to code lines [ndk-stack-tool](https://developer.android.com/ndk/guides/ndk-stack)
+
+```
+adb logcat -d > log.txt;ndk-stack -sym AndroidPackaging/app/src/main/jniLibs/armeabi-v7a -dump log.txt
+```
 
 * [Native Crash Docs](https://source.android.com/docs/core/tests/debug/native-crash)
 * [Native Crash Debugging](https://proandroiddev.com/debugging-native-crashes-in-android-apps-2b86fd7113d8)
