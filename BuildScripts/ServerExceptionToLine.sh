@@ -23,8 +23,9 @@ process_trace() {
             if [[ "$address" == +* ]]; then
                 # Remove the leading '+'
                 clean_address="${address#+}"
-                result=$(addr2line -e "$left_path" "$clean_address")
-                if [[ $result == *"?"* ]]; then
+                result=$(addr2line -C -f -e "$left_path" "$clean_address")
+		echo  "$clean_address  $left_path"
+		if [[ $result == "??:?" ]]; then
                     echo "$line"
                 else
                     echo "$result [$bracket_content]"
