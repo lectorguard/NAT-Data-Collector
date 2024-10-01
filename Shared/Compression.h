@@ -8,14 +8,19 @@
 
 
 namespace shared
-{
+{	
+
 	inline const std::vector<uint8_t> compressZstd(const std::vector<uint8_t>& data, int compression_level = 1)
 	{
 		std::vector<uint8_t> buf;
 		size_t const cBuffSize = ZSTD_compressBound(data.size());
 		buf.resize(cBuffSize);
-		ZSTD_compress(buf.data(), buf.size(), data.data(), data.size(), compression_level);
-		buf.shrink_to_fit();
+		size_t const compressedSize = ZSTD_compress(buf.data(), buf.size(), data.data(), data.size(), compression_level);
+		if (ZSTD_isError(compressedSize)) {
+			std::cout << "Compress error " << ZSTD_getErrorName(compressedSize) << std::endl;
+			return {};
+		}
+		buf.resize(compressedSize);
 		return buf;
 	}
 
@@ -23,9 +28,24 @@ namespace shared
 	{
 		std::vector<uint8_t> buf;
 		unsigned long long const rSize = ZSTD_getFrameContentSize(data.data(), data.size());
-		buf.resize(rSize);
-		ZSTD_decompress(buf.data(), buf.size(), data.data(), data.size());
-		buf.shrink_to_fit();
+		if (rSize == ZSTD_CONTENTSIZE_ERROR)
+		{
+			return buf;
+		}
+		if (rSize == ZSTD_CONTENTSIZE_UNKNOWN)
+		{
+			buf.resize(150'000'000);
+		}
+		else
+		{
+			buf.resize(rSize);
+		}
+		size_t const decompressedSize = ZSTD_decompress(buf.data(), buf.size(), data.data(), data.size());
+		if (ZSTD_isError(decompressedSize)) {
+			std::cout << "Decompress error : " << ZSTD_getErrorName(decompressedSize) << std::endl;
+			return {};
+		}
+		buf.resize(decompressedSize);
 		return buf;
 	}
 

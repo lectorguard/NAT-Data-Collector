@@ -258,6 +258,11 @@ namespace shared
 			}
 
 			std::vector<uint8_t> data_compressed = shared::compressZstd(nlohmann::json::to_msgpack(response_json));
+			if (data_compressed.empty())
+			{
+				return std::nullopt;
+			}
+
 			if (!prepend_msg_length)
 			{
 				return data_compressed;
@@ -274,7 +279,13 @@ namespace shared
 
 		static DataPackage Decompress(const std::vector<uint8_t>& data)
 		{
-			nlohmann::json decompressed_answer = nlohmann::json::from_msgpack(shared::decompressZstd(data), true, false);
+			const std::vector<uint8_t> dec_zstd = shared::decompressZstd(data);
+			if (dec_zstd.empty())
+			{
+				std::cout << "Decompressed zstd package is empty" << std::endl;
+				return DataPackage::Create<ErrorType::ERROR>({ "Decompressed zstd package is empty" });
+			}
+			nlohmann::json decompressed_answer = nlohmann::json::from_msgpack(dec_zstd, true, false);
 			if (decompressed_answer.is_null())
 			{
 				std::cout << "Decompress data package is invalid" << std::endl;
