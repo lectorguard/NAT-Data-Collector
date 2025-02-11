@@ -7,7 +7,7 @@ android {
     defaultConfig.with {
         $(ApplicationId)
         minSdkVersion 20
-        targetSdkVersion 33
+        targetSdkVersion $(AndroidAPILevelNumber)
         ndk.debugSymbolLevel = 'FULL'
     }
 
@@ -35,6 +35,12 @@ android {
             minifyEnabled true 
             debuggable true
             signingConfig signingConfigs.release
+        }
+        debug {
+            minifyEnabled false 
+            debuggable true
+            jniDebuggable true
+            ndk.debugSymbolLevel = 'FULL'
         }
     }
 
